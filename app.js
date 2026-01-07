@@ -3441,6 +3441,7 @@ function SocialTab({ contracts, selectedToken, userTokens, account, showNotifica
                 <ReputationSection
                     reputation={reputation}
                     reviews={reviews}
+                    reviewsWritten={reviewsWritten}
                     loading={loading}
                     contracts={contracts}
                     selectedToken={selectedToken}
@@ -3564,7 +3565,7 @@ function SocialTab({ contracts, selectedToken, userTokens, account, showNotifica
 }
 
 // Reputation Section Component
-function ReputationSection({ reputation, reviews, loading, contracts, selectedToken, userTokens, showNotification, onReload }) {
+function ReputationSection({ reputation, reviews, reviewsWritten, loading, contracts, selectedToken, userTokens, showNotification, onReload }) {
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [reviewData, setReviewData] = useState({
         reviewerTokenId: '',
@@ -3670,12 +3671,12 @@ function ReputationSection({ reputation, reviews, loading, contracts, selectedTo
             <Card>
                 <div className="section-header">
                     <h3>Reviews I've Written</h3>
-                    <span className="badge">{reviewsWritten.length}</span>
+                    <span className="badge">{reviewsWritten?.length || 0}</span>
                 </div>
 
                 {loading ? (
                     <LoadingSpinner />
-                ) : reviewsWritten.length === 0 ? (
+                ) : !reviewsWritten || reviewsWritten.length === 0 ? (
                     <div className="empty-message">
                         <p>You haven't written any reviews yet</p>
                     </div>
@@ -3989,23 +3990,25 @@ function ProjectsSection({ projects, loading, contracts, selectedToken, showNoti
 function EndorsementsSection({ endorsements, loading, contracts, selectedToken, userTokens, showNotification, onReload }) {
     // Group endorsements by skill hash
     const endorsementsBySkill = {};
-    endorsements.forEach(end => {
-        const skillHash = end.skillHash;
-        if (!endorsementsBySkill[skillHash]) {
-            endorsementsBySkill[skillHash] = [];
-        }
-        endorsementsBySkill[skillHash].push(end);
-    });
+    if (endorsements && endorsements.length > 0) {
+        endorsements.forEach(end => {
+            const skillHash = end.skillHash;
+            if (!endorsementsBySkill[skillHash]) {
+                endorsementsBySkill[skillHash] = [];
+            }
+            endorsementsBySkill[skillHash].push(end);
+        });
+    }
 
     return (
         <Card>
             <div className="section-header">
                 <h3>Skill Endorsements</h3>
-                <span className="badge">{endorsements.length}</span>
+                <span className="badge">{endorsements?.length || 0}</span>
             </div>
             {loading ? (
                 <LoadingSpinner />
-            ) : endorsements.length === 0 ? (
+            ) : !endorsements || endorsements.length === 0 ? (
                 <div className="empty-message">
                     <p>No endorsements yet</p>
                 </div>
