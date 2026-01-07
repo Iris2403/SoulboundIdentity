@@ -2098,6 +2098,8 @@ function SummaryCard({ icon, label, count, color }) {
 
 // Credential Card Component
 function CredentialCard({ credential, onRevoke }) {
+    const [showDetails, setShowDetails] = useState(false);
+    
     const statusColors = {
         0: 'var(--success)', // Active
         1: 'var(--error)',   // Revoked
@@ -2107,49 +2109,245 @@ function CredentialCard({ credential, onRevoke }) {
     const statusLabels = ['Active', 'Revoked', 'Expired'];
     const typeIcons = ['🎓', '📜', '💼', '🆔', '⚡'];
 
+    const copyToClipboard = (text) => {
+        navigator.clipboard.writeText(text);
+        alert('Copied to clipboard!');
+    };
+
     return (
-        <Card className="credential-card">
-            <div className="credential-header">
-                <div className="credential-type-badge">
-                    <span className="type-icon">{typeIcons[credential.credType]}</span>
-                    <span className="type-label">{credentialTypes[credential.credType]}</span>
+        <>
+            <Card className="credential-card">
+                <div className="credential-header">
+                    <div className="credential-type-badge">
+                        <span className="type-icon">{typeIcons[credential.credType]}</span>
+                        <span className="type-label">{credentialTypes[credential.credType]}</span>
+                    </div>
+                    <div className="credential-status" style={{ color: statusColors[credential.status] }}>
+                        {statusLabels[credential.status]}
+                    </div>
                 </div>
-                <div className="credential-status" style={{ color: statusColors[credential.status] }}>
-                    {statusLabels[credential.status]}
-                </div>
-            </div>
 
-            <div className="credential-body">
-                <h3 className="credential-title">Credential ID: {credential.credentialId.toString()}</h3>
-                <div className="credential-meta">
-                    <div className="meta-item">
-                        <span className="meta-label">Issuer:</span>
-                        <code className="meta-value">{shortenAddress(credential.issuer)}</code>
-                    </div>
-                    <div className="meta-item">
-                        <span className="meta-label">Issue Date:</span>
-                        <span className="meta-value">{formatDate(credential.issueDate)}</span>
-                    </div>
-                    {credential.expiryDate > 0 && (
+                <div className="credential-body">
+                    <h3 className="credential-title">Credential ID: {credential.credentialId.toString()}</h3>
+                    <div className="credential-meta">
                         <div className="meta-item">
-                            <span className="meta-label">Expiry Date:</span>
-                            <span className="meta-value">{formatDate(credential.expiryDate)}</span>
+                            <span className="meta-label">Issuer:</span>
+                            <code className="meta-value">{shortenAddress(credential.issuer)}</code>
                         </div>
-                    )}
-                    <div className="meta-item">
-                        <span className="meta-label">Verified:</span>
-                        <span className="meta-value">{credential.verified ? '✓ Yes' : '✗ No'}</span>
+                        <div className="meta-item">
+                            <span className="meta-label">Issue Date:</span>
+                            <span className="meta-value">{formatDate(credential.issueDate)}</span>
+                        </div>
+                        {credential.expiryDate > 0 && (
+                            <div className="meta-item">
+                                <span className="meta-label">Expiry Date:</span>
+                                <span className="meta-value">{formatDate(credential.expiryDate)}</span>
+                            </div>
+                        )}
+                        <div className="meta-item">
+                            <span className="meta-label">Verified:</span>
+                            <span className="meta-value">{credential.verified ? '✓ Yes' : '✗ No'}</span>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            {credential.status === 0 && (
                 <div className="credential-actions">
-                    <Button variant="danger" onClick={onRevoke} style={{ fontSize: '12px', padding: '8px 16px' }}>
-                        Revoke
-                    </Button>
+                    <button 
+                        className="view-credential-btn"
+                        onClick={() => setShowDetails(true)}
+                    >
+                        👁️ View Details
+                    </button>
+                    {credential.status === 0 && (
+                        <Button variant="danger" onClick={onRevoke} style={{ fontSize: '12px', padding: '8px 16px' }}>
+                            Revoke
+                        </Button>
+                    )}
                 </div>
-            )}
+            </Card>
+
+            <Modal isOpen={showDetails} onClose={() => setShowDetails(false)} title={`Credential #${credential.credentialId.toString()} Details`}>
+                <div className="credential-details">
+                    <div className="detail-section">
+                        <h4>Credential Information</h4>
+                        <div className="detail-row">
+                            <span className="detail-label">Credential ID:</span>
+                            <span className="detail-value">{credential.credentialId.toString()}</span>
+                        </div>
+                        <div className="detail-row">
+                            <span className="detail-label">Type:</span>
+                            <span className="detail-value">{typeIcons[credential.credType]} {credentialTypes[credential.credType]}</span>
+                        </div>
+                        <div className="detail-row">
+                            <span className="detail-label">Status:</span>
+                            <span className="detail-value" style={{ color: statusColors[credential.status] }}>
+                                {statusLabels[credential.status]}
+                            </span>
+                        </div>
+                        <div className="detail-row">
+                            <span className="detail-label">Verified:</span>
+                            <span className="detail-value" style={{ color: credential.verified ? 'var(--success)' : 'var(--warning)' }}>
+                                {credential.verified ? '✓ Verified by Issuer' : '✗ Self-Reported (Unverified)'}
+                            </span>
+                        </div>
+                        {credential.credType === 4 && (
+                            <div className="detail-row">
+                                <span className="detail-label">Category:</span>
+                                <span className="detail-value">{skillCategories[credential.category]}</span>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="detail-section">
+                        <h4>Issuer Information</h4>
+                        <div className="detail-row">
+                            <span className="detail-label">Issuer Address:</span>
+                            <code className="detail-value">{credential.issuer}</code>
+                        </div>
+                        <button 
+                            className="copy-btn"
+                            onClick={() => copyToClipboard(credential.issuer)}
+                            style={{ marginTop: '8px' }}
+                        >
+                            📋 Copy Issuer Address
+                        </button>
+                    </div>
+
+                    <div className="detail-section">
+                        <h4>Dates</h4>
+                        <div className="detail-row">
+                            <span className="detail-label">Issue Date:</span>
+                            <span className="detail-value">{formatDate(credential.issueDate)}</span>
+                        </div>
+                        <div className="detail-row">
+                            <span className="detail-label">Expiry Date:</span>
+                            <span className="detail-value">
+                                {credential.expiryDate > 0 ? formatDate(credential.expiryDate) : 'Never Expires'}
+                            </span>
+                        </div>
+                        {credential.expiryDate > 0 && (
+                            <div className="detail-row">
+                                <span className="detail-label">Days Until Expiry:</span>
+                                <span className="detail-value">
+                                    {Math.max(0, Math.floor((credential.expiryDate - Date.now() / 1000) / 86400))} days
+                                </span>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="detail-section">
+                        <h4>Metadata</h4>
+                        <div className="cid-display">
+                            <code className="full-cid">{credential.metadataHash}</code>
+                            <button 
+                                className="copy-btn"
+                                onClick={() => copyToClipboard(credential.metadataHash)}
+                            >
+                                📋 Copy
+                            </button>
+                        </div>
+                        <p style={{ fontSize: '13px', color: 'var(--gray)', marginTop: '12px' }}>
+                            This hash represents the IPFS metadata containing detailed information about this credential.
+                        </p>
+                    </div>
+
+                    <div className="detail-section">
+                        <h4>Blockchain Information</h4>
+                        <div className="detail-row">
+                            <span className="detail-label">Contract:</span>
+                            <code className="detail-value">{CONFIG.CONTRACTS.CREDENTIALS_HUB}</code>
+                        </div>
+                        <div className="detail-row">
+                            <span className="detail-label">Network:</span>
+                            <span className="detail-value">{CONFIG.NETWORK_NAME}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <style jsx>{`
+                    .credential-details {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 24px;
+                    }
+
+                    .detail-section {
+                        border-bottom: 1px solid rgba(14, 116, 144, 0.2);
+                        padding-bottom: 20px;
+                    }
+
+                    .detail-section:last-child {
+                        border-bottom: none;
+                        padding-bottom: 0;
+                    }
+
+                    .detail-section h4 {
+                        color: var(--teal-light);
+                        font-size: 16px;
+                        margin-bottom: 12px;
+                    }
+
+                    .detail-row {
+                        display: flex;
+                        justify-content: space-between;
+                        padding: 8px 0;
+                        gap: 16px;
+                    }
+
+                    .detail-label {
+                        color: var(--gray);
+                        font-size: 14px;
+                        font-weight: 500;
+                    }
+
+                    .detail-value {
+                        color: var(--beige);
+                        font-size: 14px;
+                        text-align: right;
+                        word-break: break-word;
+                    }
+
+                    code.detail-value {
+                        color: var(--teal-light);
+                        font-family: monospace;
+                        font-size: 12px;
+                    }
+
+                    .cid-display {
+                        display: flex;
+                        gap: 12px;
+                        align-items: center;
+                        background: rgba(26, 35, 50, 0.5);
+                        padding: 12px;
+                        border-radius: 8px;
+                    }
+
+                    .full-cid {
+                        flex: 1;
+                        color: var(--teal-light);
+                        font-family: monospace;
+                        font-size: 12px;
+                        word-break: break-all;
+                    }
+
+                    .copy-btn {
+                        background: var(--teal);
+                        border: none;
+                        color: white;
+                        padding: 8px 16px;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 12px;
+                        white-space: nowrap;
+                        transition: all 0.3s ease;
+                    }
+
+                    .copy-btn:hover {
+                        background: var(--teal-light);
+                        transform: translateY(-1px);
+                    }
+                `}</style>
+            </Modal>
 
             <style jsx>{`
                 .credential-card {
@@ -2231,12 +2429,36 @@ function CredentialCard({ credential, onRevoke }) {
 
                 .credential-actions {
                     display: flex;
-                    justify-content: flex-end;
+                    justify-content: space-between;
+                    align-items: center;
+                    gap: 12px;
                     padding-top: 16px;
                     border-top: 1px solid rgba(14, 116, 144, 0.2);
                 }
+
+                .view-credential-btn {
+                    flex: 1;
+                    padding: 10px 16px;
+                    background: var(--teal);
+                    border: none;
+                    color: white;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 13px;
+                    font-weight: 600;
+                    transition: all 0.3s ease;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 6px;
+                }
+
+                .view-credential-btn:hover {
+                    background: var(--teal-light);
+                    transform: translateY(-1px);
+                }
             `}</style>
-        </Card>
+        </>
     );
 }
 // Access Control Tab Component
