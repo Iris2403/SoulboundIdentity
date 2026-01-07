@@ -2501,27 +2501,46 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
         
         try {
             const accessibleTokens = [];
-            // Check a range of token IDs (you could make this smarter based on total supply)
-            // For demo purposes, checking first 100 tokens
-            for (let tokenId = 1; tokenId <= 100; tokenId++) {
+            // Check a range of token IDs
+            // For demo purposes, checking first 10 tokens (adjust based on your needs)
+            const maxTokenId = 10;
+            
+            for (let tokenId = 1; tokenId <= maxTokenId; tokenId++) {
                 try {
-                    const hasAccess = await contracts.soulbound.canView(tokenId, contracts.soulbound.signer.getAddress());
+                    // First check if token exists
                     const owner = await contracts.soulbound.ownerOf(tokenId);
                     const myAddress = await contracts.soulbound.signer.getAddress();
                     
-                    // Only include if I have access and I'm NOT the owner
-                    if (hasAccess && owner.toLowerCase() !== myAddress.toLowerCase()) {
+                    // Skip if I'm the owner
+                    if (owner.toLowerCase() === myAddress.toLowerCase()) {
+                        continue;
+                    }
+                    
+                    // Check if I have access
+                    const hasAccess = await contracts.soulbound.canView(tokenId, myAddress);
+                    
+                    // Only include if I have access
+                    if (hasAccess) {
                         const [, expiresAt] = await contracts.soulbound.checkAccess(tokenId, myAddress);
-                        const metadataCID = await contracts.soulbound.getMetadata(tokenId);
+                        
+                        // Try to get metadata, but don't fail if we can't
+                        let metadataCID = '';
+                        try {
+                            metadataCID = await contracts.soulbound.getMetadata(tokenId);
+                        } catch (metadataError) {
+                            console.log(`Could not fetch metadata for token ${tokenId}:`, metadataError.message);
+                            // Continue without CID
+                        }
+                        
                         accessibleTokens.push({
                             tokenId,
                             owner,
                             expiresAt: expiresAt.toNumber(),
-                            cid: metadataCID
+                            cid: metadataCID || 'N/A'
                         });
                     }
                 } catch (err) {
-                    // Token doesn't exist or error, skip it
+                    // Token doesn't exist or other error, skip it
                     continue;
                 }
             }
