@@ -544,6 +544,26 @@ function App() {
 
 // Header Component
 function Header({ account, onConnect, loading }) {
+    const [showAccountMenu, setShowAccountMenu] = useState(false);
+    
+    const copyAddress = () => {
+        navigator.clipboard.writeText(account);
+        alert('Address copied to clipboard!');
+    };
+    
+    const switchAccount = async () => {
+        try {
+            await window.ethereum.request({
+                method: 'wallet_requestPermissions',
+                params: [{ eth_accounts: {} }]
+            });
+            // This will trigger MetaMask to let user choose account
+            window.location.reload();
+        } catch (error) {
+            console.error('Error switching account:', error);
+        }
+    };
+    
     return (
         <header className="header">
             <div className="header-content">
@@ -557,10 +577,23 @@ function Header({ account, onConnect, loading }) {
                 <div className="header-right">
                     {account ? (
                         <div className="account-info">
-                            <div className="account-badge">
+                            <div className="account-badge" onClick={() => setShowAccountMenu(!showAccountMenu)}>
                                 <div className="account-dot"></div>
                                 <span>{shortenAddress(account)}</span>
+                                <span className="dropdown-arrow">▼</span>
                             </div>
+                            {showAccountMenu && (
+                                <div className="account-menu">
+                                    <button className="menu-item" onClick={copyAddress}>
+                                        📋 Copy Address
+                                    </button>
+                                    <button className="menu-item" onClick={switchAccount}>
+                                        🔄 Switch Account
+                                    </button>
+                                    <div className="menu-divider"></div>
+                                    <div className="menu-address">{account}</div>
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <Button onClick={onConnect} disabled={loading}>
@@ -621,6 +654,7 @@ function Header({ account, onConnect, loading }) {
                 }
 
                 .account-info {
+                    position: relative;
                     display: flex;
                     align-items: center;
                 }
@@ -633,6 +667,13 @@ function Header({ account, onConnect, loading }) {
                     display: flex;
                     align-items: center;
                     gap: 10px;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                }
+
+                .account-badge:hover {
+                    background: rgba(14, 116, 144, 0.3);
+                    transform: translateY(-1px);
                 }
 
                 .account-dot {
@@ -641,6 +682,74 @@ function Header({ account, onConnect, loading }) {
                     background: var(--success);
                     border-radius: 50%;
                     animation: pulse 2s ease-in-out infinite;
+                }
+
+                .dropdown-arrow {
+                    font-size: 10px;
+                    color: var(--gray);
+                    transition: transform 0.3s ease;
+                }
+
+                .account-menu {
+                    position: absolute;
+                    top: 100%;
+                    right: 0;
+                    margin-top: 8px;
+                    background: rgba(26, 35, 50, 0.98);
+                    border: 1px solid var(--teal);
+                    border-radius: 12px;
+                    padding: 8px;
+                    min-width: 250px;
+                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+                    animation: slideIn 0.2s ease-out;
+                    z-index: 1000;
+                }
+
+                .menu-item {
+                    width: 100%;
+                    background: transparent;
+                    border: none;
+                    color: var(--beige);
+                    padding: 12px 16px;
+                    text-align: left;
+                    cursor: pointer;
+                    border-radius: 6px;
+                    font-size: 14px;
+                    transition: all 0.2s ease;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+
+                .menu-item:hover {
+                    background: rgba(14, 116, 144, 0.3);
+                }
+
+                .menu-divider {
+                    height: 1px;
+                    background: rgba(14, 116, 144, 0.3);
+                    margin: 8px 0;
+                }
+
+                .menu-address {
+                    padding: 12px 16px;
+                    font-size: 11px;
+                    color: var(--gray);
+                    font-family: monospace;
+                    word-break: break-all;
+                    background: rgba(14, 116, 144, 0.1);
+                    border-radius: 6px;
+                }
+
+                @keyframes slideIn {
+                    from {
+                        opacity: 0;
+                        transform: translateY(-10px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
                 }
 
                 @media (max-width: 768px) {
@@ -3175,8 +3284,12 @@ function SocialTab({ contracts, selectedToken, userTokens, account, showNotifica
     const [activeSection, setActiveSection] = useState('reputation');
     const [reputation, setReputation] = useState(null);
     const [reviews, setReviews] = useState([]);
+    const [reviewsWritten, setReviewsWritten] = useState([]);
     const [projects, setProjects] = useState([]);
+    const [myProjects, setMyProjects] = useState([]);
+    const [collaboratingOn, setCollaboratingOn] = useState([]);
     const [endorsements, setEndorsements] = useState([]);
+    const [endorsementCounts, setEndorsementCounts] = useState({});
     const [loading, setLoading] = useState(false);
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [showProjectModal, setShowProjectModal] = useState(false);
@@ -3185,6 +3298,7 @@ function SocialTab({ contracts, selectedToken, userTokens, account, showNotifica
     useEffect(() => {
         if (selectedToken && contracts) {
             loadSocialData();
+            loadMyActivity();
         }
     }, [selectedToken, contracts]);
 
@@ -3201,21 +3315,83 @@ function SocialTab({ contracts, selectedToken, userTokens, account, showNotifica
                 verifiedReviews: rep.verifiedReviews.toNumber()
             });
 
-            // Load reviews
+            // Load reviews received
             const revs = await contracts.social.getReviews(selectedToken);
             setReviews(revs);
 
             // Load projects
             const projs = await contracts.social.getProjects(selectedToken);
             setProjects(projs);
+            setMyProjects(projs); // These are projects on my token
 
-            // Load endorsements
+            // Load endorsements received
             const ends = await contracts.social.getEndorsements(selectedToken);
             setEndorsements(ends);
+            
+            // Count endorsements per skill
+            const counts = {};
+            ends.forEach(end => {
+                const skillHash = end.skillHash;
+                counts[skillHash] = (counts[skillHash] || 0) + 1;
+            });
+            setEndorsementCounts(counts);
         } catch (error) {
             console.error('Error loading social data:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadMyActivity = async () => {
+        if (!selectedToken) return;
+        
+        try {
+            // Load reviews I've written
+            const writtenReviews = [];
+            const storedReviews = JSON.parse(localStorage.getItem(`reviews_written_${selectedToken}`) || '[]');
+            
+            for (const item of storedReviews) {
+                try {
+                    const tokenReviews = await contracts.social.getReviews(item.targetTokenId);
+                    // Find my review in their reviews
+                    const myReview = tokenReviews.find(r => 
+                        r.reviewerTokenId.toString() === selectedToken.toString()
+                    );
+                    if (myReview) {
+                        writtenReviews.push({
+                            ...myReview,
+                            targetTokenId: item.targetTokenId
+                        });
+                    }
+                } catch (err) {
+                    console.log('Could not load review for token', item.targetTokenId);
+                }
+            }
+            setReviewsWritten(writtenReviews);
+
+            // Load projects I'm collaborating on (other people's projects)
+            const collaborations = [];
+            const storedCollabs = JSON.parse(localStorage.getItem(`collaborations_${selectedToken}`) || '[]');
+            
+            for (const item of storedCollabs) {
+                try {
+                    const tokenProjects = await contracts.social.getProjects(item.ownerTokenId);
+                    const project = tokenProjects.find(p => 
+                        p.projectId.toString() === item.projectId.toString()
+                    );
+                    if (project) {
+                        collaborations.push({
+                            ...project,
+                            ownerTokenId: item.ownerTokenId
+                        });
+                    }
+                } catch (err) {
+                    console.log('Could not load collaboration');
+                }
+            }
+            setCollaboratingOn(collaborations);
+        } catch (error) {
+            console.error('Error loading my activity:', error);
         }
     };
 
@@ -3410,6 +3586,15 @@ function ReputationSection({ reputation, reviews, loading, contracts, selectedTo
             );
             showNotification('Submitting review...', 'info');
             await tx.wait();
+            
+            // Track this review in localStorage
+            const storedReviews = JSON.parse(localStorage.getItem(`reviews_written_${reviewData.reviewerTokenId}`) || '[]');
+            storedReviews.push({
+                targetTokenId: selectedToken,
+                timestamp: Date.now()
+            });
+            localStorage.setItem(`reviews_written_${reviewData.reviewerTokenId}`, JSON.stringify(storedReviews));
+            
             showNotification('Review submitted successfully!', 'success');
             setShowReviewModal(false);
             setReviewData({ reviewerTokenId: '', score: '75', verified: false, isAnonymous: false, comment: '' });
@@ -3470,6 +3655,37 @@ function ReputationSection({ reputation, reviews, loading, contracts, selectedTo
                                         ) : (
                                             <span>Token #{review.reviewerTokenId.toString()}</span>
                                         )}
+                                        {review.verified && <span className="verified-badge">✓ Verified</span>}
+                                    </div>
+                                    <div className="review-score">{review.score}/100</div>
+                                </div>
+                                {review.comment && <p className="review-comment">{review.comment}</p>}
+                                <div className="review-date">{formatDate(review.createdAt)}</div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </Card>
+
+            <Card>
+                <div className="section-header">
+                    <h3>Reviews I've Written</h3>
+                    <span className="badge">{reviewsWritten.length}</span>
+                </div>
+
+                {loading ? (
+                    <LoadingSpinner />
+                ) : reviewsWritten.length === 0 ? (
+                    <div className="empty-message">
+                        <p>You haven't written any reviews yet</p>
+                    </div>
+                ) : (
+                    <div className="reviews-list">
+                        {reviewsWritten.map((review, idx) => (
+                            <div key={idx} className="review-item">
+                                <div className="review-header">
+                                    <div className="reviewer-info">
+                                        <span>For Token #{review.targetTokenId}</span>
                                         {review.verified && <span className="verified-badge">✓ Verified</span>}
                                     </div>
                                     <div className="review-score">{review.score}/100</div>
@@ -3771,6 +3987,16 @@ function ProjectsSection({ projects, loading, contracts, selectedToken, showNoti
 
 // Endorsements Section - Simplified placeholder
 function EndorsementsSection({ endorsements, loading, contracts, selectedToken, userTokens, showNotification, onReload }) {
+    // Group endorsements by skill hash
+    const endorsementsBySkill = {};
+    endorsements.forEach(end => {
+        const skillHash = end.skillHash;
+        if (!endorsementsBySkill[skillHash]) {
+            endorsementsBySkill[skillHash] = [];
+        }
+        endorsementsBySkill[skillHash].push(end);
+    });
+
     return (
         <Card>
             <div className="section-header">
@@ -3784,12 +4010,24 @@ function EndorsementsSection({ endorsements, loading, contracts, selectedToken, 
                     <p>No endorsements yet</p>
                 </div>
             ) : (
-                <div className="endorsements-list">
-                    {endorsements.map((endorsement, idx) => (
-                        <div key={idx} className="endorsement-item">
-                            <div>From Token #{endorsement.endorserId.toString()}</div>
-                            <div className="endorsement-date">{formatDate(endorsement.endorsedAt)}</div>
-                            {endorsement.comment && <p>{endorsement.comment}</p>}
+                <div className="endorsements-grouped">
+                    {Object.entries(endorsementsBySkill).map(([skillHash, skillEndorsements]) => (
+                        <div key={skillHash} className="skill-group">
+                            <div className="skill-header">
+                                <span className="skill-name">Skill Hash: {skillHash.substring(0, 10)}...</span>
+                                <span className="endorsement-count">
+                                    ⚡ {skillEndorsements.length} {skillEndorsements.length === 1 ? 'person' : 'people'} endorsed this
+                                </span>
+                            </div>
+                            <div className="endorsements-list">
+                                {skillEndorsements.map((endorsement, idx) => (
+                                    <div key={idx} className="endorsement-item">
+                                        <div>From Token #{endorsement.endorserId.toString()}</div>
+                                        <div className="endorsement-date">{formatDate(endorsement.endorsedAt)}</div>
+                                        {endorsement.comment && <p>{endorsement.comment}</p>}
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -3823,16 +4061,51 @@ function EndorsementsSection({ endorsements, loading, contracts, selectedToken, 
                     color: var(--gray-light);
                 }
 
+                .endorsements-grouped {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 24px;
+                }
+
+                .skill-group {
+                    background: rgba(14, 116, 144, 0.1);
+                    border-radius: 12px;
+                    padding: 16px;
+                    border: 1px solid rgba(14, 116, 144, 0.3);
+                }
+
+                .skill-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 12px;
+                    padding-bottom: 12px;
+                    border-bottom: 1px solid rgba(14, 116, 144, 0.3);
+                }
+
+                .skill-name {
+                    font-size: 14px;
+                    color: var(--teal-light);
+                    font-weight: 600;
+                    font-family: monospace;
+                }
+
+                .endorsement-count {
+                    font-size: 13px;
+                    color: var(--sky-light);
+                    font-weight: 600;
+                }
+
                 .endorsements-list {
                     display: flex;
                     flex-direction: column;
-                    gap: 12px;
+                    gap: 8px;
                 }
 
                 .endorsement-item {
                     background: rgba(26, 35, 50, 0.5);
                     border-radius: 8px;
-                    padding: 16px;
+                    padding: 12px;
                     border-left: 4px solid var(--sky);
                     color: var(--beige);
                 }
