@@ -1220,6 +1220,7 @@ function IdentityTab({ contracts, account, userTokens, selectedToken, setSelecte
 function TokenCard({ token, isSelected, onSelect, contracts }) {
     const [metadata, setMetadata] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [showDetails, setShowDetails] = useState(false);
 
     useEffect(() => {
         loadMetadata();
@@ -1241,6 +1242,19 @@ function TokenCard({ token, isSelected, onSelect, contracts }) {
         }
     };
 
+    const handleCardClick = (e) => {
+        // Don't trigger if clicking the details button
+        if (e.target.closest('.view-details-btn')) {
+            return;
+        }
+        onSelect();
+    };
+
+    const copyToClipboard = (text) => {
+        navigator.clipboard.writeText(text);
+        alert('Copied to clipboard!');
+    };
+
     if (loading) {
         return (
             <Card className={`token-card ${isSelected ? 'selected' : ''}`}>
@@ -1250,38 +1264,215 @@ function TokenCard({ token, isSelected, onSelect, contracts }) {
     }
 
     return (
-        <Card className={`token-card ${isSelected ? 'selected' : ''}`} onClick={onSelect}>
-            <div className="token-header">
-                <div className="token-avatar">
-                    {metadata?.profileImage ? (
-                        <img src={metadata.profileImage} alt="Profile" />
-                    ) : (
-                        <div className="avatar-placeholder">👤</div>
-                    )}
+        <>
+            <Card className={`token-card ${isSelected ? 'selected' : ''}`} onClick={handleCardClick}>
+                <div className="token-header">
+                    <div className="token-avatar">
+                        {metadata?.profileImage ? (
+                            <img src={metadata.profileImage} alt="Profile" />
+                        ) : (
+                            <div className="avatar-placeholder">👤</div>
+                        )}
+                    </div>
+                    <div className="token-info">
+                        <h3>{metadata?.name || `Token #${token.id}`}</h3>
+                        <span className="token-id">ID: {token.id}</span>
+                    </div>
                 </div>
-                <div className="token-info">
-                    <h3>{metadata?.name || `Token #${token.id}`}</h3>
-                    <span className="token-id">ID: {token.id}</span>
-                </div>
-            </div>
-            
-            {metadata?.bio && (
-                <p className="token-bio">{metadata.bio}</p>
-            )}
+                
+                {metadata?.bio && (
+                    <p className="token-bio">{metadata.bio}</p>
+                )}
 
-            <div className="token-cid">
-                <span className="cid-label">IPFS CID:</span>
-                <code className="cid-value">{token.cid.substring(0, 20)}...</code>
-            </div>
-
-            {isSelected && (
-                <div className="selected-badge">
-                    ✓ Selected
+                <div className="token-cid">
+                    <span className="cid-label">IPFS CID:</span>
+                    <code className="cid-value">{token.cid.substring(0, 20)}...</code>
                 </div>
-            )}
+
+                <button 
+                    className="view-details-btn"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setShowDetails(true);
+                    }}
+                >
+                    View Details
+                </button>
+
+                {isSelected && (
+                    <div className="selected-badge">
+                        ✓ Selected
+                    </div>
+                )}
+            </Card>
+
+            <Modal isOpen={showDetails} onClose={() => setShowDetails(false)} title={`Token #${token.id} Details`}>
+                <div className="token-details">
+                    <div className="detail-section">
+                        <h4>Token Information</h4>
+                        <div className="detail-row">
+                            <span className="detail-label">Token ID:</span>
+                            <span className="detail-value">{token.id}</span>
+                        </div>
+                        <div className="detail-row">
+                            <span className="detail-label">Name:</span>
+                            <span className="detail-value">{metadata?.name}</span>
+                        </div>
+                        <div className="detail-row">
+                            <span className="detail-label">Type:</span>
+                            <span className="detail-value">Soulbound Token (Non-transferable)</span>
+                        </div>
+                    </div>
+
+                    <div className="detail-section">
+                        <h4>Biography</h4>
+                        <p className="bio-full">{metadata?.bio}</p>
+                    </div>
+
+                    <div className="detail-section">
+                        <h4>IPFS Metadata</h4>
+                        <div className="cid-display">
+                            <code className="full-cid">{token.cid}</code>
+                            <button 
+                                className="copy-btn"
+                                onClick={() => copyToClipboard(token.cid)}
+                            >
+                                📋 Copy
+                            </button>
+                        </div>
+                        <a 
+                            href={`https://gateway.pinata.cloud/ipfs/${token.cid}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ipfs-link"
+                        >
+                            🔗 View on IPFS Gateway
+                        </a>
+                    </div>
+
+                    <div className="detail-section">
+                        <h4>Blockchain Information</h4>
+                        <div className="detail-row">
+                            <span className="detail-label">Contract:</span>
+                            <code className="detail-value">{CONFIG.CONTRACTS.SOULBOUND_IDENTITY}</code>
+                        </div>
+                        <div className="detail-row">
+                            <span className="detail-label">Network:</span>
+                            <span className="detail-value">{CONFIG.NETWORK_NAME}</span>
+                        </div>
+                        <div className="detail-row">
+                            <span className="detail-label">Chain ID:</span>
+                            <span className="detail-value">{CONFIG.CHAIN_ID}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <style jsx>{`
+                    .token-details {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 24px;
+                    }
+
+                    .detail-section {
+                        border-bottom: 1px solid rgba(14, 116, 144, 0.2);
+                        padding-bottom: 20px;
+                    }
+
+                    .detail-section:last-child {
+                        border-bottom: none;
+                        padding-bottom: 0;
+                    }
+
+                    .detail-section h4 {
+                        color: var(--teal-light);
+                        font-size: 16px;
+                        margin-bottom: 12px;
+                    }
+
+                    .detail-row {
+                        display: flex;
+                        justify-content: space-between;
+                        padding: 8px 0;
+                        gap: 16px;
+                    }
+
+                    .detail-label {
+                        color: var(--gray);
+                        font-size: 14px;
+                        font-weight: 500;
+                    }
+
+                    .detail-value {
+                        color: var(--beige);
+                        font-size: 14px;
+                        text-align: right;
+                        word-break: break-word;
+                    }
+
+                    code.detail-value {
+                        color: var(--teal-light);
+                        font-family: monospace;
+                        font-size: 12px;
+                    }
+
+                    .bio-full {
+                        color: var(--gray-light);
+                        font-size: 14px;
+                        line-height: 1.6;
+                    }
+
+                    .cid-display {
+                        display: flex;
+                        gap: 12px;
+                        align-items: center;
+                        background: rgba(26, 35, 50, 0.5);
+                        padding: 12px;
+                        border-radius: 8px;
+                        margin-bottom: 12px;
+                    }
+
+                    .full-cid {
+                        flex: 1;
+                        color: var(--teal-light);
+                        font-family: monospace;
+                        font-size: 12px;
+                        word-break: break-all;
+                    }
+
+                    .copy-btn {
+                        background: var(--teal);
+                        border: none;
+                        color: white;
+                        padding: 6px 12px;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 12px;
+                        white-space: nowrap;
+                        transition: all 0.3s ease;
+                    }
+
+                    .copy-btn:hover {
+                        background: var(--teal-light);
+                        transform: translateY(-1px);
+                    }
+
+                    .ipfs-link {
+                        display: inline-block;
+                        color: var(--sky);
+                        text-decoration: none;
+                        font-size: 14px;
+                        transition: color 0.3s ease;
+                    }
+
+                    .ipfs-link:hover {
+                        color: var(--sky-light);
+                        text-decoration: underline;
+                    }
+                `}</style>
+            </Modal>
 
             <style jsx>{`
-                .token-card {
                     cursor: pointer;
                     position: relative;
                     transition: all 0.3s ease;
@@ -1366,6 +1557,26 @@ function TokenCard({ token, isSelected, onSelect, contracts }) {
                     font-family: monospace;
                 }
 
+                .view-details-btn {
+                    width: 100%;
+                    margin-top: 12px;
+                    padding: 10px;
+                    background: transparent;
+                    border: 1px solid var(--teal);
+                    color: var(--teal-light);
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 13px;
+                    font-weight: 500;
+                    transition: all 0.3s ease;
+                }
+
+                .view-details-btn:hover {
+                    background: var(--teal);
+                    color: white;
+                    transform: translateY(-1px);
+                }
+
                 .selected-badge {
                     position: absolute;
                     top: 12px;
@@ -1378,7 +1589,7 @@ function TokenCard({ token, isSelected, onSelect, contracts }) {
                     font-weight: 600;
                 }
             `}</style>
-        </Card>
+        </>
     );
 }
 // Credentials Tab Component
