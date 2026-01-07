@@ -3568,6 +3568,7 @@ function SocialTab({ contracts, selectedToken, userTokens, account, showNotifica
 function ReputationSection({ reputation, reviews, reviewsWritten, loading, contracts, selectedToken, userTokens, showNotification, onReload }) {
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [reviewData, setReviewData] = useState({
+        targetTokenId: '',
         reviewerTokenId: '',
         score: '75',
         verified: false,
@@ -3577,8 +3578,13 @@ function ReputationSection({ reputation, reviews, reviewsWritten, loading, contr
 
     const handleSubmitReview = async () => {
         try {
+            if (!reviewData.targetTokenId || !reviewData.reviewerTokenId) {
+                showNotification('Please fill in all required fields', 'error');
+                return;
+            }
+
             const tx = await contracts.social.submitReview(
-                selectedToken,
+                parseInt(reviewData.targetTokenId),
                 parseInt(reviewData.reviewerTokenId),
                 parseInt(reviewData.score),
                 reviewData.verified,
@@ -3591,14 +3597,14 @@ function ReputationSection({ reputation, reviews, reviewsWritten, loading, contr
             // Track this review in localStorage
             const storedReviews = JSON.parse(localStorage.getItem(`reviews_written_${reviewData.reviewerTokenId}`) || '[]');
             storedReviews.push({
-                targetTokenId: selectedToken,
+                targetTokenId: parseInt(reviewData.targetTokenId),
                 timestamp: Date.now()
             });
             localStorage.setItem(`reviews_written_${reviewData.reviewerTokenId}`, JSON.stringify(storedReviews));
             
             showNotification('Review submitted successfully!', 'success');
             setShowReviewModal(false);
-            setReviewData({ reviewerTokenId: '', score: '75', verified: false, isAnonymous: false, comment: '' });
+            setReviewData({ targetTokenId: '', reviewerTokenId: '', score: '75', verified: false, isAnonymous: false, comment: '' });
             onReload();
         } catch (error) {
             console.error('Error submitting review:', error);
@@ -3701,8 +3707,17 @@ function ReputationSection({ reputation, reviews, reviewsWritten, loading, contr
 
             <Modal isOpen={showReviewModal} onClose={() => setShowReviewModal(false)} title="Write Review">
                 <div className="review-form">
+                    <Input
+                        label="Token ID to Review"
+                        value={reviewData.targetTokenId || ''}
+                        onChange={(val) => setReviewData({ ...reviewData, targetTokenId: val })}
+                        placeholder="Enter token ID you want to review"
+                        type="number"
+                        required
+                    />
+
                     <Select
-                        label="Your Token ID"
+                        label="Your Token ID (Reviewer)"
                         value={reviewData.reviewerTokenId}
                         onChange={(val) => setReviewData({ ...reviewData, reviewerTokenId: val })}
                         options={userTokens.map(t => ({ value: t.id.toString(), label: `Token #${t.id}` }))}
@@ -3906,29 +3921,207 @@ function ReputationSection({ reputation, reviews, reviewsWritten, loading, contr
 
 // Projects Section - Simplified placeholder
 function ProjectsSection({ projects, loading, contracts, selectedToken, showNotification, onReload }) {
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showCollabModal, setShowCollabModal] = useState(false);
+    const [selectedProject, setSelectedProject] = useState(null);
+    const [projectData, setProjectData] = useState({
+        title: '',
+        description: '',
+        url: ''
+    });
+    const [collabData, setCollabData] = useState('');
+
+    const handleCreateProject = async () => {
+        try {
+            if (!projectData.title) {
+                showNotification('Please enter a project title', 'error');
+                return;
+            }
+
+            // Create metadata hash
+            const metadata = {
+                title: projectData.title,
+                description: projectData.description,
+                url: projectData.url,
+                createdAt: Date.now()
+            };
+            const metadataHash = ethers.utils.id(JSON.stringify(metadata));
+
+            const tx = await contracts.social.createProject(selectedToken, metadataHash);
+            showNotification('Creating project...', 'info');
+            await tx.wait();
+            showNotification('Project created successfully!', 'success');
+            setShowCreateModal(false);
+            setProjectData({ title: '', description: '', url: '' });
+            onReload();
+        } catch (error) {
+            console.error('Error creating project:', error);
+            showNotification(error.message || 'Failed to create project', 'error');
+        }
+    };
+
+    const handleUpdateStatus = async (projectId, newStatus) => {
+        try {
+            const tx = await contracts.social.updateProjectStatus(selectedToken, projectId, newStatus);
+            showNotification('Updating project status...', 'info');
+            await tx.wait();
+            showNotification('Project status updated!', 'success');
+            onReload();
+        } catch (error) {
+            console.error('Error updating status:', error);
+            showNotification(error.message || 'Failed to update status', 'error');
+        }
+    };
+
+    const handleAddCollaborator = async () => {
+        try {
+            if (!collabData || !selectedProject) {
+                showNotification('Please enter a collaborator token ID', 'error');
+                return;
+            }
+
+            const tx = await contracts.social.addCollaborator(
+                selectedToken,
+                selectedProject.projectId,
+                parseInt(collabData)
+            );
+            showNotification('Adding collaborator...', 'info');
+            await tx.wait();
+            showNotification('Collaborator added successfully!', 'success');
+            setShowCollabModal(false);
+            setCollabData('');
+            setSelectedProject(null);
+            onReload();
+        } catch (error) {
+            console.error('Error adding collaborator:', error);
+            showNotification(error.message || 'Failed to add collaborator', 'error');
+        }
+    };
+
     return (
-        <Card>
-            <div className="section-header">
-                <h3>Projects Portfolio</h3>
-                <span className="badge">{projects.length}</span>
-            </div>
-            {loading ? (
-                <LoadingSpinner />
-            ) : projects.length === 0 ? (
-                <div className="empty-message">
-                    <p>No projects yet. Start showcasing your work!</p>
+        <>
+            <Card>
+                <div className="section-header">
+                    <h3>Projects Portfolio</h3>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <span className="badge">{projects?.length || 0}</span>
+                        <Button onClick={() => setShowCreateModal(true)} style={{ padding: '8px 16px', fontSize: '13px' }}>
+                            + Create Project
+                        </Button>
+                    </div>
                 </div>
-            ) : (
-                <div className="projects-grid">
-                    {projects.map((project, idx) => (
-                        <div key={idx} className="project-card">
-                            <h4>Project #{project.projectId.toString()}</h4>
-                            <p>Status: {projectStatuses[project.status]}</p>
-                            <p>Created: {formatDate(project.createdAt)}</p>
-                        </div>
-                    ))}
+                {loading ? (
+                    <LoadingSpinner />
+                ) : !projects || projects.length === 0 ? (
+                    <div className="empty-message">
+                        <p>No projects yet. Start showcasing your work!</p>
+                    </div>
+                ) : (
+                    <div className="projects-grid">
+                        {projects.map((project, idx) => (
+                            <div key={idx} className="project-card">
+                                <h4>Project #{project.projectId.toString()}</h4>
+                                <div className="project-status" style={{ 
+                                    color: project.status === 2 ? 'var(--success)' : 
+                                          project.status === 3 ? 'var(--error)' : 'var(--sky)'
+                                }}>
+                                    Status: {projectStatuses[project.status]}
+                                </div>
+                                <p>Created: {formatDate(project.createdAt)}</p>
+                                {project.completedAt > 0 && (
+                                    <p>Completed: {formatDate(project.completedAt)}</p>
+                                )}
+                                {project.collaborators && project.collaborators.length > 0 && (
+                                    <p>Collaborators: {project.collaborators.length}</p>
+                                )}
+                                
+                                <div className="project-actions">
+                                    <select
+                                        className="status-select"
+                                        value={project.status}
+                                        onChange={(e) => handleUpdateStatus(project.projectId, parseInt(e.target.value))}
+                                    >
+                                        {projectStatuses.map((status, idx) => (
+                                            <option key={idx} value={idx}>{status}</option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        className="collab-btn"
+                                        onClick={() => {
+                                            setSelectedProject(project);
+                                            setShowCollabModal(true);
+                                        }}
+                                    >
+                                        + Collaborator
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </Card>
+
+            <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} title="Create Project">
+                <div className="project-form">
+                    <Input
+                        label="Project Title"
+                        value={projectData.title}
+                        onChange={(val) => setProjectData({ ...projectData, title: val })}
+                        placeholder="My Awesome Project"
+                        required
+                    />
+                    
+                    <TextArea
+                        label="Description"
+                        value={projectData.description}
+                        onChange={(val) => setProjectData({ ...projectData, description: val })}
+                        placeholder="Describe your project..."
+                        rows={4}
+                    />
+                    
+                    <Input
+                        label="Project URL (Optional)"
+                        value={projectData.url}
+                        onChange={(val) => setProjectData({ ...projectData, url: val })}
+                        placeholder="https://github.com/..."
+                    />
+
+                    <div className="modal-actions">
+                        <Button variant="secondary" onClick={() => setShowCreateModal(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleCreateProject}>
+                            Create Project
+                        </Button>
+                    </div>
                 </div>
-            )}
+            </Modal>
+
+            <Modal isOpen={showCollabModal} onClose={() => setShowCollabModal(false)} title="Add Collaborator">
+                <div className="collab-form">
+                    <Input
+                        label="Collaborator Token ID"
+                        value={collabData}
+                        onChange={setCollabData}
+                        placeholder="Enter token ID"
+                        type="number"
+                        required
+                    />
+                    
+                    <div className="info-box" style={{ marginTop: '16px' }}>
+                        Adding collaborators to <strong>Project #{selectedProject?.projectId.toString()}</strong>
+                    </div>
+
+                    <div className="modal-actions">
+                        <Button variant="secondary" onClick={() => setShowCollabModal(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleAddCollaborator}>
+                            Add Collaborator
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
 
             <style jsx>{`
                 .section-header {
@@ -3960,7 +4153,7 @@ function ProjectsSection({ projects, loading, contracts, selectedToken, showNoti
 
                 .projects-grid {
                     display: grid;
-                    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+                    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
                     gap: 16px;
                 }
 
@@ -3973,21 +4166,71 @@ function ProjectsSection({ projects, loading, contracts, selectedToken, showNoti
 
                 .project-card h4 {
                     color: var(--teal-light);
-                    margin-bottom: 12px;
+                    margin-bottom: 8px;
+                }
+
+                .project-status {
+                    font-size: 14px;
+                    font-weight: 600;
+                    margin-bottom: 8px;
                 }
 
                 .project-card p {
                     color: var(--gray-light);
-                    font-size: 14px;
+                    font-size: 13px;
                     margin: 4px 0;
                 }
+
+                .project-actions {
+                    margin-top: 16px;
+                    padding-top: 16px;
+                    border-top: 1px solid rgba(14, 116, 144, 0.2);
+                    display: flex;
+                    gap: 8px;
+                }
+
+                .status-select {
+                    flex: 1;
+                    background: rgba(14, 116, 144, 0.2);
+                    border: 1px solid var(--teal);
+                    color: var(--beige);
+                    padding: 6px 12px;
+                    border-radius: 6px;
+                    font-size: 12px;
+                    cursor: pointer;
+                }
+
+                .collab-btn {
+                    background: var(--sky);
+                    border: none;
+                    color: white;
+                    padding: 6px 12px;
+                    border-radius: 6px;
+                    font-size: 12px;
+                    cursor: pointer;
+                    white-space: nowrap;
+                    transition: all 0.3s ease;
+                }
+
+                .collab-btn:hover {
+                    background: var(--sky-light);
+                    transform: translateY(-1px);
+                }
             `}</style>
-        </Card>
+        </>
     );
 }
 
 // Endorsements Section - Simplified placeholder
 function EndorsementsSection({ endorsements, loading, contracts, selectedToken, userTokens, showNotification, onReload }) {
+    const [showEndorseModal, setShowEndorseModal] = useState(false);
+    const [endorseData, setEndorseData] = useState({
+        targetTokenId: '',
+        endorserTokenId: '',
+        skillName: '',
+        comment: ''
+    });
+
     // Group endorsements by skill hash
     const endorsementsBySkill = {};
     if (endorsements && endorsements.length > 0) {
@@ -4000,15 +4243,48 @@ function EndorsementsSection({ endorsements, loading, contracts, selectedToken, 
         });
     }
 
+    const handleEndorseSkill = async () => {
+        try {
+            if (!endorseData.targetTokenId || !endorseData.endorserTokenId || !endorseData.skillName) {
+                showNotification('Please fill in all required fields', 'error');
+                return;
+            }
+
+            const skillHash = ethers.utils.id(endorseData.skillName);
+            
+            const tx = await contracts.social.endorseSkill(
+                parseInt(endorseData.targetTokenId),
+                parseInt(endorseData.endorserTokenId),
+                skillHash,
+                endorseData.comment
+            );
+            showNotification('Endorsing skill...', 'info');
+            await tx.wait();
+            showNotification('Skill endorsed successfully!', 'success');
+            setShowEndorseModal(false);
+            setEndorseData({ targetTokenId: '', endorserTokenId: '', skillName: '', comment: '' });
+            onReload();
+        } catch (error) {
+            console.error('Error endorsing skill:', error);
+            showNotification(error.message || 'Failed to endorse skill', 'error');
+        }
+    };
+
     return (
-        <Card>
-            <div className="section-header">
-                <h3>Skill Endorsements</h3>
-                <span className="badge">{endorsements?.length || 0}</span>
-            </div>
-            {loading ? (
-                <LoadingSpinner />
-            ) : !endorsements || endorsements.length === 0 ? (
+        <>
+            <Card>
+                <div className="section-header">
+                    <h3>Skill Endorsements</h3>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <span className="badge">{endorsements?.length || 0}</span>
+                        <Button onClick={() => setShowEndorseModal(true)} style={{ padding: '8px 16px', fontSize: '13px' }}>
+                            + Endorse Skill
+                        </Button>
+                    </div>
+                </div>
+                {loading ? (
+                    <LoadingSpinner />
+                ) : !endorsements || endorsements.length === 0 ? (
                 <div className="empty-message">
                     <p>No endorsements yet</p>
                 </div>
@@ -4126,5 +4402,56 @@ function EndorsementsSection({ endorsements, loading, contracts, selectedToken, 
                 }
             `}</style>
         </Card>
+
+        <Modal isOpen={showEndorseModal} onClose={() => setShowEndorseModal(false)} title="Endorse Skill">
+            <div className="endorse-form">
+                <Input
+                    label="Token ID to Endorse"
+                    value={endorseData.targetTokenId}
+                    onChange={(val) => setEndorseData({ ...endorseData, targetTokenId: val })}
+                    placeholder="Enter token ID"
+                    type="number"
+                    required
+                />
+
+                <Select
+                    label="Your Token ID (Endorser)"
+                    value={endorseData.endorserTokenId}
+                    onChange={(val) => setEndorseData({ ...endorseData, endorserTokenId: val })}
+                    options={userTokens.map(t => ({ value: t.id.toString(), label: `Token #${t.id}` }))}
+                    required
+                />
+
+                <Input
+                    label="Skill Name"
+                    value={endorseData.skillName}
+                    onChange={(val) => setEndorseData({ ...endorseData, skillName: val })}
+                    placeholder="e.g., Solidity, Project Management, Python"
+                    required
+                />
+
+                <TextArea
+                    label="Comment (Optional)"
+                    value={endorseData.comment}
+                    onChange={(val) => setEndorseData({ ...endorseData, comment: val })}
+                    placeholder="Add a comment about this skill..."
+                    rows={3}
+                />
+
+                <div className="info-box">
+                    <strong>💡 Tip:</strong> Skill names are hashed on-chain. Use consistent naming (e.g., "Solidity" not "solidity programming") so endorsements group together.
+                </div>
+
+                <div className="modal-actions">
+                    <Button variant="secondary" onClick={() => setShowEndorseModal(false)}>
+                        Cancel
+                    </Button>
+                    <Button onClick={handleEndorseSkill}>
+                        Endorse Skill
+                    </Button>
+                </div>
+            </div>
+        </Modal>
+        </>
     );
 }
