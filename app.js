@@ -1262,8 +1262,8 @@ function TokenCard({ token, isSelected, onSelect, contracts }) {
 
     return (
         <>
-            <Card className={`token-card ${isSelected ? 'selected' : ''}`} onClick={handleCardClick}>
-                <div className="token-header">
+            <Card className={`token-card ${isSelected ? 'selected' : ''}`}>
+                <div className="token-header" onClick={onSelect} style={{ cursor: 'pointer' }}>
                     <div className="token-avatar">
                         {metadata?.profileImage ? (
                             <img src={metadata.profileImage} alt="Profile" />
@@ -1284,6 +1284,15 @@ function TokenCard({ token, isSelected, onSelect, contracts }) {
                 <div className="token-cid">
                     <span className="cid-label">IPFS CID:</span>
                     <code className="cid-value">{token.cid.substring(0, 20)}...</code>
+                </div>
+
+                <div className="token-actions">
+                    <button 
+                        className="view-details-btn"
+                        onClick={() => setShowDetails(true)}
+                    >
+                        👁️ View Full Details
+                    </button>
                 </div>
 
                 {isSelected && (
@@ -1480,14 +1489,9 @@ function TokenCard({ token, isSelected, onSelect, contracts }) {
 
             <style jsx>{`
                 .token-card {
-                    cursor: pointer;
+                    cursor: default;
                     position: relative;
                     transition: all 0.3s ease;
-                }
-
-                .token-card:hover {
-                    transform: translateY(-4px);
-                    box-shadow: 0 12px 24px rgba(14, 116, 144, 0.3);
                 }
 
                 .token-card.selected {
@@ -1569,24 +1573,33 @@ function TokenCard({ token, isSelected, onSelect, contracts }) {
                     font-family: monospace;
                 }
 
+                .token-actions {
+                    margin-top: 16px;
+                    padding-top: 16px;
+                    border-top: 1px solid rgba(14, 116, 144, 0.2);
+                }
+
                 .view-details-btn {
                     width: 100%;
-                    margin-top: 12px;
-                    padding: 10px;
-                    background: transparent;
-                    border: 1px solid var(--teal);
-                    color: var(--teal-light);
+                    padding: 12px;
+                    background: var(--teal);
+                    border: none;
+                    color: white;
                     border-radius: 8px;
                     cursor: pointer;
-                    font-size: 13px;
-                    font-weight: 500;
+                    font-size: 14px;
+                    font-weight: 600;
                     transition: all 0.3s ease;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 8px;
                 }
 
                 .view-details-btn:hover {
-                    background: var(--teal);
-                    color: white;
-                    transform: translateY(-1px);
+                    background: var(--teal-light);
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 12px rgba(14, 116, 144, 0.4);
                 }
 
                 .selected-badge {
