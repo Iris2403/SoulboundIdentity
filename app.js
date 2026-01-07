@@ -1243,11 +1243,8 @@ function TokenCard({ token, isSelected, onSelect, contracts }) {
     };
 
     const handleCardClick = (e) => {
-        // Don't trigger if clicking the details button
-        if (e.target.closest('.view-details-btn')) {
-            return;
-        }
-        onSelect();
+        // Open details modal when clicking anywhere on the card
+        setShowDetails(true);
     };
 
     const copyToClipboard = (text) => {
@@ -1289,16 +1286,6 @@ function TokenCard({ token, isSelected, onSelect, contracts }) {
                     <code className="cid-value">{token.cid.substring(0, 20)}...</code>
                 </div>
 
-                <button 
-                    className="view-details-btn"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setShowDetails(true);
-                    }}
-                >
-                    View Details
-                </button>
-
                 {isSelected && (
                     <div className="selected-badge">
                         ✓ Selected
@@ -1321,6 +1308,12 @@ function TokenCard({ token, isSelected, onSelect, contracts }) {
                         <div className="detail-row">
                             <span className="detail-label">Type:</span>
                             <span className="detail-value">Soulbound Token (Non-transferable)</span>
+                        </div>
+                        <div className="detail-row">
+                            <span className="detail-label">Status:</span>
+                            <span className="detail-value" style={{ color: isSelected ? 'var(--teal-light)' : 'var(--gray)' }}>
+                                {isSelected ? '✓ Currently Selected' : 'Not Selected'}
+                            </span>
                         </div>
                     </div>
 
@@ -1365,6 +1358,19 @@ function TokenCard({ token, isSelected, onSelect, contracts }) {
                             <span className="detail-value">{CONFIG.CHAIN_ID}</span>
                         </div>
                     </div>
+
+                    {!isSelected && (
+                        <div className="modal-actions" style={{ marginTop: '24px' }}>
+                            <Button 
+                                onClick={() => {
+                                    onSelect();
+                                    setShowDetails(false);
+                                }}
+                            >
+                                Select This Token
+                            </Button>
+                        </div>
+                    )}
                 </div>
 
                 <style jsx>{`
@@ -1473,9 +1479,15 @@ function TokenCard({ token, isSelected, onSelect, contracts }) {
             </Modal>
 
             <style jsx>{`
+                .token-card {
                     cursor: pointer;
                     position: relative;
                     transition: all 0.3s ease;
+                }
+
+                .token-card:hover {
+                    transform: translateY(-4px);
+                    box-shadow: 0 12px 24px rgba(14, 116, 144, 0.3);
                 }
 
                 .token-card.selected {
@@ -1669,6 +1681,13 @@ function CredentialsTab({ contracts, selectedToken, userTokens, showNotification
             const issueDate = credentialData.issueDate ? Math.floor(new Date(credentialData.issueDate).getTime() / 1000) : Math.floor(Date.now() / 1000);
             const expiryDate = credentialData.expiryDate ? Math.floor(new Date(credentialData.expiryDate).getTime() / 1000) : 0;
 
+            // Validate dates
+            if (expiryDate !== 0 && expiryDate <= issueDate) {
+                showNotification('Expiry date must be after issue date!', 'error');
+                setLoading(false);
+                return;
+            }
+
             const tx = await contracts.credentials.addCredential(
                 selectedToken,
                 parseInt(credentialData.credType),
@@ -1844,6 +1863,10 @@ function CredentialsTab({ contracts, selectedToken, userTokens, showNotification
                             onChange={(val) => setCredentialData({ ...credentialData, expiryDate: val })}
                             type="date"
                         />
+                    </div>
+                    
+                    <div className="info-box" style={{ background: 'rgba(56, 189, 248, 0.1)', borderColor: 'var(--sky)' }}>
+                        <strong>💡 Tip:</strong> Leave expiry date empty if the credential never expires. If set, expiry date must be after issue date.
                     </div>
 
                     {credentialData.credType === '4' && (
