@@ -2489,6 +2489,38 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
             // Load pending requests
             const requests = await contracts.soulbound.getPendingRequests(selectedToken, 0, 50);
             setPendingRequests(requests.requesters);
+            
+            // Load granted access by checking stored addresses
+            // Note: Your contract doesn't have a getGrantedAccess function
+            // So we'll track addresses we've approved
+            const storedGrantedAddresses = JSON.parse(
+                localStorage.getItem(`grantedAccess_${selectedToken}`) || '[]'
+            );
+            
+            // Verify each address still has access
+            const stillActive = [];
+            for (const address of storedGrantedAddresses) {
+                try {
+                    const [hasAccess, expiresAt] = await contracts.soulbound.checkAccess(selectedToken, address);
+                    if (hasAccess) {
+                        stillActive.push({
+                            address,
+                            expiresAt: expiresAt.toNumber()
+                        });
+                    }
+                } catch (err) {
+                    // Address no longer has access, skip it
+                    continue;
+                }
+            }
+            
+            // Update localStorage with only active addresses
+            localStorage.setItem(
+                `grantedAccess_${selectedToken}`,
+                JSON.stringify(stillActive.map(item => item.address))
+            );
+            
+            setGrantedAccess(stillActive);
         } catch (error) {
             console.error('Error loading access data:', error);
         } finally {
@@ -2573,6 +2605,16 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
             const tx = await contracts.soulbound.approveAccess(selectedToken, requester, duration);
             showNotification('Approving access...', 'info');
             await tx.wait();
+            
+            // Track granted address in localStorage
+            const storedGranted = JSON.parse(
+                localStorage.getItem(`grantedAccess_${selectedToken}`) || '[]'
+            );
+            if (!storedGranted.includes(requester)) {
+                storedGranted.push(requester);
+                localStorage.setItem(`grantedAccess_${selectedToken}`, JSON.stringify(storedGranted));
+            }
+            
             showNotification('Access approved!', 'success');
             loadAccessData();
         } catch (error) {
@@ -2591,6 +2633,28 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
         } catch (error) {
             console.error('Error denying access:', error);
             showNotification('Failed to deny access', 'error');
+        }
+    };
+
+    const handleRevokeAccess = async (requester) => {
+        try {
+            const reason = "Access revoked by token owner";
+            const tx = await contracts.soulbound.revokeAccess(selectedToken, requester, reason);
+            showNotification('Revoking access...', 'info');
+            await tx.wait();
+            
+            // Remove from localStorage
+            const storedGranted = JSON.parse(
+                localStorage.getItem(`grantedAccess_${selectedToken}`) || '[]'
+            );
+            const updated = storedGranted.filter(addr => addr.toLowerCase() !== requester.toLowerCase());
+            localStorage.setItem(`grantedAccess_${selectedToken}`, JSON.stringify(updated));
+            
+            showNotification('Access revoked!', 'success');
+            loadAccessData();
+        } catch (error) {
+            console.error('Error revoking access:', error);
+            showNotification('Failed to revoke access', 'error');
         }
     };
 
@@ -2655,6 +2719,46 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
                                             style={{ padding: '8px 16px', fontSize: '13px' }}
                                         >
                                             Deny
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </Card>
+
+                <Card>
+                    <div className="section-header">
+                        <h3>Granted Access</h3>
+                        <span className="badge">{grantedAccess.length}</span>
+                    </div>
+                    
+                    {loading ? (
+                        <LoadingSpinner />
+                    ) : grantedAccess.length === 0 ? (
+                        <div className="empty-message">
+                            <p>You haven't granted access to anyone yet</p>
+                        </div>
+                    ) : (
+                        <div className="requests-list">
+                            {grantedAccess.map((item, idx) => (
+                                <div key={idx} className="request-item">
+                                    <div className="requester-info">
+                                        <div className="requester-avatar">✓</div>
+                                        <div>
+                                            <div className="requester-address">{shortenAddress(item.address)}</div>
+                                            <div className="requester-label">
+                                                Access expires: {formatDate(item.expiresAt)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="request-actions">
+                                        <Button 
+                                            variant="danger"
+                                            onClick={() => handleRevokeAccess(item.address)}
+                                            style={{ padding: '8px 16px', fontSize: '13px' }}
+                                        >
+                                            Revoke Access
                                         </Button>
                                     </div>
                                 </div>
