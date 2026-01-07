@@ -2512,10 +2512,12 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
                     // Only include if I have access and I'm NOT the owner
                     if (hasAccess && owner.toLowerCase() !== myAddress.toLowerCase()) {
                         const [, expiresAt] = await contracts.soulbound.checkAccess(tokenId, myAddress);
+                        const metadataCID = await contracts.soulbound.getMetadata(tokenId);
                         accessibleTokens.push({
                             tokenId,
                             owner,
-                            expiresAt: expiresAt.toNumber()
+                            expiresAt: expiresAt.toNumber(),
+                            cid: metadataCID
                         });
                     }
                 } catch (err) {
@@ -2728,6 +2730,13 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
                                 <p>All access requests are tracked on-chain for transparency and security.</p>
                             </div>
                         </div>
+                        <div className="info-item">
+                            <div className="info-icon">ℹ️</div>
+                            <div>
+                                <h4>Full Access Grant</h4>
+                                <p>Currently, approving access grants view permission to all credentials (degrees, certifications, work experience, skills, and identity proofs). Granular per-type access control is planned for future versions.</p>
+                            </div>
+                        </div>
                     </div>
                 </Card>
             </div>
@@ -2779,6 +2788,24 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
                             </div>
                         </div>
 
+                        {viewingToken.cid && (
+                            <div className="detail-section">
+                                <h4>IPFS Metadata</h4>
+                                <div className="cid-display">
+                                    <code className="full-cid">{viewingToken.cid}</code>
+                                    <button 
+                                        className="copy-btn"
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(viewingToken.cid);
+                                            alert('CID copied to clipboard!');
+                                        }}
+                                    >
+                                        📋 Copy
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
                         {viewingToken.summary && (
                             <div className="detail-section">
                                 <h4>Credentials Summary</h4>
@@ -2786,12 +2813,12 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
                                     <div className="cred-item">
                                         <span className="cred-icon">🎓</span>
                                         <span className="cred-count">{viewingToken.summary.degrees}</span>
-                                        <span className="cred-label">Degrees</span>
+                                        <span className="cred-label">{viewingToken.summary.degrees === 1 ? 'Degree' : 'Degrees'}</span>
                                     </div>
                                     <div className="cred-item">
                                         <span className="cred-icon">📜</span>
                                         <span className="cred-count">{viewingToken.summary.certifications}</span>
-                                        <span className="cred-label">Certifications</span>
+                                        <span className="cred-label">{viewingToken.summary.certifications === 1 ? 'Certification' : 'Certifications'}</span>
                                     </div>
                                     <div className="cred-item">
                                         <span className="cred-icon">💼</span>
@@ -2801,12 +2828,12 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
                                     <div className="cred-item">
                                         <span className="cred-icon">🆔</span>
                                         <span className="cred-count">{viewingToken.summary.identityProofs}</span>
-                                        <span className="cred-label">Identity Proofs</span>
+                                        <span className="cred-label">{viewingToken.summary.identityProofs === 1 ? 'Identity Proof' : 'Identity Proofs'}</span>
                                     </div>
                                     <div className="cred-item">
                                         <span className="cred-icon">⚡</span>
                                         <span className="cred-count">{viewingToken.summary.skills}</span>
-                                        <span className="cred-label">Skills</span>
+                                        <span className="cred-label">{viewingToken.summary.skills === 1 ? 'Skill' : 'Skills'}</span>
                                     </div>
                                 </div>
                             </div>
