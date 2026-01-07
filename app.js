@@ -1008,8 +1008,13 @@ function IdentityTab({ contracts, account, userTokens, selectedToken, setSelecte
             };
 
             // In production, upload to IPFS via Pinata
-            // For demo, using a mock CID
-            const mockCID = `Qm${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+            // For demo, using a valid mock CID (CIDv0 format: Qm + 44 base58 chars)
+            // Generate a valid base58 string (using valid characters: 1-9, A-H, J-N, P-Z, a-k, m-z)
+            const base58Chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+            let mockCID = 'Qm';
+            for (let i = 0; i < 44; i++) {
+                mockCID += base58Chars.charAt(Math.floor(Math.random() * base58Chars.length));
+            }
             
             // Mint token
             const tx = await contracts.soulbound.mint(mockCID, parseInt(mintData.burnAuth));
