@@ -2465,13 +2465,19 @@ function CredentialCard({ credential, onRevoke }) {
 function AccessControlTab({ contracts, selectedToken, userTokens, showNotification }) {
     const [pendingRequests, setPendingRequests] = useState([]);
     const [grantedAccess, setGrantedAccess] = useState([]);
+    const [tokensICanAccess, setTokensICanAccess] = useState([]);
     const [loading, setLoading] = useState(false);
     const [showRequestModal, setShowRequestModal] = useState(false);
     const [requestTokenId, setRequestTokenId] = useState('');
+    const [showViewModal, setShowViewModal] = useState(false);
+    const [viewingToken, setViewingToken] = useState(null);
 
     useEffect(() => {
         if (selectedToken && contracts) {
             loadAccessData();
+        }
+        if (contracts) {
+            loadTokensICanAccess();
         }
     }, [selectedToken, contracts]);
 
@@ -2487,6 +2493,39 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
             console.error('Error loading access data:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadTokensICanAccess = async () => {
+        if (!contracts) return;
+        
+        try {
+            const accessibleTokens = [];
+            // Check a range of token IDs (you could make this smarter based on total supply)
+            // For demo purposes, checking first 100 tokens
+            for (let tokenId = 1; tokenId <= 100; tokenId++) {
+                try {
+                    const hasAccess = await contracts.soulbound.canView(tokenId, contracts.soulbound.signer.getAddress());
+                    const owner = await contracts.soulbound.ownerOf(tokenId);
+                    const myAddress = await contracts.soulbound.signer.getAddress();
+                    
+                    // Only include if I have access and I'm NOT the owner
+                    if (hasAccess && owner.toLowerCase() !== myAddress.toLowerCase()) {
+                        const [, expiresAt] = await contracts.soulbound.checkAccess(tokenId, myAddress);
+                        accessibleTokens.push({
+                            tokenId,
+                            owner,
+                            expiresAt: expiresAt.toNumber()
+                        });
+                    }
+                } catch (err) {
+                    // Token doesn't exist or error, skip it
+                    continue;
+                }
+            }
+            setTokensICanAccess(accessibleTokens);
+        } catch (error) {
+            console.error('Error loading accessible tokens:', error);
         }
     };
 
@@ -2605,6 +2644,66 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
 
                 <Card>
                     <div className="section-header">
+                        <h3>Tokens I Can Access</h3>
+                        <span className="badge">{tokensICanAccess.length}</span>
+                    </div>
+                    
+                    {tokensICanAccess.length === 0 ? (
+                        <div className="empty-message">
+                            <p>No access granted yet. Request access to view other identities.</p>
+                        </div>
+                    ) : (
+                        <div className="requests-list">
+                            {tokensICanAccess.map((item, idx) => (
+                                <div key={idx} className="request-item">
+                                    <div className="requester-info">
+                                        <div className="requester-avatar">🪪</div>
+                                        <div>
+                                            <div className="requester-address">Token #{item.tokenId}</div>
+                                            <div className="requester-label">
+                                                Owner: {shortenAddress(item.owner)}
+                                            </div>
+                                            <div className="requester-label" style={{ color: 'var(--teal-light)', marginTop: '4px' }}>
+                                                {item.expiresAt > 0 && item.expiresAt < Date.now() / 1000 
+                                                    ? '⚠️ Access Expired' 
+                                                    : `✓ Access until ${formatDate(item.expiresAt)}`
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="request-actions">
+                                        <Button 
+                                            onClick={async () => {
+                                                try {
+                                                    const summary = await contracts.credentials.getCredentialSummary(item.tokenId);
+                                                    setViewingToken({
+                                                        ...item,
+                                                        summary: {
+                                                            degrees: summary.degrees.toNumber(),
+                                                            certifications: summary.certifications.toNumber(),
+                                                            workExperience: summary.workExperience.toNumber(),
+                                                            identityProofs: summary.identityProofs.toNumber(),
+                                                            skills: summary.skills.toNumber()
+                                                        }
+                                                    });
+                                                    setShowViewModal(true);
+                                                } catch (error) {
+                                                    showNotification('Failed to load token details', 'error');
+                                                }
+                                            }}
+                                            style={{ padding: '8px 16px', fontSize: '13px' }}
+                                        >
+                                            👁️ View Details
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </Card>
+
+                <Card>
+                    <div className="section-header">
                         <h3>Privacy Settings</h3>
                     </div>
                     <div className="privacy-info">
@@ -2657,6 +2756,63 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
                         </Button>
                     </div>
                 </div>
+            </Modal>
+
+            <Modal isOpen={showViewModal} onClose={() => setShowViewModal(false)} title={viewingToken ? `Token #${viewingToken.tokenId} Details` : 'Token Details'}>
+                {viewingToken && (
+                    <div className="token-view-details">
+                        <div className="detail-section">
+                            <h4>Token Information</h4>
+                            <div className="detail-row">
+                                <span className="detail-label">Token ID:</span>
+                                <span className="detail-value">{viewingToken.tokenId}</span>
+                            </div>
+                            <div className="detail-row">
+                                <span className="detail-label">Owner:</span>
+                                <code className="detail-value">{viewingToken.owner}</code>
+                            </div>
+                            <div className="detail-row">
+                                <span className="detail-label">Access Expires:</span>
+                                <span className="detail-value">
+                                    {viewingToken.expiresAt > 0 ? formatDate(viewingToken.expiresAt) : 'Never'}
+                                </span>
+                            </div>
+                        </div>
+
+                        {viewingToken.summary && (
+                            <div className="detail-section">
+                                <h4>Credentials Summary</h4>
+                                <div className="credentials-grid">
+                                    <div className="cred-item">
+                                        <span className="cred-icon">🎓</span>
+                                        <span className="cred-count">{viewingToken.summary.degrees}</span>
+                                        <span className="cred-label">Degrees</span>
+                                    </div>
+                                    <div className="cred-item">
+                                        <span className="cred-icon">📜</span>
+                                        <span className="cred-count">{viewingToken.summary.certifications}</span>
+                                        <span className="cred-label">Certifications</span>
+                                    </div>
+                                    <div className="cred-item">
+                                        <span className="cred-icon">💼</span>
+                                        <span className="cred-count">{viewingToken.summary.workExperience}</span>
+                                        <span className="cred-label">Work Experience</span>
+                                    </div>
+                                    <div className="cred-item">
+                                        <span className="cred-icon">🆔</span>
+                                        <span className="cred-count">{viewingToken.summary.identityProofs}</span>
+                                        <span className="cred-label">Identity Proofs</span>
+                                    </div>
+                                    <div className="cred-item">
+                                        <span className="cred-icon">⚡</span>
+                                        <span className="cred-count">{viewingToken.summary.skills}</span>
+                                        <span className="cred-label">Skills</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
             </Modal>
 
             <style jsx>{`
