@@ -13,48 +13,48 @@
     --color-primary: #00D9FF;
     --color-primary-dark: #0099CC;
     --color-primary-light: #66E6FF;
-    
+
     --color-secondary: #7B2CBF;
     --color-secondary-dark: #5A189A;
     --color-secondary-light: #9D4EDD;
-    
+
     --color-accent: #FF006E;
     --color-accent-dark: #D90056;
     --color-accent-light: #FF3387;
-    
+
     --color-success: #06FFA5;
     --color-warning: #FFB703;
     --color-danger: #FF006E;
     --color-info: #00D9FF;
-    
+
     /* Neutral Colors */
     --color-bg-primary: #0A0E27;
     --color-bg-secondary: #151A35;
     --color-bg-tertiary: #1F2544;
     --color-bg-card: #1A1F3A;
     --color-bg-hover: #252B47;
-    
+
     --color-text-primary: #E8EAED;
     --color-text-secondary: #9BA1B7;
     --color-text-muted: #6B7280;
-    
+
     --color-border: #2D3548;
     --color-border-light: #3A4158;
     --color-border-focus: var(--color-primary);
-    
+
     /* Shadows & Effects */
     --shadow-sm: 0 2px 8px rgba(0, 217, 255, 0.1);
     --shadow-md: 0 4px 16px rgba(0, 217, 255, 0.15);
     --shadow-lg: 0 8px 32px rgba(0, 217, 255, 0.2);
     --shadow-glow: 0 0 20px rgba(0, 217, 255, 0.3);
-    
+
     --glow-primary: drop-shadow(0 0 8px rgba(0, 217, 255, 0.6));
     --glow-accent: drop-shadow(0 0 8px rgba(255, 0, 110, 0.6));
-    
+
     /* Typography */
     --font-display: 'Orbitron', monospace;
     --font-body: 'JetBrains Mono', monospace;
-    
+
     /* Spacing */
     --spacing-xs: 0.25rem;
     --spacing-sm: 0.5rem;
@@ -62,13 +62,13 @@
     --spacing-lg: 1.5rem;
     --spacing-xl: 2rem;
     --spacing-2xl: 3rem;
-    
+
     /* Border Radius */
     --radius-sm: 4px;
     --radius-md: 8px;
     --radius-lg: 12px;
     --radius-xl: 16px;
-    
+
     /* Transitions */
     --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
     --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -156,10 +156,13 @@ body::before {
 }
 
 @keyframes pulse {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: scale(1);
         opacity: 1;
     }
+
     50% {
         transform: scale(1.05);
         opacity: 0.8;
@@ -311,6 +314,7 @@ body::before {
         opacity: 0;
         transform: translateY(10px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -487,6 +491,8 @@ label {
 
 .input-range {
     -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
     width: 100%;
     height: 8px;
     background: var(--color-bg-secondary);
@@ -1297,11 +1303,11 @@ button {
     .app-container {
         padding: var(--spacing-md);
     }
-    
+
     .form-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .tokens-grid {
         grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     }
@@ -1312,32 +1318,32 @@ button {
         flex-direction: column;
         gap: var(--spacing-lg);
     }
-    
+
     .wallet-info {
         flex-direction: column;
         width: 100%;
     }
-    
+
     .nav-tabs {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
     }
-    
+
     .brand-text h1 {
         font-size: 1.25rem;
     }
-    
+
     .section-title {
         font-size: 1.5rem;
     }
-    
+
     #toast-container {
         top: var(--spacing-md);
         right: var(--spacing-md);
         left: var(--spacing-md);
         max-width: none;
     }
-    
+
     .tokens-grid {
         grid-template-columns: 1fr;
     }
@@ -1371,9 +1377,12 @@ button {
    =========================== */
 
 @keyframes glow {
-    0%, 100% {
+
+    0%,
+    100% {
         box-shadow: 0 0 10px var(--color-primary);
     }
+
     50% {
         box-shadow: 0 0 20px var(--color-primary), 0 0 30px var(--color-primary);
     }
@@ -1416,14 +1425,14 @@ textarea:focus-visible {
         background: white;
         color: black;
     }
-    
+
     .app-header,
     .nav-tabs,
     .app-footer,
     button {
         display: none;
     }
-    
+
     .card {
         border: 1px solid #ccc;
         page-break-inside: avoid;
