@@ -271,29 +271,73 @@ function GasEstimate({ gasEstimate }) {
 function MetadataDisplay({ cid, showNotification }) {
     const [metadata, setMetadata] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
     
     useEffect(() => {
+        // Create AbortController to cancel fetch if component unmounts
+        const abortController = new AbortController();
+        let timeoutId;
+        
         const fetchMetadata = async () => {
             try {
-                const response = await fetch(`${CONFIG.IPFS_GATEWAY}${cid}`);
+                setLoading(true);
+                setError(false);
+                
+                // Set a 10-second timeout for the fetch
+                timeoutId = setTimeout(() => {
+                    abortController.abort();
+                }, 10000);
+                
+                const response = await fetch(`${CONFIG.IPFS_GATEWAY}${cid}`, {
+                    signal: abortController.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
                 if (!response.ok) throw new Error('Failed to fetch metadata');
                 const data = await response.json();
                 setMetadata(data);
             } catch (error) {
-                console.error('Failed to fetch IPFS data:', error);
-                if (showNotification) {
-                    showNotification('Failed to load metadata', 'error');
+                if (error.name === 'AbortError') {
+                    console.warn('Metadata fetch aborted or timed out');
+                    setError(true);
+                    if (showNotification) {
+                        showNotification('Metadata loading timed out', 'warning');
+                    }
+                } else {
+                    console.error('Failed to fetch IPFS data:', error);
+                    setError(true);
+                    if (showNotification) {
+                        showNotification('Failed to load metadata', 'error');
+                    }
                 }
             } finally {
                 setLoading(false);
             }
         };
         
-        if (cid) fetchMetadata();
+        if (cid) {
+            fetchMetadata();
+        }
+        
+        // Cleanup: abort fetch if component unmounts
+        return () => {
+            abortController.abort();
+            if (timeoutId) clearTimeout(timeoutId);
+        };
     }, [cid, showNotification]);
     
     if (loading) return <LoadingSpinner />;
-    if (!metadata) return <div className="metadata-error">Failed to load metadata</div>;
+    if (error || !metadata) {
+        return (
+            <div className="metadata-error">
+                <p>Failed to load metadata</p>
+                <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                    IPFS gateway may be slow or unavailable
+                </p>
+            </div>
+        );
+    }
     
     return (
         <div className="metadata-display">
@@ -498,20 +542,20 @@ function App() {
 
     const loadUserTokens = async (contract, addr) => {
         try {
-            const tokens = await contract.tokensOfOwner(addr);
-            const tokenData = await Promise.all(tokens.map(async (tokenId) => {
-                const result = await contract.getOwnedTokensPaginated(addr, 0, 100);
-                return {
-                    id: tokenId.toNumber(),
-                    cid: result.metadataCIDs[tokens.indexOf(tokenId)]
-                };
+            // Use the efficient paginated function directly - fetches all data in one call
+            const result = await contract.getOwnedTokensPaginated(addr, 0, 100);
+            const tokenData = result.tokenIds.map((tokenId, index) => ({
+                id: tokenId.toNumber(),
+                cid: result.metadataCIDs[index]
             }));
+            
             setUserTokens(tokenData);
-            if (tokenData.length > 0) {
-                setSelectedToken(tokenData[0].id);
+            if (tokenData.length > 0 && !selectedToken) {
+                setSelectedToken(tokenData[0]);
             }
         } catch (error) {
             console.error('Error loading tokens:', error);
+            showNotification('Failed to load tokens', 'error');
         }
     };
 
@@ -608,7 +652,7 @@ function App() {
         const { soulbound, credentials, social } = contracts;
         const tokenId = selectedToken.id;
 
-        // Identity Events
+        // Identity Events - no need to check tokenId since filters handle it
         const handleMinted = (to, tid, ipfsCID, burnAuth) => {
             console.log('🎉 Token Minted!', { to, tokenId: tid.toString(), ipfsCID });
             addToast(`Token #${tid} minted successfully!`, 'success');
@@ -616,93 +660,91 @@ function App() {
         };
 
         const handleAccessRequested = (tid, requester) => {
-            if (tid.toString() === tokenId) {
-                console.log('🔔 Access Requested', { tokenId: tid.toString(), requester });
-                addToast(`New access request from ${shortenAddress(requester)}`, 'info');
-            }
+            console.log('🔔 Access Requested', { tokenId: tid.toString(), requester });
+            addToast(`New access request from ${shortenAddress(requester)}`, 'info');
         };
 
         const handleAccessApproved = (tid, requester, duration) => {
-            if (tid.toString() === tokenId) {
-                console.log('✅ Access Approved', { tokenId: tid.toString(), requester });
-                addToast(`Access approved for ${shortenAddress(requester)}`, 'success');
-            }
+            console.log('✅ Access Approved', { tokenId: tid.toString(), requester });
+            addToast(`Access approved for ${shortenAddress(requester)}`, 'success');
         };
 
         const handleAccessRevoked = (tid, requester, reason) => {
-            if (tid.toString() === tokenId) {
-                console.log('❌ Access Revoked', { tokenId: tid.toString(), requester, reason });
-                addToast(`Access revoked: ${reason}`, 'warning');
-            }
+            console.log('❌ Access Revoked', { tokenId: tid.toString(), requester, reason });
+            addToast(`Access revoked: ${reason}`, 'warning');
         };
 
         // Credentials Events
         const handleCredentialIssued = (tid, credentialId, credType, issuer) => {
-            if (tid.toString() === tokenId) {
-                console.log('📜 Credential Issued', { 
-                    tokenId: tid.toString(), 
-                    credentialId: credentialId.toString(), 
-                    credType 
-                });
-                const credTypeName = credentialTypes[credType] || 'Unknown';
-                addToast(`New ${credTypeName} credential issued!`, 'success');
-            }
+            console.log('📜 Credential Issued', { 
+                tokenId: tid.toString(), 
+                credentialId: credentialId.toString(), 
+                credType 
+            });
+            const credTypeName = credentialTypes[credType] || 'Unknown';
+            addToast(`New ${credTypeName} credential issued!`, 'success');
         };
 
         const handleCredentialRevoked = (tid, credentialId) => {
-            if (tid.toString() === tokenId) {
-                console.log('🚫 Credential Revoked', { 
-                    tokenId: tid.toString(), 
-                    credentialId: credentialId.toString() 
-                });
-                addToast(`Credential #${credentialId} revoked`, 'warning');
-            }
+            console.log('🚫 Credential Revoked', { 
+                tokenId: tid.toString(), 
+                credentialId: credentialId.toString() 
+            });
+            addToast(`Credential #${credentialId} revoked`, 'warning');
         };
 
         // Social Events
         const handleReviewSubmitted = (subjectTokenId, reviewerTokenId, reviewId, score) => {
-            if (subjectTokenId.toString() === tokenId) {
-                console.log('⭐ Review Submitted', { 
-                    subjectTokenId: subjectTokenId.toString(), 
-                    reviewId: reviewId.toString(), 
-                    score 
-                });
-                addToast(`New review received (${score}/100)`, 'success');
-            }
+            console.log('⭐ Review Submitted', { 
+                subjectTokenId: subjectTokenId.toString(), 
+                reviewId: reviewId.toString(), 
+                score 
+            });
+            addToast(`New review received (${score}/100)`, 'success');
         };
 
         const handleProjectCreated = (tid, projectId) => {
-            if (tid.toString() === tokenId) {
-                console.log('🚀 Project Created', { 
-                    tokenId: tid.toString(), 
-                    projectId: projectId.toString() 
-                });
-                addToast(`Project #${projectId} created!`, 'success');
-            }
+            console.log('🚀 Project Created', { 
+                tokenId: tid.toString(), 
+                projectId: projectId.toString() 
+            });
+            addToast(`Project #${projectId} created!`, 'success');
         };
 
         const handleSkillEndorsed = (subjectTokenId, endorserTokenId, skillHash) => {
-            if (subjectTokenId.toString() === tokenId) {
-                console.log('👍 Skill Endorsed', { 
-                    subjectTokenId: subjectTokenId.toString(), 
-                    endorserTokenId: endorserTokenId.toString() 
-                });
-                addToast(`New skill endorsement received!`, 'success');
-            }
+            console.log('👍 Skill Endorsed', { 
+                subjectTokenId: subjectTokenId.toString(), 
+                endorserTokenId: endorserTokenId.toString() 
+            });
+            addToast(`New skill endorsement received!`, 'success');
         };
 
-        // Register all event listeners
-        soulbound.on("Minted", handleMinted);
-        soulbound.on("AccessRequested", handleAccessRequested);
-        soulbound.on("AccessApproved", handleAccessApproved);
-        soulbound.on("AccessRevoked", handleAccessRevoked);
+        // Register FILTERED event listeners - only for user's tokens and account
+        // Minted events filtered by recipient (user's account)
+        const mintedFilter = soulbound.filters.Minted(account, null);
+        soulbound.on(mintedFilter, handleMinted);
         
-        credentials.on("CredentialIssued", handleCredentialIssued);
-        credentials.on("CredentialRevoked", handleCredentialRevoked);
+        // Access events filtered by tokenId
+        const accessRequestedFilter = soulbound.filters.AccessRequested(tokenId);
+        const accessApprovedFilter = soulbound.filters.AccessApproved(tokenId);
+        const accessRevokedFilter = soulbound.filters.AccessRevoked(tokenId);
+        soulbound.on(accessRequestedFilter, handleAccessRequested);
+        soulbound.on(accessApprovedFilter, handleAccessApproved);
+        soulbound.on(accessRevokedFilter, handleAccessRevoked);
         
-        social.on("ReviewSubmitted", handleReviewSubmitted);
-        social.on("ProjectCreated", handleProjectCreated);
-        social.on("SkillEndorsed", handleSkillEndorsed);
+        // Credential events filtered by tokenId
+        const credentialIssuedFilter = credentials.filters.CredentialIssued(tokenId);
+        const credentialRevokedFilter = credentials.filters.CredentialRevoked(tokenId);
+        credentials.on(credentialIssuedFilter, handleCredentialIssued);
+        credentials.on(credentialRevokedFilter, handleCredentialRevoked);
+        
+        // Social events filtered by tokenId
+        const reviewFilter = social.filters.ReviewSubmitted(tokenId);
+        const projectFilter = social.filters.ProjectCreated(tokenId);
+        const endorseFilter = social.filters.SkillEndorsed(tokenId);
+        social.on(reviewFilter, handleReviewSubmitted);
+        social.on(projectFilter, handleProjectCreated);
+        social.on(endorseFilter, handleSkillEndorsed);
 
         // Cleanup function - remove all listeners when component unmounts
         return () => {
