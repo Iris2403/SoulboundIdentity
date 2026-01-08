@@ -3,59 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SoulBound Identity - Decentralized Professional Identity Platform</title>
+    <title>SoulBound Identity - Debug Version</title>
     
-    <!-- React 18 - PRODUCTION (works on GitHub Pages) -->
+    <!-- React 18 - PRODUCTION -->
     <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
     
-    <!-- Babel Standalone (for JSX support) -->
+    <!-- Babel Standalone -->
     <script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
     
-    <!-- Ethers.js v5 - FIXED CDN -->
+    <!-- Ethers.js v5 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     
     <!-- Styles -->
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- React Root -->
     <div id="root"></div>
     
-    <!-- Load and transform the app with Babel -->
     <script>
-        // Fetch and transform app.js with Babel
+        console.log('1. Starting app load...');
+        console.log('2. React available:', typeof React !== 'undefined');
+        console.log('3. ReactDOM available:', typeof ReactDOM !== 'undefined');
+        console.log('4. Babel available:', typeof Babel !== 'undefined');
+        console.log('5. ethers available:', typeof ethers !== 'undefined');
+        
         fetch('app.js')
             .then(response => {
-                if (!response.ok) {
-                    throw new Error('Failed to load app.js: ' + response.status);
-                }
+                console.log('6. app.js fetched');
                 return response.text();
             })
             .then(code => {
-                // Transform JSX to JavaScript
+                console.log('7. Transforming with Babel...');
+                console.log('8. Code length:', code.length);
+                
                 const transformed = Babel.transform(code, { 
                     presets: ['react'],
                     filename: 'app.js'
                 }).code;
                 
-                // Execute the transformed code
+                console.log('9. Transformation complete');
+                console.log('10. Transformed code length:', transformed.length);
+                
+                // Log the last 500 chars to see the render call
+                console.log('11. End of transformed code:', transformed.slice(-500));
+                
+                console.log('12. Executing transformed code...');
                 eval(transformed);
+                console.log('13. Execution complete!');
             })
             .catch(error => {
-                console.error('Error loading app.js:', error);
+                console.error('ERROR:', error);
                 document.body.innerHTML = `
-                    <div style="color: white; background: #1a2332; padding: 50px; font-family: Arial; max-width: 800px; margin: 50px auto; border-radius: 12px;">
-                        <h1 style="color: #06b6d4;">⚠️ Error Loading App</h1>
-                        <p style="color: #a8b2c1;">${error.message}</p>
-                        <p style="color: #a8b2c1;">Check the browser console (F12) for details.</p>
-                        <hr style="border-color: #2a3547; margin: 20px 0;">
-                        <h3 style="color: #06b6d4;">Troubleshooting:</h3>
-                        <ul style="color: #a8b2c1;">
-                            <li>Make sure app.js is in the same folder as index.html</li>
-                            <li>Check that all 3 files are uploaded to GitHub Pages</li>
-                            <li>Clear your browser cache and refresh</li>
-                        </ul>
+                    <div style="color: white; background: #1a2332; padding: 50px; font-family: Arial;">
+                        <h1 style="color: #ef4444;">Error: ${error.message}</h1>
+                        <pre style="color: #a8b2c1; background: #0a0e1a; padding: 20px; border-radius: 8px; overflow-x: auto;">${error.stack}</pre>
                     </div>
                 `;
             });

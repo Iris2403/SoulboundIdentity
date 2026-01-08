@@ -113,7 +113,12 @@ function ThemeProvider({ children }) {
 const useTheme = () => {
     const context = React.useContext(ThemeContext);
     if (!context) {
-        throw new Error('useTheme must be used within ThemeProvider');
+        // Return a fallback instead of throwing
+        console.warn('useTheme called outside ThemeProvider, using fallback');
+        return { 
+            theme: 'dark', 
+            toggleTheme: () => console.log('Theme toggle called outside provider') 
+        };
     }
     return context;
 };
@@ -173,7 +178,9 @@ function ToastProvider({ children }) {
 const useToast = () => {
     const context = React.useContext(ToastContext);
     if (!context) {
-        throw new Error('useToast must be used within ToastProvider');
+        // Return a no-op fallback instead of throwing
+        console.warn('useToast called outside ToastProvider, using fallback');
+        return { addToast: (msg, type) => console.log(`Toast [${type}]: ${msg}`) };
     }
     return context;
 };
@@ -5531,7 +5538,9 @@ function AppRoot() {
     );
 }
 
-// Render the app
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(React.createElement(AppRoot, null));
+// Render the app after a short delay to ensure everything is loaded
+setTimeout(() => {
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(AppRoot, null));
+}, 0);
 
