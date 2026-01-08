@@ -259,10 +259,9 @@ function GasEstimate({ gasEstimate }) {
 // ============================================
 // IPFS METADATA DISPLAY
 // ============================================
-function MetadataDisplay({ cid }) {
+function MetadataDisplay({ cid, showNotification }) {
     const [metadata, setMetadata] = useState(null);
     const [loading, setLoading] = useState(true);
-    const { addToast } = useToast();
     
     useEffect(() => {
         const fetchMetadata = async () => {
@@ -273,14 +272,16 @@ function MetadataDisplay({ cid }) {
                 setMetadata(data);
             } catch (error) {
                 console.error('Failed to fetch IPFS data:', error);
-                addToast('Failed to load metadata', 'error');
+                if (showNotification) {
+                    showNotification('Failed to load metadata', 'error');
+                }
             } finally {
                 setLoading(false);
             }
         };
         
         if (cid) fetchMetadata();
-    }, [cid, addToast]);
+    }, [cid, showNotification]);
     
     if (loading) return <LoadingSpinner />;
     if (!metadata) return <div className="metadata-error">Failed to load metadata</div>;
@@ -5519,11 +5520,13 @@ function EventsTab({ contracts, selectedToken, showNotification }) {
 // ROOT APP WRAPPER WITH PROVIDERS
 // ============================================
 function AppRoot() {
-    return (
-        React.createElement(ThemeProvider, null,
-            React.createElement(ToastProvider, null,
-                React.createElement(App, null)
-            )
+    return React.createElement(
+        ThemeProvider, 
+        null,
+        React.createElement(
+            ToastProvider, 
+            null,
+            React.createElement(App, null)
         )
     );
 }
@@ -5531,3 +5534,4 @@ function AppRoot() {
 // Render the app
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(React.createElement(AppRoot, null));
+
