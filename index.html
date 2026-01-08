@@ -5,9 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SoulBound Identity - Decentralized Professional Identity Platform</title>
     
-    <!-- React 18 - Production -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- React 18 -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.min.js"></script>
+    
+    <!-- Babel Standalone (for JSX support) -->
+    <script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
     
     <!-- Ethers.js v5 -->
     <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script>
@@ -19,7 +22,25 @@
     <!-- React Root -->
     <div id="root"></div>
     
-    <!-- Your App -->
-    <script src="app.js"></script>
+    <!-- Load and transform the app with Babel -->
+    <script>
+        // Fetch and transform app.js with Babel
+        fetch('app.js')
+            .then(response => response.text())
+            .then(code => {
+                // Transform JSX to JavaScript
+                const transformed = Babel.transform(code, { 
+                    presets: ['react'],
+                    filename: 'app.js'
+                }).code;
+                
+                // Execute the transformed code
+                eval(transformed);
+            })
+            .catch(error => {
+                console.error('Error loading app.js:', error);
+                document.body.innerHTML = '<div style="color: red; padding: 50px; font-family: Arial;"><h1>Error Loading App</h1><p>' + error.message + '</p><p>Check the console for details.</p></div>';
+            });
+    </script>
 </body>
 </html>

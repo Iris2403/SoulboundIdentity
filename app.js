@@ -5514,18 +5514,20 @@ function EventsTab({ contracts, selectedToken, showNotification }) {
 }
 
 // ============================================
+
+// ============================================
 // ROOT APP WRAPPER WITH PROVIDERS
 // ============================================
 function AppRoot() {
     return (
-        <ThemeProvider>
-            <ToastProvider>
-                <App />
-            </ToastProvider>
-        </ThemeProvider>
+        React.createElement(ThemeProvider, null,
+            React.createElement(ToastProvider, null,
+                React.createElement(App, null)
+            )
+        )
     );
 }
 
 // Render the app
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<AppRoot />);
+root.render(React.createElement(AppRoot, null));
