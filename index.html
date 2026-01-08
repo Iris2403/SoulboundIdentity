@@ -5,15 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SoulBound Identity - Decentralized Professional Identity Platform</title>
     
-    <!-- React 18 -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.min.js"></script>
+    <!-- React 18 - PRODUCTION (works on GitHub Pages) -->
+    <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
     
     <!-- Babel Standalone (for JSX support) -->
     <script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
     
-    <!-- Ethers.js v5 -->
-    <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script>
+    <!-- Ethers.js v5 - FIXED CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     
     <!-- Styles -->
     <link rel="stylesheet" href="styles.css">
@@ -26,7 +26,12 @@
     <script>
         // Fetch and transform app.js with Babel
         fetch('app.js')
-            .then(response => response.text())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to load app.js: ' + response.status);
+                }
+                return response.text();
+            })
             .then(code => {
                 // Transform JSX to JavaScript
                 const transformed = Babel.transform(code, { 
@@ -39,7 +44,20 @@
             })
             .catch(error => {
                 console.error('Error loading app.js:', error);
-                document.body.innerHTML = '<div style="color: red; padding: 50px; font-family: Arial;"><h1>Error Loading App</h1><p>' + error.message + '</p><p>Check the console for details.</p></div>';
+                document.body.innerHTML = `
+                    <div style="color: white; background: #1a2332; padding: 50px; font-family: Arial; max-width: 800px; margin: 50px auto; border-radius: 12px;">
+                        <h1 style="color: #06b6d4;">⚠️ Error Loading App</h1>
+                        <p style="color: #a8b2c1;">${error.message}</p>
+                        <p style="color: #a8b2c1;">Check the browser console (F12) for details.</p>
+                        <hr style="border-color: #2a3547; margin: 20px 0;">
+                        <h3 style="color: #06b6d4;">Troubleshooting:</h3>
+                        <ul style="color: #a8b2c1;">
+                            <li>Make sure app.js is in the same folder as index.html</li>
+                            <li>Check that all 3 files are uploaded to GitHub Pages</li>
+                            <li>Clear your browser cache and refresh</li>
+                        </ul>
+                    </div>
+                `;
             });
     </script>
 </body>
