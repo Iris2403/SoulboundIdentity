@@ -5524,23 +5524,30 @@ function EventsTab({ contracts, selectedToken, showNotification }) {
 // ============================================
 
 // ============================================
-// ROOT APP WRAPPER WITH PROVIDERS
+// ROOT APP WRAPPER WITH PROVIDERS  
 // ============================================
 function AppRoot() {
+    const [mounted, setMounted] = React.useState(false);
+    
+    React.useEffect(() => {
+        // Wait for next frame to ensure providers are in the tree
+        requestAnimationFrame(() => {
+            setMounted(true);
+        });
+    }, []);
+    
     return React.createElement(
         ThemeProvider, 
         null,
         React.createElement(
             ToastProvider, 
             null,
-            React.createElement(App, null)
+            mounted ? React.createElement(App, null) : null
         )
     );
 }
 
-// Render the app after a short delay to ensure everything is loaded
-setTimeout(() => {
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(React.createElement(AppRoot, null));
-}, 0);
+// Render the app
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(AppRoot, null));
 
