@@ -89,23 +89,29 @@ const projectStatuses = ['Planning', 'Active', 'Completed', 'Cancelled'];
 const ThemeContext = React.createContext();
 
 function ThemeProvider({ children }) {
+    // 1. Initialize state immediately from localStorage to avoid "light" default
     const [theme, setTheme] = useState(() => {
-        const saved = localStorage.getItem('theme');
-        return saved || 'dark';
+        // Check for server-side rendering (if applicable)
+        if (typeof window === 'undefined') return 'dark';
+        return localStorage.getItem('theme') || 'dark';
     });
 
-    useEffect(() => {
+    // 2. Use LayoutEffect to apply the attribute BEFORE the user sees the page
+    React.useLayoutEffect(() => {
         document.documentElement.setAttribute('data-theme', theme);
         localStorage.setItem('theme', theme);
     }, [theme]);
 
     const toggleTheme = useCallback(() => {
-        setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+        setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
     }, []);
+
+    // 3. Memoize the value to prevent unnecessary re-renders of all children
+    const value = useMemo(() => ({ theme, toggleTheme }), [theme, toggleTheme]);
 
     return React.createElement(
         ThemeContext.Provider,
-        { value: { theme, toggleTheme } },
+        { value: value },
         children
     );
 }
@@ -115,9 +121,9 @@ const useTheme = () => {
     if (!context) {
         // Return a fallback instead of throwing
         console.warn('useTheme called outside ThemeProvider, using fallback');
-        return { 
-            theme: 'dark', 
-            toggleTheme: () => console.log('Theme toggle called outside provider') 
+        return {
+            theme: 'dark',
+            toggleTheme: () => console.log('Theme toggle called outside provider')
         };
     }
     return context;
@@ -146,26 +152,34 @@ function Toast({ message, type, onClose }) {
 function ToastProvider({ children }) {
     const [toasts, setToasts] = useState([]);
 
-    const addToast = useCallback((message, type = 'info') => {
-        const id = Date.now();
-        setToasts(prev => [...prev, { id, message, type }]);
-        setTimeout(() => {
-            setToasts(prev => prev.filter(t => t.id !== id));
-        }, 5000);
-    }, []);
-
     const removeToast = useCallback((id) => {
         setToasts(prev => prev.filter(t => t.id !== id));
     }, []);
 
+    const addToast = useCallback((message, type = 'info') => {
+        const id = Date.now();
+        setToasts(prev => [...prev, { id, message, type }]);
+
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            removeToast(id);
+        }, 5000);
+    }, [removeToast]);
+
+    // FIX: Memoize the value so the whole app doesn't re-render 
+    // every time a toast is added/removed.
+    const contextValue = useMemo(() => ({ addToast }), [addToast]);
+
     return React.createElement(
         ToastContext.Provider,
-        { value: { addToast } },
+        { value: contextValue },
+        // Children (The App) stays here
         children,
+        // Toast UI stays separate
         React.createElement(
             'div',
-            { className: 'toast-container' },
-            toasts.map(toast => 
+            { className: 'toast-container', 'aria-live': 'polite' },
+            toasts.map(toast =>
                 React.createElement(Toast, {
                     key: toast.id,
                     message: toast.message,
@@ -208,9 +222,9 @@ const Checkbox = ({ label, checked, onChange }) => (
 // ============================================
 function TransactionStatus({ pendingTxs }) {
     const activeTxs = pendingTxs.filter(tx => tx.status === 'pending');
-    
+
     if (activeTxs.length === 0) return null;
-    
+
     return (
         <div className="tx-status-widget">
             <div className="tx-widget-header">
@@ -222,9 +236,9 @@ function TransactionStatus({ pendingTxs }) {
                         <div className="spinner"></div>
                     </div>
                     <span className="tx-description">{tx.description}</span>
-                    <a 
-                        href={`${CONFIG.BLOCK_EXPLORER}/tx/${tx.hash}`} 
-                        target="_blank" 
+                    <a
+                        href={`${CONFIG.BLOCK_EXPLORER}/tx/${tx.hash}`}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="tx-link"
                     >
@@ -241,7 +255,7 @@ function TransactionStatus({ pendingTxs }) {
 // ============================================
 function GasEstimate({ gasEstimate }) {
     if (!gasEstimate) return null;
-    
+
     return (
         <div className="gas-estimate">
             <div className="gas-estimate-header">
@@ -272,28 +286,28 @@ function MetadataDisplay({ cid, showNotification }) {
     const [metadata, setMetadata] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
-    
+
     useEffect(() => {
         // Create AbortController to cancel fetch if component unmounts
         const abortController = new AbortController();
         let timeoutId;
-        
+
         const fetchMetadata = async () => {
             try {
                 setLoading(true);
                 setError(false);
-                
+
                 // Set a 10-second timeout for the fetch
                 timeoutId = setTimeout(() => {
                     abortController.abort();
                 }, 10000);
-                
+
                 const response = await fetch(`${CONFIG.IPFS_GATEWAY}${cid}`, {
                     signal: abortController.signal
                 });
-                
+
                 clearTimeout(timeoutId);
-                
+
                 if (!response.ok) throw new Error('Failed to fetch metadata');
                 const data = await response.json();
                 setMetadata(data);
@@ -315,18 +329,18 @@ function MetadataDisplay({ cid, showNotification }) {
                 setLoading(false);
             }
         };
-        
+
         if (cid) {
             fetchMetadata();
         }
-        
+
         // Cleanup: abort fetch if component unmounts
         return () => {
             abortController.abort();
             if (timeoutId) clearTimeout(timeoutId);
         };
     }, [cid, showNotification]);
-    
+
     if (loading) return <LoadingSpinner />;
     if (error || !metadata) {
         return (
@@ -338,7 +352,7 @@ function MetadataDisplay({ cid, showNotification }) {
             </div>
         );
     }
-    
+
     return (
         <div className="metadata-display">
             <h4>Profile Information</h4>
@@ -364,9 +378,9 @@ function MetadataDisplay({ cid, showNotification }) {
             )}
             {metadata.image && (
                 <div className="metadata-image-container">
-                    <img 
-                        src={`${CONFIG.IPFS_GATEWAY}${metadata.image}`} 
-                        alt="Profile" 
+                    <img
+                        src={`${CONFIG.IPFS_GATEWAY}${metadata.image}`}
+                        alt="Profile"
                         className="metadata-image"
                     />
                 </div>
@@ -470,7 +484,7 @@ function App() {
     const [notification, setNotification] = useState(null);
     const [pendingTxs, setPendingTxs] = useState([]);
     const [gasEstimate, setGasEstimate] = useState(null);
-    
+
     // Use enhanced context hooks
     const { addToast } = useToast();
     const { theme, toggleTheme } = useTheme();
@@ -548,7 +562,7 @@ function App() {
                 id: tokenId.toNumber(),
                 cid: result.metadataCIDs[index]
             }));
-            
+
             setUserTokens(tokenData);
             if (tokenData.length > 0 && !selectedToken) {
                 setSelectedToken(tokenData[0]);
@@ -568,16 +582,16 @@ function App() {
     const trackTransaction = useCallback(async (tx, description) => {
         const txId = Date.now();
         setPendingTxs(prev => [...prev, { id: txId, hash: tx.hash, description, status: 'pending' }]);
-        
+
         try {
             const receipt = await tx.wait();
-            setPendingTxs(prev => prev.map(t => 
+            setPendingTxs(prev => prev.map(t =>
                 t.id === txId ? { ...t, status: 'confirmed', receipt } : t
             ));
             addToast(`${description} confirmed!`, 'success');
             return receipt;
         } catch (error) {
-            setPendingTxs(prev => prev.map(t => 
+            setPendingTxs(prev => prev.map(t =>
                 t.id === txId ? { ...t, status: 'failed', error: error.message } : t
             ));
             handleError(error, description);
@@ -588,9 +602,9 @@ function App() {
     // Enhanced error handling
     const handleError = useCallback((error, context) => {
         console.error(`Error in ${context}:`, error);
-        
+
         let message = 'Transaction failed';
-        
+
         if (error.code === 'ACTION_REJECTED') {
             message = 'Transaction rejected by user';
         } else if (error.code === 'INSUFFICIENT_FUNDS') {
@@ -603,7 +617,7 @@ function App() {
         } else if (error.message) {
             message = error.message;
         }
-        
+
         addToast(message, 'error');
         showNotification(message, 'error');
     }, [addToast]);
@@ -615,7 +629,7 @@ function App() {
             const gasPrice = await provider.getGasPrice();
             const costInWei = estimate.mul(gasPrice);
             const costInEth = ethers.utils.formatEther(costInWei);
-            
+
             setGasEstimate({
                 gasLimit: estimate.toString(),
                 gasPrice: ethers.utils.formatUnits(gasPrice, 'gwei'),
@@ -676,45 +690,45 @@ function App() {
 
         // Credentials Events
         const handleCredentialIssued = (tid, credentialId, credType, issuer) => {
-            console.log('📜 Credential Issued', { 
-                tokenId: tid.toString(), 
-                credentialId: credentialId.toString(), 
-                credType 
+            console.log('📜 Credential Issued', {
+                tokenId: tid.toString(),
+                credentialId: credentialId.toString(),
+                credType
             });
             const credTypeName = credentialTypes[credType] || 'Unknown';
             addToast(`New ${credTypeName} credential issued!`, 'success');
         };
 
         const handleCredentialRevoked = (tid, credentialId) => {
-            console.log('🚫 Credential Revoked', { 
-                tokenId: tid.toString(), 
-                credentialId: credentialId.toString() 
+            console.log('🚫 Credential Revoked', {
+                tokenId: tid.toString(),
+                credentialId: credentialId.toString()
             });
             addToast(`Credential #${credentialId} revoked`, 'warning');
         };
 
         // Social Events
         const handleReviewSubmitted = (subjectTokenId, reviewerTokenId, reviewId, score) => {
-            console.log('⭐ Review Submitted', { 
-                subjectTokenId: subjectTokenId.toString(), 
-                reviewId: reviewId.toString(), 
-                score 
+            console.log('⭐ Review Submitted', {
+                subjectTokenId: subjectTokenId.toString(),
+                reviewId: reviewId.toString(),
+                score
             });
             addToast(`New review received (${score}/100)`, 'success');
         };
 
         const handleProjectCreated = (tid, projectId) => {
-            console.log('🚀 Project Created', { 
-                tokenId: tid.toString(), 
-                projectId: projectId.toString() 
+            console.log('🚀 Project Created', {
+                tokenId: tid.toString(),
+                projectId: projectId.toString()
             });
             addToast(`Project #${projectId} created!`, 'success');
         };
 
         const handleSkillEndorsed = (subjectTokenId, endorserTokenId, skillHash) => {
-            console.log('👍 Skill Endorsed', { 
-                subjectTokenId: subjectTokenId.toString(), 
-                endorserTokenId: endorserTokenId.toString() 
+            console.log('👍 Skill Endorsed', {
+                subjectTokenId: subjectTokenId.toString(),
+                endorserTokenId: endorserTokenId.toString()
             });
             addToast(`New skill endorsement received!`, 'success');
         };
@@ -723,7 +737,7 @@ function App() {
         // Minted events filtered by recipient (user's account)
         const mintedFilter = soulbound.filters.Minted(account, null);
         soulbound.on(mintedFilter, handleMinted);
-        
+
         // Access events filtered by tokenId
         const accessRequestedFilter = soulbound.filters.AccessRequested(tokenId);
         const accessApprovedFilter = soulbound.filters.AccessApproved(tokenId);
@@ -731,13 +745,13 @@ function App() {
         soulbound.on(accessRequestedFilter, handleAccessRequested);
         soulbound.on(accessApprovedFilter, handleAccessApproved);
         soulbound.on(accessRevokedFilter, handleAccessRevoked);
-        
+
         // Credential events filtered by tokenId
         const credentialIssuedFilter = credentials.filters.CredentialIssued(tokenId);
         const credentialRevokedFilter = credentials.filters.CredentialRevoked(tokenId);
         credentials.on(credentialIssuedFilter, handleCredentialIssued);
         credentials.on(credentialRevokedFilter, handleCredentialRevoked);
-        
+
         // Social events filtered by tokenId
         const reviewFilter = social.filters.ReviewSubmitted(tokenId);
         const projectFilter = social.filters.ProjectCreated(tokenId);
@@ -757,18 +771,18 @@ function App() {
     return (
         <div className="app-container">
             <TransactionStatus pendingTxs={pendingTxs} />
-            
-            <Header 
-                account={account} 
+
+            <Header
+                account={account}
                 onConnect={connectWallet}
                 loading={loading}
                 theme={theme}
                 toggleTheme={toggleTheme}
             />
-            
+
             {notification && (
-                <Notification 
-                    message={notification.message} 
+                <Notification
+                    message={notification.message}
                     type={notification.type}
                     onClose={() => setNotification(null)}
                 />
@@ -778,12 +792,12 @@ function App() {
                 <WelcomeScreen onConnect={connectWallet} loading={loading} />
             ) : (
                 <>
-                    <TabNavigation 
-                        activeTab={activeTab} 
+                    <TabNavigation
+                        activeTab={activeTab}
                         setActiveTab={setActiveTab}
                         userTokens={userTokens}
                     />
-                    
+
                     <main className="main-content">
                         {activeTab === 'identity' && (
                             <IdentityTab
@@ -796,7 +810,7 @@ function App() {
                                 showNotification={showNotification}
                             />
                         )}
-                        
+
                         {activeTab === 'credentials' && (
                             <CredentialsTab
                                 contracts={contracts}
@@ -805,7 +819,7 @@ function App() {
                                 showNotification={showNotification}
                             />
                         )}
-                        
+
                         {activeTab === 'access' && (
                             <AccessControlTab
                                 contracts={contracts}
@@ -814,7 +828,7 @@ function App() {
                                 showNotification={showNotification}
                             />
                         )}
-                        
+
                         {activeTab === 'social' && (
                             <SocialTab
                                 contracts={contracts}
@@ -824,7 +838,7 @@ function App() {
                                 showNotification={showNotification}
                             />
                         )}
-                        
+
                         {activeTab === 'analytics' && (
                             <AnalyticsTab
                                 contracts={contracts}
@@ -832,7 +846,7 @@ function App() {
                                 showNotification={showNotification}
                             />
                         )}
-                        
+
                         {activeTab === 'events' && (
                             <EventsTab
                                 contracts={contracts}
@@ -1049,12 +1063,12 @@ function App() {
 // Header Component
 function Header({ account, onConnect, loading, theme, toggleTheme }) {
     const [showAccountMenu, setShowAccountMenu] = useState(false);
-    
+
     const copyAddress = () => {
         navigator.clipboard.writeText(account);
         alert('Address copied to clipboard!');
     };
-    
+
     const switchAccount = async () => {
         try {
             await window.ethereum.request({
@@ -1067,7 +1081,7 @@ function Header({ account, onConnect, loading, theme, toggleTheme }) {
             console.error('Error switching account:', error);
         }
     };
-    
+
     return (
         <header className="header">
             <div className="header-content">
@@ -1079,14 +1093,14 @@ function Header({ account, onConnect, loading, theme, toggleTheme }) {
                     <p className="tagline">Decentralized Professional Network</p>
                 </div>
                 <div className="header-right">
-                    <button 
-                        className="theme-toggle" 
+                    <button
+                        className="theme-toggle"
                         onClick={toggleTheme}
                         title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
                     >
                         {theme === 'dark' ? '☀️' : '🌙'}
                     </button>
-                    
+
                     {account ? (
                         <div className="account-info">
                             <div className="account-badge" onClick={() => setShowAccountMenu(!showAccountMenu)}>
@@ -1638,14 +1652,14 @@ function IdentityTab({ contracts, account, userTokens, selectedToken, setSelecte
             for (let i = 0; i < 44; i++) {
                 mockCID += base58Chars.charAt(Math.floor(Math.random() * base58Chars.length));
             }
-            
+
             // Mint token
             const tx = await contracts.soulbound.mint(mockCID, parseInt(mintData.burnAuth));
             showNotification('Transaction submitted. Waiting for confirmation...', 'info');
-            
+
             await tx.wait();
             showNotification('Identity token minted successfully!', 'success');
-            
+
             setShowMintModal(false);
             setMintData({ name: '', bio: '', profileImage: '', burnAuth: '0' });
             onTokenCreated();
@@ -1704,7 +1718,7 @@ function IdentityTab({ contracts, account, userTokens, selectedToken, setSelecte
                         placeholder="Enter your full name"
                         required
                     />
-                    
+
                     <TextArea
                         label="Bio"
                         value={mintData.bio}
@@ -1712,14 +1726,14 @@ function IdentityTab({ contracts, account, userTokens, selectedToken, setSelecte
                         placeholder="Tell us about yourself..."
                         rows={4}
                     />
-                    
+
                     <Input
                         label="Profile Image URL (Optional)"
                         value={mintData.profileImage}
                         onChange={(val) => setMintData({ ...mintData, profileImage: val })}
                         placeholder="https://..."
                     />
-                    
+
                     <Select
                         label="Burn Authorization"
                         value={mintData.burnAuth}
@@ -1741,8 +1755,8 @@ function IdentityTab({ contracts, account, userTokens, selectedToken, setSelecte
                         <Button variant="secondary" onClick={() => setShowMintModal(false)} disabled={minting}>
                             Cancel
                         </Button>
-                        <Button 
-                            onClick={handleMint} 
+                        <Button
+                            onClick={handleMint}
                             disabled={minting || !mintData.name}
                         >
                             {minting ? 'Minting...' : 'Mint Token'}
@@ -1899,7 +1913,7 @@ function TokenCard({ token, isSelected, onSelect, contracts }) {
                         <span className="token-id">ID: {token.id}</span>
                     </div>
                 </div>
-                
+
                 {metadata?.bio && (
                     <p className="token-bio">{metadata.bio}</p>
                 )}
@@ -1910,7 +1924,7 @@ function TokenCard({ token, isSelected, onSelect, contracts }) {
                 </div>
 
                 <div className="token-actions">
-                    <button 
+                    <button
                         className="view-details-btn"
                         onClick={() => setShowDetails(true)}
                     >
@@ -1958,14 +1972,14 @@ function TokenCard({ token, isSelected, onSelect, contracts }) {
                         <h4>IPFS Metadata</h4>
                         <div className="cid-display">
                             <code className="full-cid">{token.cid}</code>
-                            <button 
+                            <button
                                 className="copy-btn"
                                 onClick={() => copyToClipboard(token.cid)}
                             >
                                 📋 Copy
                             </button>
                         </div>
-                        <a 
+                        <a
                             href={`https://gateway.pinata.cloud/ipfs/${token.cid}`}
                             target="_blank"
                             rel="noopener noreferrer"
@@ -1993,7 +2007,7 @@ function TokenCard({ token, isSelected, onSelect, contracts }) {
 
                     {!isSelected && (
                         <div className="modal-actions" style={{ marginTop: '24px' }}>
-                            <Button 
+                            <Button
                                 onClick={() => {
                                     onSelect();
                                     setShowDetails(false);
@@ -2266,7 +2280,7 @@ function CredentialsTab({ contracts, selectedToken, userTokens, showNotification
 
     const loadCredentials = async () => {
         if (!selectedToken) return;
-        
+
         setLoading(true);
         try {
             const allCreds = [];
@@ -2284,7 +2298,7 @@ function CredentialsTab({ contracts, selectedToken, userTokens, showNotification
 
     const loadSummary = async () => {
         if (!selectedToken) return;
-        
+
         try {
             const sum = await contracts.credentials.getCredentialSummary(selectedToken);
             setSummary({
@@ -2313,7 +2327,7 @@ function CredentialsTab({ contracts, selectedToken, userTokens, showNotification
 
             // In production, upload to IPFS
             const metadataHash = ethers.utils.id(JSON.stringify(metadata));
-            
+
             const issueDate = credentialData.issueDate ? Math.floor(new Date(credentialData.issueDate).getTime() / 1000) : Math.floor(Date.now() / 1000);
             const expiryDate = credentialData.expiryDate ? Math.floor(new Date(credentialData.expiryDate).getTime() / 1000) : 0;
 
@@ -2500,7 +2514,7 @@ function CredentialsTab({ contracts, selectedToken, userTokens, showNotification
                             type="date"
                         />
                     </div>
-                    
+
                     <div className="info-box" style={{ background: 'rgba(56, 189, 248, 0.1)', borderColor: 'var(--sky)' }}>
                         <strong>💡 Tip:</strong> Leave expiry date empty if the credential never expires. If set, expiry date must be after issue date.
                     </div>
@@ -2522,7 +2536,7 @@ function CredentialsTab({ contracts, selectedToken, userTokens, showNotification
                         <Button variant="secondary" onClick={() => setShowAddModal(false)} disabled={loading}>
                             Cancel
                         </Button>
-                        <Button 
+                        <Button
                             onClick={handleAddCredential}
                             disabled={loading || !credentialData.institution || !credentialData.title}
                         >
@@ -2722,7 +2736,7 @@ function SummaryCard({ icon, label, count, color }) {
 // Credential Card Component
 function CredentialCard({ credential, onRevoke }) {
     const [showDetails, setShowDetails] = useState(false);
-    
+
     const statusColors = {
         0: 'var(--success)', // Active
         1: 'var(--error)',   // Revoked
@@ -2775,7 +2789,7 @@ function CredentialCard({ credential, onRevoke }) {
                 </div>
 
                 <div className="credential-actions">
-                    <button 
+                    <button
                         className="view-credential-btn"
                         onClick={() => setShowDetails(true)}
                     >
@@ -2827,7 +2841,7 @@ function CredentialCard({ credential, onRevoke }) {
                             <span className="detail-label">Issuer Address:</span>
                             <code className="detail-value">{credential.issuer}</code>
                         </div>
-                        <button 
+                        <button
                             className="copy-btn"
                             onClick={() => copyToClipboard(credential.issuer)}
                             style={{ marginTop: '8px' }}
@@ -2862,7 +2876,7 @@ function CredentialCard({ credential, onRevoke }) {
                         <h4>Metadata</h4>
                         <div className="cid-display">
                             <code className="full-cid">{credential.metadataHash}</code>
-                            <button 
+                            <button
                                 className="copy-btn"
                                 onClick={() => copyToClipboard(credential.metadataHash)}
                             >
@@ -3106,20 +3120,20 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
 
     const loadAccessData = async () => {
         if (!selectedToken) return;
-        
+
         setLoading(true);
         try {
             // Load pending requests
             const requests = await contracts.soulbound.getPendingRequests(selectedToken, 0, 50);
             setPendingRequests(requests.requesters);
-            
+
             // Load granted access by checking stored addresses
             // Note: Your contract doesn't have a getGrantedAccess function
             // So we'll track addresses we've approved
             const storedGrantedAddresses = JSON.parse(
                 localStorage.getItem(`grantedAccess_${selectedToken}`) || '[]'
             );
-            
+
             // Verify each address still has access
             const stillActive = [];
             for (const address of storedGrantedAddresses) {
@@ -3136,13 +3150,13 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
                     continue;
                 }
             }
-            
+
             // Update localStorage with only active addresses
             localStorage.setItem(
                 `grantedAccess_${selectedToken}`,
                 JSON.stringify(stillActive.map(item => item.address))
             );
-            
+
             setGrantedAccess(stillActive);
         } catch (error) {
             console.error('Error loading access data:', error);
@@ -3153,31 +3167,31 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
 
     const loadTokensICanAccess = async () => {
         if (!contracts) return;
-        
+
         try {
             const accessibleTokens = [];
             // Check a range of token IDs
             // For demo purposes, checking first 10 tokens (adjust based on your needs)
             const maxTokenId = 10;
-            
+
             for (let tokenId = 1; tokenId <= maxTokenId; tokenId++) {
                 try {
                     // First check if token exists
                     const owner = await contracts.soulbound.ownerOf(tokenId);
                     const myAddress = await contracts.soulbound.signer.getAddress();
-                    
+
                     // Skip if I'm the owner
                     if (owner.toLowerCase() === myAddress.toLowerCase()) {
                         continue;
                     }
-                    
+
                     // Check if I have access
                     const hasAccess = await contracts.soulbound.canView(tokenId, myAddress);
-                    
+
                     // Only include if I have access
                     if (hasAccess) {
                         const [, expiresAt] = await contracts.soulbound.checkAccess(tokenId, myAddress);
-                        
+
                         // Try to get metadata, but don't fail if we can't
                         let metadataCID = '';
                         try {
@@ -3186,7 +3200,7 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
                             console.log(`Could not fetch metadata for token ${tokenId}:`, metadataError.message);
                             // Continue without CID
                         }
-                        
+
                         accessibleTokens.push({
                             tokenId,
                             owner,
@@ -3208,7 +3222,7 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
     const handleRequestAccess = async () => {
         try {
             if (!requestTokenId) return;
-            
+
             const tx = await contracts.soulbound.requestAccess(parseInt(requestTokenId));
             showNotification('Requesting access...', 'info');
             await tx.wait();
@@ -3228,7 +3242,7 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
             const tx = await contracts.soulbound.approveAccess(selectedToken, requester, duration);
             showNotification('Approving access...', 'info');
             await tx.wait();
-            
+
             // Track granted address in localStorage
             const storedGranted = JSON.parse(
                 localStorage.getItem(`grantedAccess_${selectedToken}`) || '[]'
@@ -3237,7 +3251,7 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
                 storedGranted.push(requester);
                 localStorage.setItem(`grantedAccess_${selectedToken}`, JSON.stringify(storedGranted));
             }
-            
+
             showNotification('Access approved!', 'success');
             loadAccessData();
         } catch (error) {
@@ -3265,14 +3279,14 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
             const tx = await contracts.soulbound.revokeAccess(selectedToken, requester, reason);
             showNotification('Revoking access...', 'info');
             await tx.wait();
-            
+
             // Remove from localStorage
             const storedGranted = JSON.parse(
                 localStorage.getItem(`grantedAccess_${selectedToken}`) || '[]'
             );
             const updated = storedGranted.filter(addr => addr.toLowerCase() !== requester.toLowerCase());
             localStorage.setItem(`grantedAccess_${selectedToken}`, JSON.stringify(updated));
-            
+
             showNotification('Access revoked!', 'success');
             loadAccessData();
         } catch (error) {
@@ -3311,7 +3325,7 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
                         <h3>Pending Access Requests</h3>
                         <span className="badge">{pendingRequests.length}</span>
                     </div>
-                    
+
                     {loading ? (
                         <LoadingSpinner />
                     ) : pendingRequests.length === 0 ? (
@@ -3330,13 +3344,13 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
                                         </div>
                                     </div>
                                     <div className="request-actions">
-                                        <Button 
+                                        <Button
                                             onClick={() => handleApproveAccess(requester)}
                                             style={{ padding: '8px 16px', fontSize: '13px' }}
                                         >
                                             Approve
                                         </Button>
-                                        <Button 
+                                        <Button
                                             variant="danger"
                                             onClick={() => handleDenyAccess(requester)}
                                             style={{ padding: '8px 16px', fontSize: '13px' }}
@@ -3355,7 +3369,7 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
                         <h3>Granted Access</h3>
                         <span className="badge">{grantedAccess.length}</span>
                     </div>
-                    
+
                     {loading ? (
                         <LoadingSpinner />
                     ) : grantedAccess.length === 0 ? (
@@ -3376,7 +3390,7 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
                                         </div>
                                     </div>
                                     <div className="request-actions">
-                                        <Button 
+                                        <Button
                                             variant="danger"
                                             onClick={() => handleRevokeAccess(item.address)}
                                             style={{ padding: '8px 16px', fontSize: '13px' }}
@@ -3395,7 +3409,7 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
                         <h3>Tokens I Can Access</h3>
                         <span className="badge">{tokensICanAccess.length}</span>
                     </div>
-                    
+
                     {tokensICanAccess.length === 0 ? (
                         <div className="empty-message">
                             <p>No access granted yet. Request access to view other identities.</p>
@@ -3412,15 +3426,15 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
                                                 Owner: {shortenAddress(item.owner)}
                                             </div>
                                             <div className="requester-label" style={{ color: 'var(--teal-light)', marginTop: '4px' }}>
-                                                {item.expiresAt > 0 && item.expiresAt < Date.now() / 1000 
-                                                    ? '⚠️ Access Expired' 
+                                                {item.expiresAt > 0 && item.expiresAt < Date.now() / 1000
+                                                    ? '⚠️ Access Expired'
                                                     : `✓ Access until ${formatDate(item.expiresAt)}`
                                                 }
                                             </div>
                                         </div>
                                     </div>
                                     <div className="request-actions">
-                                        <Button 
+                                        <Button
                                             onClick={async () => {
                                                 try {
                                                     const summary = await contracts.credentials.getCredentialSummary(item.tokenId);
@@ -3497,7 +3511,7 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
                         type="number"
                         required
                     />
-                    
+
                     <div className="info-box">
                         <strong>Note:</strong> You're requesting access to view another user's identity and credentials. The owner will need to approve your request.
                     </div>
@@ -3539,7 +3553,7 @@ function AccessControlTab({ contracts, selectedToken, userTokens, showNotificati
                                 <h4>IPFS Metadata</h4>
                                 <div className="cid-display">
                                     <code className="full-cid">{viewingToken.cid}</code>
-                                    <button 
+                                    <button
                                         className="copy-btn"
                                         onClick={() => {
                                             navigator.clipboard.writeText(viewingToken.cid);
@@ -3818,7 +3832,7 @@ function SocialTab({ contracts, selectedToken, userTokens, account, showNotifica
 
     const loadSocialData = async () => {
         if (!selectedToken) return;
-        
+
         setLoading(true);
         try {
             // Load reputation
@@ -3841,7 +3855,7 @@ function SocialTab({ contracts, selectedToken, userTokens, account, showNotifica
             // Load endorsements received
             const ends = await contracts.social.getEndorsements(selectedToken);
             setEndorsements(ends);
-            
+
             // Count endorsements per skill
             const counts = {};
             ends.forEach(end => {
@@ -3858,19 +3872,19 @@ function SocialTab({ contracts, selectedToken, userTokens, account, showNotifica
 
     const loadMyActivity = async () => {
         if (!selectedToken) return;
-        
+
         try {
             // Load reviews I've written
             const writtenReviews = [];
             const storedReviews = JSON.parse(localStorage.getItem(`reviews_written_${selectedToken}`) || '[]');
             console.log(`Loading reviews for token ${selectedToken}, found ${storedReviews.length} stored reviews`);
-            
+
             for (const item of storedReviews) {
                 try {
                     const tokenReviews = await contracts.social.getReviews(item.targetTokenId);
                     console.log(`Checking token ${item.targetTokenId}, found ${tokenReviews.length} reviews`);
                     // Find my review in their reviews
-                    const myReview = tokenReviews.find(r => 
+                    const myReview = tokenReviews.find(r =>
                         r.reviewerTokenId.toString() === selectedToken.toString()
                     );
                     if (myReview) {
@@ -3892,11 +3906,11 @@ function SocialTab({ contracts, selectedToken, userTokens, account, showNotifica
             // Load projects I'm collaborating on (other people's projects)
             const collaborations = [];
             const storedCollabs = JSON.parse(localStorage.getItem(`collaborations_${selectedToken}`) || '[]');
-            
+
             for (const item of storedCollabs) {
                 try {
                     const tokenProjects = await contracts.social.getProjects(item.ownerTokenId);
-                    const project = tokenProjects.find(p => 
+                    const project = tokenProjects.find(p =>
                         p.projectId.toString() === item.projectId.toString()
                     );
                     if (project) {
@@ -4144,7 +4158,7 @@ function ReputationSection({ reputation, reviews, reviewsWritten, loading, contr
             );
             showNotification('Submitting review...', 'info');
             await tx.wait();
-            
+
             // Track this review in localStorage
             const storedReviews = JSON.parse(localStorage.getItem(`reviews_written_${reviewerId}`) || '[]');
             storedReviews.push({
@@ -4152,7 +4166,7 @@ function ReputationSection({ reputation, reviews, reviewsWritten, loading, contr
                 timestamp: Date.now()
             });
             localStorage.setItem(`reviews_written_${reviewerId}`, JSON.stringify(storedReviews));
-            
+
             showNotification('Review submitted successfully!', 'success');
             setShowReviewModal(false);
             setReviewData({ targetTokenId: '', reviewerTokenId: '', score: '75', verified: false, isAnonymous: false, comment: '' });
@@ -4244,17 +4258,17 @@ function ReputationSection({ reputation, reviews, reviewsWritten, loading, contr
                 ) : !reviewsWritten || reviewsWritten.length === 0 ? (
                     <div className="empty-message">
                         <p>You haven't written any reviews yet</p>
-                        <button 
+                        <button
                             onClick={() => {
                                 console.log('All localStorage keys:', Object.keys(localStorage).filter(k => k.startsWith('reviews_written_')));
                                 alert('Check browser console for all review keys');
                             }}
-                            style={{ 
-                                marginTop: '12px', 
-                                padding: '8px 16px', 
-                                background: 'var(--teal)', 
-                                border: 'none', 
-                                borderRadius: '6px', 
+                            style={{
+                                marginTop: '12px',
+                                padding: '8px 16px',
+                                background: 'var(--teal)',
+                                border: 'none',
+                                borderRadius: '6px',
                                 color: 'white',
                                 cursor: 'pointer'
                             }}
@@ -4610,7 +4624,7 @@ function ProjectsSection({ projects, collaboratingOn, loading, contracts, select
             );
             showNotification('Adding collaborator...', 'info');
             await tx.wait();
-            
+
             // Track this collaboration for the collaborator
             const storedCollabs = JSON.parse(localStorage.getItem(`collaborations_${collabTokenId}`) || '[]');
             storedCollabs.push({
@@ -4619,7 +4633,7 @@ function ProjectsSection({ projects, collaboratingOn, loading, contracts, select
                 addedAt: Date.now()
             });
             localStorage.setItem(`collaborations_${collabTokenId}`, JSON.stringify(storedCollabs));
-            
+
             showNotification('Collaborator added successfully!', 'success');
             setShowCollabModal(false);
             setCollabData('');
@@ -4654,9 +4668,9 @@ function ProjectsSection({ projects, collaboratingOn, loading, contracts, select
                         {projects.map((project, idx) => (
                             <div key={idx} className="project-card">
                                 <h4>Project #{project.projectId.toString()}</h4>
-                                <div className="project-status" style={{ 
-                                    color: project.status === 2 ? 'var(--success)' : 
-                                          project.status === 3 ? 'var(--error)' : 'var(--sky)'
+                                <div className="project-status" style={{
+                                    color: project.status === 2 ? 'var(--success)' :
+                                        project.status === 3 ? 'var(--error)' : 'var(--sky)'
                                 }}>
                                     Status: {projectStatuses[project.status]}
                                 </div>
@@ -4667,7 +4681,7 @@ function ProjectsSection({ projects, collaboratingOn, loading, contracts, select
                                 {project.collaborators && project.collaborators.length > 0 && (
                                     <p>Collaborators: {project.collaborators.length}</p>
                                 )}
-                                
+
                                 <div className="project-actions">
                                     <select
                                         className="status-select"
@@ -4713,17 +4727,17 @@ function ProjectsSection({ projects, collaboratingOn, loading, contracts, select
                 ) : !collaboratingOn || collaboratingOn.length === 0 ? (
                     <div className="empty-message">
                         <p>You're not collaborating on any projects yet</p>
-                        <button 
+                        <button
                             onClick={() => {
                                 console.log('All localStorage keys:', Object.keys(localStorage).filter(k => k.startsWith('collaborations_')));
                                 alert('Check browser console for all collaboration keys');
                             }}
-                            style={{ 
-                                marginTop: '12px', 
-                                padding: '8px 16px', 
-                                background: 'var(--teal)', 
-                                border: 'none', 
-                                borderRadius: '6px', 
+                            style={{
+                                marginTop: '12px',
+                                padding: '8px 16px',
+                                background: 'var(--teal)',
+                                border: 'none',
+                                borderRadius: '6px',
                                 color: 'white',
                                 cursor: 'pointer'
                             }}
@@ -4739,9 +4753,9 @@ function ProjectsSection({ projects, collaboratingOn, loading, contracts, select
                                 <div className="project-owner">
                                     Owner: Token #{project.ownerTokenId}
                                 </div>
-                                <div className="project-status" style={{ 
-                                    color: project.status === 2 ? 'var(--success)' : 
-                                          project.status === 3 ? 'var(--error)' : 'var(--sky)'
+                                <div className="project-status" style={{
+                                    color: project.status === 2 ? 'var(--success)' :
+                                        project.status === 3 ? 'var(--error)' : 'var(--sky)'
                                 }}>
                                     Status: {projectStatuses[project.status]}
                                 </div>
@@ -4764,7 +4778,7 @@ function ProjectsSection({ projects, collaboratingOn, loading, contracts, select
                         placeholder="My Awesome Project"
                         required
                     />
-                    
+
                     <TextArea
                         label="Description"
                         value={projectData.description}
@@ -4772,7 +4786,7 @@ function ProjectsSection({ projects, collaboratingOn, loading, contracts, select
                         placeholder="Describe your project..."
                         rows={4}
                     />
-                    
+
                     <Input
                         label="Project URL (Optional)"
                         value={projectData.url}
@@ -4801,7 +4815,7 @@ function ProjectsSection({ projects, collaboratingOn, loading, contracts, select
                         type="number"
                         required
                     />
-                    
+
                     <div className="info-box" style={{ marginTop: '16px' }}>
                         Adding collaborators to <strong>Project #{selectedProject?.projectId.toString()}</strong>
                     </div>
@@ -4975,7 +4989,7 @@ function EndorsementsSection({ endorsements, loading, contracts, selectedToken, 
             }
 
             const skillHash = ethers.utils.id(endorseData.skillName);
-            
+
             const tx = await contracts.social.endorseSkill(
                 targetId,
                 endorserId,
@@ -5009,34 +5023,34 @@ function EndorsementsSection({ endorsements, loading, contracts, selectedToken, 
                 {loading ? (
                     <LoadingSpinner />
                 ) : !endorsements || endorsements.length === 0 ? (
-                <div className="empty-message">
-                    <p>No endorsements yet</p>
-                </div>
-            ) : (
-                <div className="endorsements-grouped">
-                    {Object.entries(endorsementsBySkill).map(([skillHash, skillEndorsements]) => (
-                        <div key={skillHash} className="skill-group">
-                            <div className="skill-header">
-                                <span className="skill-name">Skill Hash: {skillHash.substring(0, 10)}...</span>
-                                <span className="endorsement-count">
-                                    ⚡ {skillEndorsements.length} {skillEndorsements.length === 1 ? 'person' : 'people'} endorsed this
-                                </span>
+                    <div className="empty-message">
+                        <p>No endorsements yet</p>
+                    </div>
+                ) : (
+                    <div className="endorsements-grouped">
+                        {Object.entries(endorsementsBySkill).map(([skillHash, skillEndorsements]) => (
+                            <div key={skillHash} className="skill-group">
+                                <div className="skill-header">
+                                    <span className="skill-name">Skill Hash: {skillHash.substring(0, 10)}...</span>
+                                    <span className="endorsement-count">
+                                        ⚡ {skillEndorsements.length} {skillEndorsements.length === 1 ? 'person' : 'people'} endorsed this
+                                    </span>
+                                </div>
+                                <div className="endorsements-list">
+                                    {skillEndorsements.map((endorsement, idx) => (
+                                        <div key={idx} className="endorsement-item">
+                                            <div>From Token #{endorsement.endorserId.toString()}</div>
+                                            <div className="endorsement-date">{formatDate(endorsement.endorsedAt)}</div>
+                                            {endorsement.comment && <p>{endorsement.comment}</p>}
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                            <div className="endorsements-list">
-                                {skillEndorsements.map((endorsement, idx) => (
-                                    <div key={idx} className="endorsement-item">
-                                        <div>From Token #{endorsement.endorserId.toString()}</div>
-                                        <div className="endorsement-date">{formatDate(endorsement.endorsedAt)}</div>
-                                        {endorsement.comment && <p>{endorsement.comment}</p>}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
+                        ))}
+                    </div>
+                )}
 
-            <style jsx>{`
+                <style jsx>{`
                 .section-header {
                     display: flex;
                     justify-content: space-between;
@@ -5125,57 +5139,57 @@ function EndorsementsSection({ endorsements, loading, contracts, selectedToken, 
                     margin-top: 8px;
                 }
             `}</style>
-        </Card>
+            </Card>
 
-        <Modal isOpen={showEndorseModal} onClose={() => setShowEndorseModal(false)} title="Endorse Skill">
-            <div className="endorse-form">
-                <Input
-                    label="Token ID to Endorse"
-                    value={endorseData.targetTokenId}
-                    onChange={(val) => setEndorseData({ ...endorseData, targetTokenId: val })}
-                    placeholder="Enter token ID"
-                    type="number"
-                    required
-                />
+            <Modal isOpen={showEndorseModal} onClose={() => setShowEndorseModal(false)} title="Endorse Skill">
+                <div className="endorse-form">
+                    <Input
+                        label="Token ID to Endorse"
+                        value={endorseData.targetTokenId}
+                        onChange={(val) => setEndorseData({ ...endorseData, targetTokenId: val })}
+                        placeholder="Enter token ID"
+                        type="number"
+                        required
+                    />
 
-                <Select
-                    label="Your Token ID (Endorser)"
-                    value={endorseData.endorserTokenId}
-                    onChange={(val) => setEndorseData({ ...endorseData, endorserTokenId: val })}
-                    options={userTokens.map(t => ({ value: t.id.toString(), label: `Token #${t.id}` }))}
-                    required
-                />
+                    <Select
+                        label="Your Token ID (Endorser)"
+                        value={endorseData.endorserTokenId}
+                        onChange={(val) => setEndorseData({ ...endorseData, endorserTokenId: val })}
+                        options={userTokens.map(t => ({ value: t.id.toString(), label: `Token #${t.id}` }))}
+                        required
+                    />
 
-                <Input
-                    label="Skill Name"
-                    value={endorseData.skillName}
-                    onChange={(val) => setEndorseData({ ...endorseData, skillName: val })}
-                    placeholder="e.g., Solidity, Project Management, Python"
-                    required
-                />
+                    <Input
+                        label="Skill Name"
+                        value={endorseData.skillName}
+                        onChange={(val) => setEndorseData({ ...endorseData, skillName: val })}
+                        placeholder="e.g., Solidity, Project Management, Python"
+                        required
+                    />
 
-                <TextArea
-                    label="Comment (Optional)"
-                    value={endorseData.comment}
-                    onChange={(val) => setEndorseData({ ...endorseData, comment: val })}
-                    placeholder="Add a comment about this skill..."
-                    rows={3}
-                />
+                    <TextArea
+                        label="Comment (Optional)"
+                        value={endorseData.comment}
+                        onChange={(val) => setEndorseData({ ...endorseData, comment: val })}
+                        placeholder="Add a comment about this skill..."
+                        rows={3}
+                    />
 
-                <div className="info-box">
-                    <strong>💡 Tip:</strong> Skill names are hashed on-chain. Use consistent naming (e.g., "Solidity" not "solidity programming") so endorsements group together.
+                    <div className="info-box">
+                        <strong>💡 Tip:</strong> Skill names are hashed on-chain. Use consistent naming (e.g., "Solidity" not "solidity programming") so endorsements group together.
+                    </div>
+
+                    <div className="modal-actions">
+                        <Button variant="secondary" onClick={() => setShowEndorseModal(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleEndorseSkill}>
+                            Endorse Skill
+                        </Button>
+                    </div>
                 </div>
-
-                <div className="modal-actions">
-                    <Button variant="secondary" onClick={() => setShowEndorseModal(false)}>
-                        Cancel
-                    </Button>
-                    <Button onClick={handleEndorseSkill}>
-                        Endorse Skill
-                    </Button>
-                </div>
-            </div>
-        </Modal>
+            </Modal>
         </>
     );
 }
@@ -5257,7 +5271,7 @@ function AnalyticsTab({ contracts, selectedToken, showNotification }) {
     return (
         <div className="analytics-container">
             <h2 style={{ marginBottom: '24px', color: 'var(--beige, #e8dfca)' }}>Analytics Dashboard</h2>
-            
+
             <div className="analytics-dashboard" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
                 <Card className="stat-card" style={{ padding: '24px' }}>
                     <div className="stat-card-header" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
@@ -5303,7 +5317,7 @@ function AnalyticsTab({ contracts, selectedToken, showNotification }) {
                         </div>
                         <div className="breakdown-item">
                             <span>
-                                Verification Rate: {stats.reputation.total > 0 
+                                Verification Rate: {stats.reputation.total > 0
                                     ? Math.round((stats.reputation.verified / stats.reputation.total) * 100)
                                     : 0}%
                             </span>
@@ -5354,7 +5368,7 @@ function EventsTab({ contracts, selectedToken, showNotification }) {
         try {
             const allEvents = [];
             const tokenId = selectedToken.id;
-            
+
             // Fetch identity events
             try {
                 const mintFilter = contracts.soulbound.filters.Minted(null, tokenId);
@@ -5394,7 +5408,7 @@ function EventsTab({ contracts, selectedToken, showNotification }) {
                     type: 'credentials',
                     action: 'Credential Issued',
                     timestamp: e.blockNumber,
-                    data: { 
+                    data: {
                         type: credentialTypes[e.args.credType],
                         id: e.args.credentialId.toString()
                     },
@@ -5413,7 +5427,7 @@ function EventsTab({ contracts, selectedToken, showNotification }) {
                     type: 'social',
                     action: 'Review Received',
                     timestamp: e.blockNumber,
-                    data: { 
+                    data: {
                         score: e.args.score.toString(),
                         reviewer: e.args.reviewerTokenId.toString()
                     },
@@ -5431,7 +5445,7 @@ function EventsTab({ contracts, selectedToken, showNotification }) {
                     type: 'social',
                     action: 'Project Created',
                     timestamp: e.blockNumber,
-                    data: { 
+                    data: {
                         projectId: e.args.projectId.toString()
                     },
                     icon: '🚀',
@@ -5448,7 +5462,7 @@ function EventsTab({ contracts, selectedToken, showNotification }) {
                     type: 'social',
                     action: 'Skill Endorsed',
                     timestamp: e.blockNumber,
-                    data: { 
+                    data: {
                         endorser: e.args.endorserTokenId.toString()
                     },
                     icon: '👍',
@@ -5486,33 +5500,33 @@ function EventsTab({ contracts, selectedToken, showNotification }) {
     return (
         <div className="events-container">
             <h2 style={{ marginBottom: '24px', color: 'var(--beige, #e8dfca)' }}>Activity History</h2>
-            
+
             <Card>
                 <div className="events-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                     <h3>Events</h3>
                     <div className="filter-buttons" style={{ display: 'flex', gap: '8px' }}>
-                        <Button 
+                        <Button
                             variant={filter === 'all' ? 'primary' : 'secondary'}
                             onClick={() => setFilter('all')}
                             style={{ padding: '8px 16px', fontSize: '14px' }}
                         >
                             All
                         </Button>
-                        <Button 
+                        <Button
                             variant={filter === 'identity' ? 'primary' : 'secondary'}
                             onClick={() => setFilter('identity')}
                             style={{ padding: '8px 16px', fontSize: '14px' }}
                         >
                             Identity
                         </Button>
-                        <Button 
+                        <Button
                             variant={filter === 'credentials' ? 'primary' : 'secondary'}
                             onClick={() => setFilter('credentials')}
                             style={{ padding: '8px 16px', fontSize: '14px' }}
                         >
                             Credentials
                         </Button>
-                        <Button 
+                        <Button
                             variant={filter === 'social' ? 'primary' : 'secondary'}
                             onClick={() => setFilter('social')}
                             style={{ padding: '8px 16px', fontSize: '14px' }}
@@ -5544,10 +5558,10 @@ function EventsTab({ contracts, selectedToken, showNotification }) {
                                             ))}
                                         </div>
                                         <div className="event-meta" style={{ fontSize: '13px', color: 'var(--text-muted, #6b7589)' }}>
-                                            Block: {event.timestamp} • 
-                                            <a 
-                                                href={`${CONFIG.BLOCK_EXPLORER}/tx/${event.txHash}`} 
-                                                target="_blank" 
+                                            Block: {event.timestamp} •
+                                            <a
+                                                href={`${CONFIG.BLOCK_EXPLORER}/tx/${event.txHash}`}
+                                                target="_blank"
                                                 rel="noopener noreferrer"
                                                 style={{ color: 'var(--accent-sky-light, #38bdf8)', textDecoration: 'none', marginLeft: '8px' }}
                                             >
@@ -5571,22 +5585,15 @@ function EventsTab({ contracts, selectedToken, showNotification }) {
 // ROOT APP WRAPPER WITH PROVIDERS  
 // ============================================
 function AppRoot() {
-    const [mounted, setMounted] = React.useState(false);
-    
-    React.useEffect(() => {
-        // Wait for next frame to ensure providers are in the tree
-        requestAnimationFrame(() => {
-            setMounted(true);
-        });
-    }, []);
-    
+    // You don't need 'mounted' state or useEffect here for Context to work.
     return React.createElement(
-        ThemeProvider, 
+        ThemeProvider,
         null,
         React.createElement(
-            ToastProvider, 
+            ToastProvider,
             null,
-            mounted ? React.createElement(App, null) : null
+            // App is now a direct descendant and will correctly consume context
+            React.createElement(App, null)
         )
     );
 }
