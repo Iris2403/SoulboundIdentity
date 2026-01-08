@@ -3,64 +3,986 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SoulBound Identity - Debug Version</title>
-    
-    <!-- React 18 - PRODUCTION -->
-    <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
-    
-    <!-- Babel Standalone -->
-    <script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
-    
-    <!-- Ethers.js v5 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
-    
-    <!-- Styles -->
+    <title>SoulBound Identity System - Testing Interface</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div id="root"></div>
-    
-    <script>
-        console.log('1. Starting app load...');
-        console.log('2. React available:', typeof React !== 'undefined');
-        console.log('3. ReactDOM available:', typeof ReactDOM !== 'undefined');
-        console.log('4. Babel available:', typeof Babel !== 'undefined');
-        console.log('5. ethers available:', typeof ethers !== 'undefined');
+    <!-- Toast Notifications Container -->
+    <div id="toast-container"></div>
+
+    <!-- Main App Container -->
+    <div class="app-container">
         
-        fetch('app.js')
-            .then(response => {
-                console.log('6. app.js fetched');
-                return response.text();
-            })
-            .then(code => {
-                console.log('7. Transforming with Babel...');
-                console.log('8. Code length:', code.length);
-                
-                const transformed = Babel.transform(code, { 
-                    presets: ['react'],
-                    filename: 'app.js'
-                }).code;
-                
-                console.log('9. Transformation complete');
-                console.log('10. Transformed code length:', transformed.length);
-                
-                // Log the last 500 chars to see the render call
-                console.log('11. End of transformed code:', transformed.slice(-500));
-                
-                console.log('12. Executing transformed code...');
-                eval(transformed);
-                console.log('13. Execution complete!');
-            })
-            .catch(error => {
-                console.error('ERROR:', error);
-                document.body.innerHTML = `
-                    <div style="color: white; background: #1a2332; padding: 50px; font-family: Arial;">
-                        <h1 style="color: #ef4444;">Error: ${error.message}</h1>
-                        <pre style="color: #a8b2c1; background: #0a0e1a; padding: 20px; border-radius: 8px; overflow-x: auto;">${error.stack}</pre>
+        <!-- Header Section -->
+        <header class="app-header">
+            <div class="header-brand">
+                <div class="brand-icon">⬢</div>
+                <div class="brand-text">
+                    <h1>SOULBOUND</h1>
+                    <span class="brand-subtitle">Identity Protocol</span>
+                </div>
+            </div>
+            
+            <div class="header-wallet">
+                <div id="wallet-status" class="wallet-disconnected">
+                    <button id="connect-wallet-btn" class="btn-primary">
+                        <span class="btn-icon">🔗</span>
+                        Connect Wallet
+                    </button>
+                </div>
+                <div id="wallet-info" class="wallet-info" style="display: none;">
+                    <div class="info-group">
+                        <span class="info-label">Network</span>
+                        <span id="network-name" class="info-value">-</span>
                     </div>
-                `;
-            });
-    </script>
+                    <div class="info-group">
+                        <span class="info-label">Address</span>
+                        <span id="wallet-address" class="info-value">-</span>
+                    </div>
+                    <div class="info-group">
+                        <span class="info-label">Token IDs</span>
+                        <span id="user-tokens" class="info-value">None</span>
+                    </div>
+                    <div class="info-group">
+                        <span class="info-label">Gas Price</span>
+                        <span id="gas-price" class="info-value">-</span>
+                    </div>
+                    <button id="disconnect-wallet-btn" class="btn-secondary-small">Disconnect</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs">
+            <button class="nav-tab active" data-tab="identity">
+                <span class="tab-icon">👤</span>
+                Identity Management
+            </button>
+            <button class="nav-tab" data-tab="access">
+                <span class="tab-icon">🔐</span>
+                Access Control
+            </button>
+            <button class="nav-tab" data-tab="credentials">
+                <span class="tab-icon">📜</span>
+                Credentials
+            </button>
+            <button class="nav-tab" data-tab="social">
+                <span class="tab-icon">⭐</span>
+                Social Features
+            </button>
+            <button class="nav-tab" data-tab="admin">
+                <span class="tab-icon">⚙️</span>
+                Admin Tools
+            </button>
+            <button class="nav-tab" data-tab="utilities">
+                <span class="tab-icon">🛠️</span>
+                Testing Utilities
+            </button>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            
+            <!-- IDENTITY MANAGEMENT TAB -->
+            <section id="tab-identity" class="tab-content active">
+                <h2 class="section-title">Identity Management</h2>
+                
+                <!-- Mint New Identity -->
+                <div class="card">
+                    <h3 class="card-title">Mint New Identity Token</h3>
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label for="mint-ipfs-cid">IPFS Metadata CID</label>
+                            <div class="input-with-validation">
+                                <input type="text" id="mint-ipfs-cid" placeholder="QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG" class="input-text">
+                                <span class="validation-indicator"></span>
+                            </div>
+                            <small class="input-hint">Must start with "Qm" (46 chars) or "bafy" (59+ chars)</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="mint-burn-auth">Burn Authorization</label>
+                            <select id="mint-burn-auth" class="input-select">
+                                <option value="0">IssuerOnly - Only contract issuer can burn</option>
+                                <option value="1">OwnerOnly - Only token owner can burn</option>
+                                <option value="2">Both - Either issuer or owner can burn</option>
+                                <option value="3">Neither - Token cannot be burned</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Gas Estimate</label>
+                            <div class="gas-estimate">
+                                <span id="mint-gas-estimate">~0.0012 ETH</span>
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions full-width">
+                            <button id="generate-mock-cid" class="btn-secondary">Generate Mock CID</button>
+                            <button id="mint-token-btn" class="btn-primary">Mint Identity Token</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- View My Tokens -->
+                <div class="card">
+                    <h3 class="card-title">My Identity Tokens</h3>
+                    <div id="my-tokens-container">
+                        <p class="empty-state">Connect your wallet to view your tokens</p>
+                    </div>
+                </div>
+
+                <!-- Search Token -->
+                <div class="card">
+                    <h3 class="card-title">Search Any Token</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="search-token-id">Token ID</label>
+                            <input type="number" id="search-token-id" placeholder="Enter token ID" class="input-text">
+                        </div>
+                        <div class="form-actions">
+                            <button id="search-token-btn" class="btn-primary">Fetch Token Details</button>
+                        </div>
+                    </div>
+                    <div id="search-token-result"></div>
+                </div>
+
+                <!-- Burn Token -->
+                <div class="card card-danger">
+                    <h3 class="card-title">Burn Token</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="burn-token-id">Select Token to Burn</label>
+                            <select id="burn-token-id" class="input-select">
+                                <option value="">-- Select a token --</option>
+                            </select>
+                        </div>
+                        <div class="form-group full-width">
+                            <div class="warning-box">
+                                <strong>⚠️ Warning:</strong> This action is irreversible. All associated data will be permanently deleted.
+                            </div>
+                        </div>
+                        <div class="form-group full-width">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="burn-confirm-checkbox">
+                                <span>I understand this token and all its data will be permanently deleted</span>
+                            </label>
+                        </div>
+                        <div class="form-actions full-width">
+                            <button id="burn-token-btn" class="btn-danger" disabled>Burn Token</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ACCESS CONTROL TAB -->
+            <section id="tab-access" class="tab-content">
+                <h2 class="section-title">Access Control Management</h2>
+                
+                <!-- Request Access -->
+                <div class="card">
+                    <h3 class="card-title">Request Access to Token</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="request-token-id">Token ID</label>
+                            <input type="number" id="request-token-id" placeholder="Enter token ID" class="input-text">
+                        </div>
+                        <div class="form-group">
+                            <label>Request Limits</label>
+                            <div class="info-box">
+                                <div>Daily requests: <span id="daily-request-count">0</span>/10</div>
+                                <div>Cooldown: <span id="cooldown-timer">Ready</span></div>
+                            </div>
+                        </div>
+                        <div class="form-actions full-width">
+                            <button id="request-access-btn" class="btn-primary">Request Metadata Access</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- My Pending Requests -->
+                <div class="card">
+                    <h3 class="card-title">My Pending Requests (Outbound)</h3>
+                    <div id="pending-requests-container">
+                        <p class="empty-state">No pending requests</p>
+                    </div>
+                </div>
+
+                <!-- Incoming Access Requests -->
+                <div class="card">
+                    <h3 class="card-title">Manage Incoming Access Requests</h3>
+                    <div id="incoming-requests-container">
+                        <p class="empty-state">No incoming requests</p>
+                    </div>
+                </div>
+
+                <!-- View Approved Access -->
+                <div class="card">
+                    <h3 class="card-title">Approved Access List</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="view-access-token-id">Select Your Token</label>
+                            <select id="view-access-token-id" class="input-select">
+                                <option value="">-- Select a token --</option>
+                            </select>
+                        </div>
+                        <div class="form-actions">
+                            <button id="load-approved-access-btn" class="btn-primary">Load Approved Access</button>
+                        </div>
+                    </div>
+                    <div id="approved-access-container"></div>
+                </div>
+
+                <!-- Manual Revocation -->
+                <div class="card">
+                    <h3 class="card-title">Manual Access Revocation</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="revoke-token-id">Token ID</label>
+                            <input type="number" id="revoke-token-id" placeholder="Your token ID" class="input-text">
+                        </div>
+                        <div class="form-group">
+                            <label for="revoke-address">Address to Revoke</label>
+                            <input type="text" id="revoke-address" placeholder="0x..." class="input-text">
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="revoke-reason">Revocation Reason</label>
+                            <textarea id="revoke-reason" placeholder="Enter reason for revocation" class="input-textarea"></textarea>
+                        </div>
+                        <div class="form-actions full-width">
+                            <button id="revoke-access-btn" class="btn-danger">Revoke Access</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- CREDENTIALS TAB -->
+            <section id="tab-credentials" class="tab-content">
+                <h2 class="section-title">Credentials Hub</h2>
+                
+                <!-- Issuer Authorization (Owner Only) -->
+                <div class="card owner-only">
+                    <h3 class="card-title">Authorize Issuers (Owner Only)</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="auth-cred-type">Credential Type</label>
+                            <select id="auth-cred-type" class="input-select">
+                                <option value="0">Degree</option>
+                                <option value="1">Certification</option>
+                                <option value="2">Work Experience</option>
+                                <option value="3">Identity Proof</option>
+                                <option value="4">Skill</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="auth-issuer-address">Issuer Address</label>
+                            <input type="text" id="auth-issuer-address" placeholder="0x..." class="input-text">
+                        </div>
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="auth-authorize-checkbox" checked>
+                                <span>Authorize (uncheck to revoke)</span>
+                            </label>
+                        </div>
+                        <div class="form-actions full-width">
+                            <button id="set-authorization-btn" class="btn-primary">Set Authorization</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add Credentials -->
+                <div class="card">
+                    <h3 class="card-title">Add Credentials</h3>
+                    
+                    <!-- Credential Type Selector -->
+                    <div class="credential-type-tabs">
+                        <button class="cred-tab active" data-cred-type="degree">🎓 Degree</button>
+                        <button class="cred-tab" data-cred-type="certification">📜 Certification</button>
+                        <button class="cred-tab" data-cred-type="work">💼 Work Experience</button>
+                        <button class="cred-tab" data-cred-type="identity">🆔 Identity Proof</button>
+                        <button class="cred-tab" data-cred-type="skill">🛠️ Skill</button>
+                    </div>
+
+                    <!-- Degree Form -->
+                    <div id="cred-form-degree" class="cred-form active">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="degree-token-id">Your Token ID</label>
+                                <select id="degree-token-id" class="input-select cred-token-select">
+                                    <option value="">-- Select token --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="degree-metadata">IPFS Metadata Hash (bytes32)</label>
+                                <input type="text" id="degree-metadata" placeholder="0x..." class="input-text">
+                                <button class="btn-small" onclick="generateSampleHash('degree-metadata')">Generate Sample</button>
+                            </div>
+                            <div class="form-group">
+                                <label for="degree-issue-date">Issue Date</label>
+                                <input type="date" id="degree-issue-date" class="input-text">
+                            </div>
+                            <div class="form-group">
+                                <label for="degree-expiry-date">Expiry Date</label>
+                                <input type="date" id="degree-expiry-date" class="input-text">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="degree-never-expires">
+                                    <span>Never Expires</span>
+                                </label>
+                            </div>
+                            <div class="form-group full-width">
+                                <label>Submit Method</label>
+                                <div class="radio-group">
+                                    <label class="radio-label">
+                                        <input type="radio" name="degree-submit-method" value="self" checked>
+                                        <span>Self-Add (Unverified)</span>
+                                    </label>
+                                    <label class="radio-label">
+                                        <input type="radio" name="degree-submit-method" value="issuer">
+                                        <span>Issue as Authorized Issuer</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-actions full-width">
+                                <button class="btn-primary" onclick="addCredential('degree')">Add Degree</button>
+                            </div>
+                        </div>
+                        <div class="metadata-guide">
+                            <strong>Metadata Structure:</strong>
+                            <pre>{ "institution": "University Name", "field": "Computer Science", "level": "Bachelor's/Master's/PhD", "gpa": "3.8/4.0", "honors": "Summa Cum Laude" }</pre>
+                        </div>
+                    </div>
+
+                    <!-- Certification Form -->
+                    <div id="cred-form-certification" class="cred-form">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="cert-token-id">Your Token ID</label>
+                                <select id="cert-token-id" class="input-select cred-token-select">
+                                    <option value="">-- Select token --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="cert-metadata">IPFS Metadata Hash (bytes32)</label>
+                                <input type="text" id="cert-metadata" placeholder="0x..." class="input-text">
+                                <button class="btn-small" onclick="generateSampleHash('cert-metadata')">Generate Sample</button>
+                            </div>
+                            <div class="form-group">
+                                <label for="cert-issue-date">Issue Date</label>
+                                <input type="date" id="cert-issue-date" class="input-text">
+                            </div>
+                            <div class="form-group">
+                                <label for="cert-expiry-date">Expiry Date</label>
+                                <input type="date" id="cert-expiry-date" class="input-text">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="cert-never-expires">
+                                    <span>Never Expires</span>
+                                </label>
+                            </div>
+                            <div class="form-group full-width">
+                                <label>Submit Method</label>
+                                <div class="radio-group">
+                                    <label class="radio-label">
+                                        <input type="radio" name="cert-submit-method" value="self" checked>
+                                        <span>Self-Add (Unverified)</span>
+                                    </label>
+                                    <label class="radio-label">
+                                        <input type="radio" name="cert-submit-method" value="issuer">
+                                        <span>Issue as Authorized Issuer</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-actions full-width">
+                                <button class="btn-primary" onclick="addCredential('certification')">Add Certification</button>
+                            </div>
+                        </div>
+                        <div class="metadata-guide">
+                            <strong>Metadata Structure:</strong>
+                            <pre>{ "name": "AWS Solutions Architect", "organization": "Amazon Web Services", "certificationNumber": "ABC123456", "verificationUrl": "https://..." }</pre>
+                        </div>
+                    </div>
+
+                    <!-- Work Experience Form -->
+                    <div id="cred-form-work" class="cred-form">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="work-token-id">Your Token ID</label>
+                                <select id="work-token-id" class="input-select cred-token-select">
+                                    <option value="">-- Select token --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="work-metadata">IPFS Metadata Hash (bytes32)</label>
+                                <input type="text" id="work-metadata" placeholder="0x..." class="input-text">
+                                <button class="btn-small" onclick="generateSampleHash('work-metadata')">Generate Sample</button>
+                            </div>
+                            <div class="form-group">
+                                <label for="work-issue-date">Start Date</label>
+                                <input type="date" id="work-issue-date" class="input-text">
+                            </div>
+                            <div class="form-group">
+                                <label for="work-expiry-date">End Date</label>
+                                <input type="date" id="work-expiry-date" class="input-text">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="work-never-expires">
+                                    <span>Current Position</span>
+                                </label>
+                            </div>
+                            <div class="form-group full-width">
+                                <label>Submit Method</label>
+                                <div class="radio-group">
+                                    <label class="radio-label">
+                                        <input type="radio" name="work-submit-method" value="self" checked>
+                                        <span>Self-Add (Unverified)</span>
+                                    </label>
+                                    <label class="radio-label">
+                                        <input type="radio" name="work-submit-method" value="issuer">
+                                        <span>Issue as Authorized Issuer</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-actions full-width">
+                                <button class="btn-primary" onclick="addCredential('work')">Add Work Experience</button>
+                            </div>
+                        </div>
+                        <div class="metadata-guide">
+                            <strong>Metadata Structure:</strong>
+                            <pre>{ "company": "Tech Corp Inc", "position": "Senior Developer", "description": "Led team of 5...", "achievements": ["Increased performance by 40%"], "technologies": ["React", "Node.js"] }</pre>
+                        </div>
+                    </div>
+
+                    <!-- Identity Proof Form -->
+                    <div id="cred-form-identity" class="cred-form">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="identity-token-id">Your Token ID</label>
+                                <select id="identity-token-id" class="input-select cred-token-select">
+                                    <option value="">-- Select token --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="identity-metadata">IPFS Metadata Hash (bytes32)</label>
+                                <input type="text" id="identity-metadata" placeholder="0x..." class="input-text">
+                                <button class="btn-small" onclick="generateSampleHash('identity-metadata')">Generate Sample</button>
+                            </div>
+                            <div class="form-group">
+                                <label for="identity-issue-date">Verification Date</label>
+                                <input type="date" id="identity-issue-date" class="input-text">
+                            </div>
+                            <div class="form-group">
+                                <label for="identity-expiry-date">Expiry Date</label>
+                                <input type="date" id="identity-expiry-date" class="input-text">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="identity-never-expires">
+                                    <span>Never Expires</span>
+                                </label>
+                            </div>
+                            <div class="form-group full-width">
+                                <label>Submit Method</label>
+                                <div class="radio-group">
+                                    <label class="radio-label">
+                                        <input type="radio" name="identity-submit-method" value="self" checked>
+                                        <span>Self-Add (Unverified)</span>
+                                    </label>
+                                    <label class="radio-label">
+                                        <input type="radio" name="identity-submit-method" value="issuer">
+                                        <span>Issue as Authorized Issuer</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-actions full-width">
+                                <button class="btn-primary" onclick="addCredential('identity')">Add Identity Proof</button>
+                            </div>
+                        </div>
+                        <div class="metadata-guide">
+                            <strong>Metadata Structure:</strong>
+                            <pre>{ "verificationType": "KYC/Government ID/Biometric", "verificationProvider": "Veriff/Onfido", "documentType": "Passport/Driver License", "verificationLevel": "Basic/Enhanced", "verificationDate": "2024-01-15" }</pre>
+                        </div>
+                    </div>
+
+                    <!-- Skill Form -->
+                    <div id="cred-form-skill" class="cred-form">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="skill-token-id">Your Token ID</label>
+                                <select id="skill-token-id" class="input-select cred-token-select">
+                                    <option value="">-- Select token --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="skill-metadata">IPFS Metadata Hash (bytes32)</label>
+                                <input type="text" id="skill-metadata" placeholder="0x..." class="input-text">
+                                <button class="btn-small" onclick="generateSampleHash('skill-metadata')">Generate Sample</button>
+                            </div>
+                            <div class="form-group">
+                                <label for="skill-category">Skill Category</label>
+                                <select id="skill-category" class="input-select">
+                                    <option value="0">Technical</option>
+                                    <option value="1">Soft Skills</option>
+                                    <option value="2">Language</option>
+                                    <option value="3">Domain Knowledge</option>
+                                    <option value="4">Tools</option>
+                                    <option value="5">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="skill-issue-date">Acquired Date</label>
+                                <input type="date" id="skill-issue-date" class="input-text">
+                            </div>
+                            <div class="form-group">
+                                <label for="skill-expiry-date">Expiry Date</label>
+                                <input type="date" id="skill-expiry-date" class="input-text">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="skill-never-expires" checked>
+                                    <span>Never Expires</span>
+                                </label>
+                            </div>
+                            <div class="form-group full-width">
+                                <label>Submit Method</label>
+                                <div class="radio-group">
+                                    <label class="radio-label">
+                                        <input type="radio" name="skill-submit-method" value="self" checked>
+                                        <span>Self-Add (Unverified)</span>
+                                    </label>
+                                    <label class="radio-label">
+                                        <input type="radio" name="skill-submit-method" value="issuer">
+                                        <span>Issue as Authorized Issuer</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-actions full-width">
+                                <button class="btn-primary" onclick="addCredential('skill')">Add Skill</button>
+                            </div>
+                        </div>
+                        <div class="metadata-guide">
+                            <strong>Metadata Structure:</strong>
+                            <pre>{ "skillName": "JavaScript", "proficiency": "Expert/Advanced/Intermediate/Beginner", "yearsExperience": 5, "lastUsed": "2024" }</pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- View Credentials -->
+                <div class="card">
+                    <h3 class="card-title">View My Credentials</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="view-cred-token-id">Select Token</label>
+                            <select id="view-cred-token-id" class="input-select">
+                                <option value="">-- Select token --</option>
+                            </select>
+                        </div>
+                        <div class="form-actions">
+                            <button id="load-credentials-btn" class="btn-primary">Load All Credentials</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Credential Summary Dashboard -->
+                    <div id="credential-summary" class="credential-summary"></div>
+                    
+                    <!-- Credential Details -->
+                    <div id="credentials-container"></div>
+                </div>
+
+                <!-- Search Credential by ID -->
+                <div class="card">
+                    <h3 class="card-title">Search Credential by ID</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="search-cred-token-id">Token ID</label>
+                            <input type="number" id="search-cred-token-id" placeholder="Token ID" class="input-text">
+                        </div>
+                        <div class="form-group">
+                            <label for="search-cred-id">Credential ID</label>
+                            <input type="number" id="search-cred-id" placeholder="Credential ID" class="input-text">
+                        </div>
+                        <div class="form-actions full-width">
+                            <button id="search-credential-btn" class="btn-primary">Fetch Credential</button>
+                        </div>
+                    </div>
+                    <div id="search-credential-result"></div>
+                </div>
+
+                <!-- Revoke Credential -->
+                <div class="card">
+                    <h3 class="card-title">Revoke Credential</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="revoke-cred-token-id">Token ID</label>
+                            <input type="number" id="revoke-cred-token-id" placeholder="Token ID" class="input-text">
+                        </div>
+                        <div class="form-group">
+                            <label for="revoke-cred-id">Credential ID</label>
+                            <input type="number" id="revoke-cred-id" placeholder="Credential ID" class="input-text">
+                        </div>
+                        <div class="form-actions full-width">
+                            <button id="revoke-credential-btn" class="btn-danger">Revoke Credential</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SOCIAL FEATURES TAB -->
+            <section id="tab-social" class="tab-content">
+                <h2 class="section-title">Social Hub</h2>
+                
+                <!-- Submit Review -->
+                <div class="card">
+                    <h3 class="card-title">Submit Review</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="review-subject-token">Subject Token ID</label>
+                            <input type="number" id="review-subject-token" placeholder="Who you're reviewing" class="input-text">
+                        </div>
+                        <div class="form-group">
+                            <label for="review-your-token">Your Token ID</label>
+                            <select id="review-your-token" class="input-select">
+                                <option value="">-- Select your token --</option>
+                            </select>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="review-score">Score: <span id="review-score-value">50</span>/100</label>
+                            <input type="range" id="review-score" min="0" max="100" value="50" class="input-range">
+                            <div class="score-indicator">
+                                <span class="score-stars" id="score-stars">★★★☆☆</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="review-verified">
+                                <span>Verified Collaboration</span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="review-anonymous">
+                                <span>Anonymous Review</span>
+                            </label>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="review-comment">Comment (optional, max 280 chars)</label>
+                            <textarea id="review-comment" maxlength="280" placeholder="Share your experience..." class="input-textarea"></textarea>
+                            <small class="char-counter"><span id="review-char-count">0</span>/280</small>
+                        </div>
+                        <div class="form-actions full-width">
+                            <button id="submit-review-btn" class="btn-primary">Submit Review</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- View Reviews -->
+                <div class="card">
+                    <h3 class="card-title">View Reviews</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="view-reviews-token">Token ID</label>
+                            <input type="number" id="view-reviews-token" placeholder="Token ID" class="input-text">
+                        </div>
+                        <div class="form-actions">
+                            <button id="load-reviews-btn" class="btn-primary">Load Reviews</button>
+                        </div>
+                    </div>
+                    <div id="reviews-container"></div>
+                </div>
+
+                <!-- Create Project -->
+                <div class="card">
+                    <h3 class="card-title">Create Project</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="project-token-id">Your Token ID</label>
+                            <select id="project-token-id" class="input-select">
+                                <option value="">-- Select token --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="project-metadata">IPFS Metadata Hash (bytes32)</label>
+                            <input type="text" id="project-metadata" placeholder="0x..." class="input-text">
+                            <button class="btn-small" onclick="generateSampleHash('project-metadata')">Generate Sample</button>
+                        </div>
+                        <div class="form-actions full-width">
+                            <button id="create-project-btn" class="btn-primary">Create Project</button>
+                        </div>
+                    </div>
+                    <div class="metadata-guide">
+                        <strong>Metadata Structure:</strong>
+                        <pre>{ "title": "E-Commerce Platform Redesign", "description": "Full stack development...", "technologies": ["React", "Node.js"], "role": "Lead Developer", "duration": "6 months" }</pre>
+                    </div>
+                </div>
+
+                <!-- View Projects -->
+                <div class="card">
+                    <h3 class="card-title">View Projects</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="view-projects-token">Token ID</label>
+                            <input type="number" id="view-projects-token" placeholder="Token ID" class="input-text">
+                        </div>
+                        <div class="form-actions">
+                            <button id="load-projects-btn" class="btn-primary">Load All Projects</button>
+                        </div>
+                    </div>
+                    <div id="projects-container"></div>
+                </div>
+
+                <!-- Update Project Status -->
+                <div class="card">
+                    <h3 class="card-title">Update Project Status</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="update-project-token">Token ID</label>
+                            <input type="number" id="update-project-token" placeholder="Token ID" class="input-text">
+                        </div>
+                        <div class="form-group">
+                            <label for="update-project-id">Project ID</label>
+                            <input type="number" id="update-project-id" placeholder="Project ID" class="input-text">
+                        </div>
+                        <div class="form-group">
+                            <label for="update-project-status">New Status</label>
+                            <select id="update-project-status" class="input-select">
+                                <option value="0">Planning</option>
+                                <option value="1">Active</option>
+                                <option value="2">Completed</option>
+                                <option value="3">Cancelled</option>
+                            </select>
+                        </div>
+                        <div class="form-actions full-width">
+                            <button id="update-project-status-btn" class="btn-primary">Update Status</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add Collaborator -->
+                <div class="card">
+                    <h3 class="card-title">Add Project Collaborator</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="collab-token-id">Your Token ID</label>
+                            <input type="number" id="collab-token-id" placeholder="Project owner token" class="input-text">
+                        </div>
+                        <div class="form-group">
+                            <label for="collab-project-id">Project ID</label>
+                            <input type="number" id="collab-project-id" placeholder="Project ID" class="input-text">
+                        </div>
+                        <div class="form-group">
+                            <label for="collab-collaborator-token">Collaborator Token ID</label>
+                            <input type="number" id="collab-collaborator-token" placeholder="Token to add" class="input-text">
+                        </div>
+                        <div class="form-actions full-width">
+                            <button id="add-collaborator-btn" class="btn-primary">Add Collaborator</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Endorse Skill -->
+                <div class="card">
+                    <h3 class="card-title">Endorse Skill</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="endorse-subject-token">Subject Token ID</label>
+                            <input type="number" id="endorse-subject-token" placeholder="Who you're endorsing" class="input-text">
+                        </div>
+                        <div class="form-group">
+                            <label for="endorse-your-token">Your Token ID</label>
+                            <select id="endorse-your-token" class="input-select">
+                                <option value="">-- Select your token --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="endorse-skill-hash">Skill Hash (bytes32)</label>
+                            <input type="text" id="endorse-skill-hash" placeholder="0x..." class="input-text">
+                            <button class="btn-small" onclick="generateSampleHash('endorse-skill-hash')">Generate Sample</button>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="endorse-comment">Comment (optional)</label>
+                            <textarea id="endorse-comment" placeholder="Why you're endorsing this skill..." class="input-textarea"></textarea>
+                        </div>
+                        <div class="form-actions full-width">
+                            <button id="endorse-skill-btn" class="btn-primary">Endorse Skill</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- View Endorsements -->
+                <div class="card">
+                    <h3 class="card-title">View Skill Endorsements</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="view-endorsements-token">Token ID</label>
+                            <input type="number" id="view-endorsements-token" placeholder="Token ID" class="input-text">
+                        </div>
+                        <div class="form-actions">
+                            <button id="load-endorsements-btn" class="btn-primary">Load All Endorsements</button>
+                        </div>
+                    </div>
+                    <div id="endorsements-container"></div>
+                </div>
+            </section>
+
+            <!-- ADMIN TOOLS TAB -->
+            <section id="tab-admin" class="tab-content">
+                <h2 class="section-title">Admin Tools (Owner Only)</h2>
+                
+                <div id="admin-content" class="owner-only">
+                    <!-- Pause/Unpause Contract -->
+                    <div class="card">
+                        <h3 class="card-title">Contract Status Control</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Current Status</label>
+                                <div class="status-indicator">
+                                    <span id="contract-status-indicator" class="status-badge">Loading...</span>
+                                </div>
+                            </div>
+                            <div class="form-actions full-width">
+                                <button id="pause-contract-btn" class="btn-warning">Pause Contract</button>
+                                <button id="unpause-contract-btn" class="btn-primary">Unpause Contract</button>
+                            </div>
+                            <div class="info-box full-width">
+                                <strong>Note:</strong> When paused, minting and burning operations are disabled.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- View Current Issuers -->
+                    <div class="card">
+                        <h3 class="card-title">Authorized Issuers</h3>
+                        <div id="authorized-issuers-container">
+                            <p class="empty-state">Loading authorized issuers...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="admin-restricted" style="display: none;">
+                    <div class="card">
+                        <div class="warning-box">
+                            <strong>⚠️ Access Restricted</strong>
+                            <p>Only the contract owner can access admin tools.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TESTING UTILITIES TAB -->
+            <section id="tab-utilities" class="tab-content">
+                <h2 class="section-title">Testing Utilities</h2>
+                
+                <!-- Mock Data Generators -->
+                <div class="card">
+                    <h3 class="card-title">Mock Data Generators</h3>
+                    <div class="utility-buttons">
+                        <button class="btn-secondary" onclick="generateMockIPFS()">Generate IPFS CID</button>
+                        <button class="btn-secondary" onclick="generateMockBytes32()">Generate Metadata Hash</button>
+                        <button class="btn-secondary" onclick="generateMockBytes32()">Generate Skill Hash</button>
+                        <button class="btn-secondary" onclick="generateRandomTimestamp()">Random Unix Timestamp</button>
+                        <button class="btn-secondary" onclick="generateRandomScore()">Random Score (0-100)</button>
+                    </div>
+                    <div id="generator-output" class="output-display"></div>
+                </div>
+
+                <!-- Hash Converter Tool -->
+                <div class="card">
+                    <h3 class="card-title">Hash Converter Tool</h3>
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label for="hash-input">Text to Convert</label>
+                            <input type="text" id="hash-input" placeholder="Enter text to hash" class="input-text">
+                        </div>
+                        <div class="form-actions full-width">
+                            <button id="convert-hash-btn" class="btn-primary">Convert to Bytes32</button>
+                        </div>
+                        <div id="hash-output" class="output-display"></div>
+                    </div>
+                </div>
+
+                <!-- Date Converter -->
+                <div class="card">
+                    <h3 class="card-title">Date/Timestamp Converter</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="date-to-timestamp">Date to Unix Timestamp</label>
+                            <input type="datetime-local" id="date-to-timestamp" class="input-text">
+                            <button class="btn-small" onclick="convertDateToTimestamp()">Convert</button>
+                        </div>
+                        <div class="form-group">
+                            <label for="timestamp-to-date">Unix Timestamp to Date</label>
+                            <input type="number" id="timestamp-to-date" placeholder="Unix timestamp" class="input-text">
+                            <button class="btn-small" onclick="convertTimestampToDate()">Convert</button>
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Add Duration to Current Time</label>
+                            <div class="duration-buttons">
+                                <button class="btn-small" onclick="addDuration(3600)">+1 Hour</button>
+                                <button class="btn-small" onclick="addDuration(86400)">+1 Day</button>
+                                <button class="btn-small" onclick="addDuration(604800)">+7 Days</button>
+                                <button class="btn-small" onclick="addDuration(2592000)">+30 Days</button>
+                            </div>
+                        </div>
+                        <div id="date-converter-output" class="output-display"></div>
+                    </div>
+                </div>
+
+                <!-- Transaction Monitor -->
+                <div class="card">
+                    <h3 class="card-title">Transaction History</h3>
+                    <div class="form-actions">
+                        <button id="clear-history-btn" class="btn-secondary">Clear History</button>
+                    </div>
+                    <div id="transaction-history" class="transaction-list"></div>
+                </div>
+
+                <!-- Event Listener Panel -->
+                <div class="card">
+                    <h3 class="card-title">Event Monitor</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="event-filter">Filter by Event Type</label>
+                            <select id="event-filter" class="input-select">
+                                <option value="">All Events</option>
+                                <option value="AccessRequested">AccessRequested</option>
+                                <option value="AccessApproved">AccessApproved</option>
+                                <option value="CredentialIssued">CredentialIssued</option>
+                                <option value="ReviewSubmitted">ReviewSubmitted</option>
+                                <option value="ProjectCreated">ProjectCreated</option>
+                                <option value="SkillEndorsed">SkillEndorsed</option>
+                            </select>
+                        </div>
+                        <div class="form-actions">
+                            <button id="start-event-listener" class="btn-primary">Start Listening</button>
+                            <button id="stop-event-listener" class="btn-secondary">Stop Listening</button>
+                            <button id="export-events-csv" class="btn-secondary">Export to CSV</button>
+                        </div>
+                    </div>
+                    <div id="events-container" class="events-list"></div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>Contract Addresses</h4>
+                    <div class="address-list">
+                        <div><strong>SoulboundIdentity:</strong> <code>0xf1FB393025ef07673CcFBD5E83E07f6cF503F8ee</code></div>
+                        <div><strong>CredentialsHub:</strong> <code>0x25154346a75204f80108E73739f0A4AaD4754c8B</code></div>
+                        <div><strong>SocialHub:</strong> <code>0xbe78D2f3c24Abdd91AD8263D7cF10290F94045a7</code></div>
+                    </div>
+                </div>
+                <div class="footer-section">
+                    <p>Decentralized Identity Protocol • Built on Ethereum • ERC-5484 Compliant</p>
+                </div>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- External Libraries -->
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
+    
+    <!-- Main Application Script -->
+    <script src="app.js"></script>
 </body>
 </html>
