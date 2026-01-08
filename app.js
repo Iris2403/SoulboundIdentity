@@ -3349,24 +3349,30 @@ function SocialTab({ contracts, selectedToken, userTokens, account, showNotifica
             // Load reviews I've written
             const writtenReviews = [];
             const storedReviews = JSON.parse(localStorage.getItem(`reviews_written_${selectedToken}`) || '[]');
+            console.log(`Loading reviews for token ${selectedToken}, found ${storedReviews.length} stored reviews`);
             
             for (const item of storedReviews) {
                 try {
                     const tokenReviews = await contracts.social.getReviews(item.targetTokenId);
+                    console.log(`Checking token ${item.targetTokenId}, found ${tokenReviews.length} reviews`);
                     // Find my review in their reviews
                     const myReview = tokenReviews.find(r => 
                         r.reviewerTokenId.toString() === selectedToken.toString()
                     );
                     if (myReview) {
+                        console.log('Found my review!', myReview);
                         writtenReviews.push({
                             ...myReview,
                             targetTokenId: item.targetTokenId
                         });
+                    } else {
+                        console.log('My review not found in their reviews');
                     }
                 } catch (err) {
-                    console.log('Could not load review for token', item.targetTokenId);
+                    console.log('Could not load review for token', item.targetTokenId, err);
                 }
             }
+            console.log(`Total reviews written: ${writtenReviews.length}`);
             setReviewsWritten(writtenReviews);
 
             // Load projects I'm collaborating on (other people's projects)
@@ -3454,6 +3460,7 @@ function SocialTab({ contracts, selectedToken, userTokens, account, showNotifica
             {activeSection === 'projects' && (
                 <ProjectsSection
                     projects={projects}
+                    collaboratingOn={collaboratingOn}
                     loading={loading}
                     contracts={contracts}
                     selectedToken={selectedToken}
@@ -3680,11 +3687,36 @@ function ReputationSection({ reputation, reviews, reviewsWritten, loading, contr
                     <span className="badge">{reviewsWritten?.length || 0}</span>
                 </div>
 
+                <div className="info-box" style={{ background: 'rgba(56, 189, 248, 0.1)', fontSize: '12px', marginBottom: '16px' }}>
+                    <strong>Debug:</strong> Checking localStorage key: reviews_written_{selectedToken}
+                    {(() => {
+                        const stored = localStorage.getItem(`reviews_written_${selectedToken}`);
+                        return stored ? ` - Found ${JSON.parse(stored).length} stored reviews` : ' - No stored reviews found';
+                    })()}
+                </div>
+
                 {loading ? (
                     <LoadingSpinner />
                 ) : !reviewsWritten || reviewsWritten.length === 0 ? (
                     <div className="empty-message">
                         <p>You haven't written any reviews yet</p>
+                        <button 
+                            onClick={() => {
+                                console.log('All localStorage keys:', Object.keys(localStorage).filter(k => k.startsWith('reviews_written_')));
+                                alert('Check browser console for all review keys');
+                            }}
+                            style={{ 
+                                marginTop: '12px', 
+                                padding: '8px 16px', 
+                                background: 'var(--teal)', 
+                                border: 'none', 
+                                borderRadius: '6px', 
+                                color: 'white',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            Show All Review Keys (Debug)
+                        </button>
                     </div>
                 ) : (
                     <div className="reviews-list">
@@ -3920,7 +3952,7 @@ function ReputationSection({ reputation, reviews, reviewsWritten, loading, contr
 }
 
 // Projects Section - Simplified placeholder
-function ProjectsSection({ projects, loading, contracts, selectedToken, showNotification, onReload }) {
+function ProjectsSection({ projects, collaboratingOn, loading, contracts, selectedToken, showNotification, onReload }) {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showCollabModal, setShowCollabModal] = useState(false);
     const [selectedProject, setSelectedProject] = useState(null);
@@ -3987,6 +4019,17 @@ function ProjectsSection({ projects, loading, contracts, selectedToken, showNoti
             );
             showNotification('Adding collaborator...', 'info');
             await tx.wait();
+            
+            // Track this collaboration for the collaborator
+            const collabTokenId = parseInt(collabData);
+            const storedCollabs = JSON.parse(localStorage.getItem(`collaborations_${collabTokenId}`) || '[]');
+            storedCollabs.push({
+                ownerTokenId: selectedToken,
+                projectId: selectedProject.projectId.toString(),
+                addedAt: Date.now()
+            });
+            localStorage.setItem(`collaborations_${collabTokenId}`, JSON.stringify(storedCollabs));
+            
             showNotification('Collaborator added successfully!', 'success');
             setShowCollabModal(false);
             setCollabData('');
@@ -4055,6 +4098,67 @@ function ProjectsSection({ projects, loading, contracts, selectedToken, showNoti
                                         + Collaborator
                                     </button>
                                 </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </Card>
+
+            <Card>
+                <div className="section-header">
+                    <h3>Projects I'm Collaborating On</h3>
+                    <span className="badge">{collaboratingOn?.length || 0}</span>
+                </div>
+
+                <div className="info-box" style={{ background: 'rgba(56, 189, 248, 0.1)', fontSize: '12px', marginBottom: '16px' }}>
+                    <strong>Debug:</strong> Checking localStorage key: collaborations_{selectedToken}
+                    {(() => {
+                        const stored = localStorage.getItem(`collaborations_${selectedToken}`);
+                        return stored ? ` - Found ${JSON.parse(stored).length} stored collaborations` : ' - No stored collaborations found';
+                    })()}
+                </div>
+
+                {loading ? (
+                    <LoadingSpinner />
+                ) : !collaboratingOn || collaboratingOn.length === 0 ? (
+                    <div className="empty-message">
+                        <p>You're not collaborating on any projects yet</p>
+                        <button 
+                            onClick={() => {
+                                console.log('All localStorage keys:', Object.keys(localStorage).filter(k => k.startsWith('collaborations_')));
+                                alert('Check browser console for all collaboration keys');
+                            }}
+                            style={{ 
+                                marginTop: '12px', 
+                                padding: '8px 16px', 
+                                background: 'var(--teal)', 
+                                border: 'none', 
+                                borderRadius: '6px', 
+                                color: 'white',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            Show All Collaboration Keys (Debug)
+                        </button>
+                    </div>
+                ) : (
+                    <div className="projects-grid">
+                        {collaboratingOn.map((project, idx) => (
+                            <div key={idx} className="project-card" style={{ borderLeft: '4px solid var(--sky)' }}>
+                                <h4>Project #{project.projectId.toString()}</h4>
+                                <div className="project-owner">
+                                    Owner: Token #{project.ownerTokenId}
+                                </div>
+                                <div className="project-status" style={{ 
+                                    color: project.status === 2 ? 'var(--success)' : 
+                                          project.status === 3 ? 'var(--error)' : 'var(--sky)'
+                                }}>
+                                    Status: {projectStatuses[project.status]}
+                                </div>
+                                <p>Created: {formatDate(project.createdAt)}</p>
+                                {project.completedAt > 0 && (
+                                    <p>Completed: {formatDate(project.completedAt)}</p>
+                                )}
                             </div>
                         ))}
                     </div>
