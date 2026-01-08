@@ -15,12 +15,7 @@ const SOULBOUND_IDENTITY_ABI = [
     "function getAccessStatus(uint256 tokenId, address requester) external view returns (uint8 status)",
     "function ownerOf(uint256 tokenId) external view returns (address)",
     "function balanceOf(address owner) external view returns (uint256)",
-    "function getOwnedTokensPaginated(address owner, uint256 offset, uint256 limit) external view returns (uint256[] memory tokenIds, string[] memory metadataCIDs, uint256 totalCount)",
-    "event Minted(address indexed to, uint256 indexed tokenId, string ipfsCID, uint8 burnAuth)",
-    "event AccessRequested(uint256 indexed tokenId, address indexed requester)",
-    "event AccessApproved(uint256 indexed tokenId, address indexed requester, uint64 duration)",
-    "event AccessDenied(uint256 indexed tokenId, address indexed requester)",
-    "event AccessRevoked(uint256 indexed tokenId, address indexed requester, string reason)"
+    "function getOwnedTokensPaginated(address owner, uint256 offset, uint256 limit) external view returns (uint256[] memory tokenIds, string[] memory metadataCIDs, uint256 totalCount)"
 ];
 
 const CREDENTIALS_HUB_ABI = [
@@ -31,9 +26,7 @@ const CREDENTIALS_HUB_ABI = [
     "function getCredentialSummary(uint256 tokenId) external view returns (uint256 degrees, uint256 certifications, uint256 workExperience, uint256 identityProofs, uint256 skills)",
     "function getActiveCredentials(uint256 tokenId, uint8 credType) external view returns (tuple(uint256 credentialId, uint8 credType, bytes32 metadataHash, address issuer, uint64 issueDate, uint64 expiryDate, uint8 status, uint8 category, bool verified)[] memory)",
     "function setIssuerAuthorization(uint8 credType, address issuer, bool authorized) external",
-    "function authorizedIssuers(uint8 credType, address issuer) external view returns (bool)",
-    "event CredentialIssued(uint256 indexed tokenId, uint256 indexed credentialId, uint8 credType, address indexed issuer)",
-    "event CredentialRevoked(uint256 indexed tokenId, uint256 indexed credentialId)"
+    "function authorizedIssuers(uint8 credType, address issuer) external view returns (bool)"
 ];
 
 const SOCIAL_HUB_ABI = [
@@ -46,12 +39,7 @@ const SOCIAL_HUB_ABI = [
     "function getProjects(uint256 tokenId) external view returns (tuple(uint256 projectId, bytes32 metadataHash, uint64 createdAt, uint64 completedAt, uint8 status, uint256[] collaborators)[] memory)",
     "function endorseSkill(uint256 subjectTokenId, uint256 endorserTokenId, bytes32 skillHash, string calldata comment) external",
     "function getEndorsements(uint256 tokenId) external view returns (tuple(uint256 endorserId, bytes32 skillHash, uint64 endorsedAt, string comment)[] memory)",
-    "function getEndorsementCount(uint256 tokenId, bytes32 skillHash) external view returns (uint256)",
-    "event ReviewSubmitted(uint256 indexed subjectTokenId, uint256 indexed reviewerTokenId, uint256 indexed reviewId, uint8 score)",
-    "event ProjectCreated(uint256 indexed tokenId, uint256 indexed projectId)",
-    "event ProjectStatusUpdated(uint256 indexed tokenId, uint256 indexed projectId, uint8 newStatus)",
-    "event CollaboratorAdded(uint256 indexed tokenId, uint256 indexed projectId, uint256 collaboratorTokenId)",
-    "event SkillEndorsed(uint256 indexed subjectTokenId, uint256 indexed endorserTokenId, bytes32 skillHash)"
+    "function getEndorsementCount(uint256 tokenId, bytes32 skillHash) external view returns (uint256)"
 ];
 
 // Configuration
@@ -64,8 +52,7 @@ const CONFIG = {
         CREDENTIALS_HUB: '0x25154346a75204f80108E73739f0A4AaD4754c8B',
         SOCIAL_HUB: '0xbe78D2f3c24Abdd91AD8263D7cF10290F94045a7'
     },
-    IPFS_GATEWAY: 'https://gateway.pinata.cloud/ipfs/',
-    BLOCK_EXPLORER: 'https://explorer.dimikog.org'
+    IPFS_GATEWAY: 'https://gateway.pinata.cloud/ipfs/'
 };
 
 // Utility Functions
@@ -82,245 +69,6 @@ const formatDate = (timestamp) => {
 const credentialTypes = ['Degree', 'Certification', 'Work Experience', 'Identity Proof', 'Skill'];
 const skillCategories = ['Technical', 'Soft', 'Language', 'Domain', 'Tool', 'Other'];
 const projectStatuses = ['Planning', 'Active', 'Completed', 'Cancelled'];
-
-// ============================================
-// THEME PROVIDER & CONTEXT
-// ============================================
-const ThemeContext = React.createContext();
-
-function ThemeProvider({ children }) {
-    const [theme, setTheme] = useState(() => {
-        const saved = localStorage.getItem('theme');
-        return saved || 'dark';
-    });
-
-    useEffect(() => {
-        document.documentElement.setAttribute('data-theme', theme);
-        localStorage.setItem('theme', theme);
-    }, [theme]);
-
-    const toggleTheme = useCallback(() => {
-        setTheme(prev => prev === 'dark' ? 'light' : 'dark');
-    }, []);
-
-    return (
-        <ThemeContext.Provider value={{ theme, toggleTheme }}>
-            {children}
-        </ThemeContext.Provider>
-    );
-}
-
-const useTheme = () => {
-    const context = React.useContext(ThemeContext);
-    if (!context) {
-        throw new Error('useTheme must be used within ThemeProvider');
-    }
-    return context;
-};
-
-// ============================================
-// TOAST NOTIFICATION SYSTEM
-// ============================================
-const ToastContext = React.createContext();
-
-function Toast({ message, type, onClose }) {
-    return (
-        <div className={`toast toast-${type}`}>
-            <div className="toast-icon">
-                {type === 'success' && '✅'}
-                {type === 'error' && '❌'}
-                {type === 'warning' && '⚠️'}
-                {type === 'info' && 'ℹ️'}
-            </div>
-            <div className="toast-message">{message}</div>
-            <button className="toast-close" onClick={onClose}>×</button>
-        </div>
-    );
-}
-
-function ToastProvider({ children }) {
-    const [toasts, setToasts] = useState([]);
-
-    const addToast = useCallback((message, type = 'info') => {
-        const id = Date.now();
-        setToasts(prev => [...prev, { id, message, type }]);
-        setTimeout(() => {
-            setToasts(prev => prev.filter(t => t.id !== id));
-        }, 5000);
-    }, []);
-
-    const removeToast = useCallback((id) => {
-        setToasts(prev => prev.filter(t => t.id !== id));
-    }, []);
-
-    return (
-        <ToastContext.Provider value={{ addToast }}>
-            {children}
-            <div className="toast-container">
-                {toasts.map(toast => (
-                    <Toast 
-                        key={toast.id}
-                        message={toast.message}
-                        type={toast.type}
-                        onClose={() => removeToast(toast.id)}
-                    />
-                ))}
-            </div>
-        </ToastContext.Provider>
-    );
-}
-
-const useToast = () => {
-    const context = React.useContext(ToastContext);
-    if (!context) {
-        throw new Error('useToast must be used within ToastProvider');
-    }
-    return context;
-};
-
-// ============================================
-// CHECKBOX COMPONENT
-// ============================================
-const Checkbox = ({ label, checked, onChange }) => (
-    <label className="checkbox-label">
-        <input
-            type="checkbox"
-            checked={checked}
-            onChange={(e) => onChange(e.target.checked)}
-            className="checkbox-input"
-        />
-        <span className="checkbox-custom"></span>
-        <span>{label}</span>
-    </label>
-);
-
-// ============================================
-// TRANSACTION STATUS WIDGET
-// ============================================
-function TransactionStatus({ pendingTxs }) {
-    const activeTxs = pendingTxs.filter(tx => tx.status === 'pending');
-    
-    if (activeTxs.length === 0) return null;
-    
-    return (
-        <div className="tx-status-widget">
-            <div className="tx-widget-header">
-                <span>⏳ Pending Transactions</span>
-            </div>
-            {activeTxs.map(tx => (
-                <div key={tx.id} className="tx-item">
-                    <div className="loading-spinner loading-small">
-                        <div className="spinner"></div>
-                    </div>
-                    <span className="tx-description">{tx.description}</span>
-                    <a 
-                        href={`${CONFIG.BLOCK_EXPLORER}/tx/${tx.hash}`} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="tx-link"
-                    >
-                        View →
-                    </a>
-                </div>
-            ))}
-        </div>
-    );
-}
-
-// ============================================
-// GAS ESTIMATE DISPLAY
-// ============================================
-function GasEstimate({ gasEstimate }) {
-    if (!gasEstimate) return null;
-    
-    return (
-        <div className="gas-estimate">
-            <div className="gas-estimate-header">
-                <span>⛽ Gas Estimate</span>
-            </div>
-            <div className="gas-details">
-                <div className="gas-item">
-                    <span className="gas-label">Limit:</span>
-                    <span className="gas-value">{gasEstimate.gasLimit}</span>
-                </div>
-                <div className="gas-item">
-                    <span className="gas-label">Price:</span>
-                    <span className="gas-value">{gasEstimate.gasPrice} Gwei</span>
-                </div>
-                <div className="gas-item">
-                    <span className="gas-label">Estimated Cost:</span>
-                    <span className="gas-value">{parseFloat(gasEstimate.estimatedCost).toFixed(6)} ETH</span>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// ============================================
-// IPFS METADATA DISPLAY
-// ============================================
-function MetadataDisplay({ cid }) {
-    const [metadata, setMetadata] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const { addToast } = useToast();
-    
-    useEffect(() => {
-        const fetchMetadata = async () => {
-            try {
-                const response = await fetch(`${CONFIG.IPFS_GATEWAY}${cid}`);
-                if (!response.ok) throw new Error('Failed to fetch metadata');
-                const data = await response.json();
-                setMetadata(data);
-            } catch (error) {
-                console.error('Failed to fetch IPFS data:', error);
-                addToast('Failed to load metadata', 'error');
-            } finally {
-                setLoading(false);
-            }
-        };
-        
-        if (cid) fetchMetadata();
-    }, [cid, addToast]);
-    
-    if (loading) return <LoadingSpinner />;
-    if (!metadata) return <div className="metadata-error">Failed to load metadata</div>;
-    
-    return (
-        <div className="metadata-display">
-            <h4>Profile Information</h4>
-            {metadata.name && (
-                <div className="metadata-item">
-                    <strong>Name:</strong> {metadata.name}
-                </div>
-            )}
-            {metadata.bio && (
-                <div className="metadata-item">
-                    <strong>Bio:</strong> {metadata.bio}
-                </div>
-            )}
-            {metadata.email && (
-                <div className="metadata-item">
-                    <strong>Email:</strong> {metadata.email}
-                </div>
-            )}
-            {metadata.location && (
-                <div className="metadata-item">
-                    <strong>Location:</strong> {metadata.location}
-                </div>
-            )}
-            {metadata.image && (
-                <div className="metadata-image-container">
-                    <img 
-                        src={`${CONFIG.IPFS_GATEWAY}${metadata.image}`} 
-                        alt="Profile" 
-                        className="metadata-image"
-                    />
-                </div>
-            )}
-        </div>
-    );
-}
-
 
 // Styled Components
 const Card = ({ children, className = '', style = {} }) => (
@@ -414,12 +162,6 @@ function App() {
     const [userTokens, setUserTokens] = useState([]);
     const [selectedToken, setSelectedToken] = useState(null);
     const [notification, setNotification] = useState(null);
-    const [pendingTxs, setPendingTxs] = useState([]);
-    const [gasEstimate, setGasEstimate] = useState(null);
-    
-    // Use enhanced context hooks
-    const { addToast } = useToast();
-    const { theme, toggleTheme } = useTheme();
 
     // Connect Wallet
     const connectWallet = async () => {
@@ -510,69 +252,6 @@ function App() {
         setTimeout(() => setNotification(null), 5000);
     };
 
-    // Track transaction with status
-    const trackTransaction = useCallback(async (tx, description) => {
-        const txId = Date.now();
-        setPendingTxs(prev => [...prev, { id: txId, hash: tx.hash, description, status: 'pending' }]);
-        
-        try {
-            const receipt = await tx.wait();
-            setPendingTxs(prev => prev.map(t => 
-                t.id === txId ? { ...t, status: 'confirmed', receipt } : t
-            ));
-            addToast(`${description} confirmed!`, 'success');
-            return receipt;
-        } catch (error) {
-            setPendingTxs(prev => prev.map(t => 
-                t.id === txId ? { ...t, status: 'failed', error: error.message } : t
-            ));
-            handleError(error, description);
-            throw error;
-        }
-    }, [addToast]);
-
-    // Enhanced error handling
-    const handleError = useCallback((error, context) => {
-        console.error(`Error in ${context}:`, error);
-        
-        let message = 'Transaction failed';
-        
-        if (error.code === 'ACTION_REJECTED') {
-            message = 'Transaction rejected by user';
-        } else if (error.code === 'INSUFFICIENT_FUNDS') {
-            message = 'Insufficient funds for transaction';
-        } else if (error.message?.includes('execution reverted')) {
-            const reason = error.message.match(/reason="(.+?)"/)?.[1] || 'Contract execution reverted';
-            message = reason;
-        } else if (error.message?.includes('nonce')) {
-            message = 'Nonce too low - please reset your MetaMask account';
-        } else if (error.message) {
-            message = error.message;
-        }
-        
-        addToast(message, 'error');
-        showNotification(message, 'error');
-    }, [addToast]);
-
-    // Estimate gas for transaction
-    const estimateGas = useCallback(async (contractMethod, ...args) => {
-        try {
-            const estimate = await contractMethod.estimateGas(...args);
-            const gasPrice = await provider.getGasPrice();
-            const costInWei = estimate.mul(gasPrice);
-            const costInEth = ethers.utils.formatEther(costInWei);
-            
-            setGasEstimate({
-                gasLimit: estimate.toString(),
-                gasPrice: ethers.utils.formatUnits(gasPrice, 'gwei'),
-                estimatedCost: costInEth
-            });
-        } catch (error) {
-            console.error('Gas estimation failed:', error);
-            setGasEstimate(null);
-        }
-    }, [provider]);
-
     // Account change listener
     useEffect(() => {
         if (window.ethereum) {
@@ -591,127 +270,12 @@ function App() {
         }
     }, []);
 
-    // Setup Event Listeners for Real-time Updates
-    useEffect(() => {
-        if (!contracts || !selectedToken) return;
-
-        const { soulbound, credentials, social } = contracts;
-        const tokenId = selectedToken.id;
-
-        // Identity Events
-        const handleMinted = (to, tid, ipfsCID, burnAuth) => {
-            console.log('🎉 Token Minted!', { to, tokenId: tid.toString(), ipfsCID });
-            addToast(`Token #${tid} minted successfully!`, 'success');
-            if (soulbound) loadUserTokens(soulbound, account);
-        };
-
-        const handleAccessRequested = (tid, requester) => {
-            if (tid.toString() === tokenId) {
-                console.log('🔔 Access Requested', { tokenId: tid.toString(), requester });
-                addToast(`New access request from ${shortenAddress(requester)}`, 'info');
-            }
-        };
-
-        const handleAccessApproved = (tid, requester, duration) => {
-            if (tid.toString() === tokenId) {
-                console.log('✅ Access Approved', { tokenId: tid.toString(), requester });
-                addToast(`Access approved for ${shortenAddress(requester)}`, 'success');
-            }
-        };
-
-        const handleAccessRevoked = (tid, requester, reason) => {
-            if (tid.toString() === tokenId) {
-                console.log('❌ Access Revoked', { tokenId: tid.toString(), requester, reason });
-                addToast(`Access revoked: ${reason}`, 'warning');
-            }
-        };
-
-        // Credentials Events
-        const handleCredentialIssued = (tid, credentialId, credType, issuer) => {
-            if (tid.toString() === tokenId) {
-                console.log('📜 Credential Issued', { 
-                    tokenId: tid.toString(), 
-                    credentialId: credentialId.toString(), 
-                    credType 
-                });
-                const credTypeName = credentialTypes[credType] || 'Unknown';
-                addToast(`New ${credTypeName} credential issued!`, 'success');
-            }
-        };
-
-        const handleCredentialRevoked = (tid, credentialId) => {
-            if (tid.toString() === tokenId) {
-                console.log('🚫 Credential Revoked', { 
-                    tokenId: tid.toString(), 
-                    credentialId: credentialId.toString() 
-                });
-                addToast(`Credential #${credentialId} revoked`, 'warning');
-            }
-        };
-
-        // Social Events
-        const handleReviewSubmitted = (subjectTokenId, reviewerTokenId, reviewId, score) => {
-            if (subjectTokenId.toString() === tokenId) {
-                console.log('⭐ Review Submitted', { 
-                    subjectTokenId: subjectTokenId.toString(), 
-                    reviewId: reviewId.toString(), 
-                    score 
-                });
-                addToast(`New review received (${score}/100)`, 'success');
-            }
-        };
-
-        const handleProjectCreated = (tid, projectId) => {
-            if (tid.toString() === tokenId) {
-                console.log('🚀 Project Created', { 
-                    tokenId: tid.toString(), 
-                    projectId: projectId.toString() 
-                });
-                addToast(`Project #${projectId} created!`, 'success');
-            }
-        };
-
-        const handleSkillEndorsed = (subjectTokenId, endorserTokenId, skillHash) => {
-            if (subjectTokenId.toString() === tokenId) {
-                console.log('👍 Skill Endorsed', { 
-                    subjectTokenId: subjectTokenId.toString(), 
-                    endorserTokenId: endorserTokenId.toString() 
-                });
-                addToast(`New skill endorsement received!`, 'success');
-            }
-        };
-
-        // Register all event listeners
-        soulbound.on("Minted", handleMinted);
-        soulbound.on("AccessRequested", handleAccessRequested);
-        soulbound.on("AccessApproved", handleAccessApproved);
-        soulbound.on("AccessRevoked", handleAccessRevoked);
-        
-        credentials.on("CredentialIssued", handleCredentialIssued);
-        credentials.on("CredentialRevoked", handleCredentialRevoked);
-        
-        social.on("ReviewSubmitted", handleReviewSubmitted);
-        social.on("ProjectCreated", handleProjectCreated);
-        social.on("SkillEndorsed", handleSkillEndorsed);
-
-        // Cleanup function - remove all listeners when component unmounts
-        return () => {
-            soulbound.removeAllListeners();
-            credentials.removeAllListeners();
-            social.removeAllListeners();
-        };
-    }, [contracts, selectedToken, account, addToast]);
-
     return (
         <div className="app-container">
-            <TransactionStatus pendingTxs={pendingTxs} />
-            
             <Header 
                 account={account} 
                 onConnect={connectWallet}
                 loading={loading}
-                theme={theme}
-                toggleTheme={toggleTheme}
             />
             
             {notification && (
@@ -769,22 +333,6 @@ function App() {
                                 selectedToken={selectedToken}
                                 userTokens={userTokens}
                                 account={account}
-                                showNotification={showNotification}
-                            />
-                        )}
-                        
-                        {activeTab === 'analytics' && (
-                            <AnalyticsTab
-                                contracts={contracts}
-                                selectedToken={selectedToken}
-                                showNotification={showNotification}
-                            />
-                        )}
-                        
-                        {activeTab === 'events' && (
-                            <EventsTab
-                                contracts={contracts}
-                                selectedToken={selectedToken}
                                 showNotification={showNotification}
                             />
                         )}
@@ -995,7 +543,7 @@ function App() {
 }
 
 // Header Component
-function Header({ account, onConnect, loading, theme, toggleTheme }) {
+function Header({ account, onConnect, loading }) {
     const [showAccountMenu, setShowAccountMenu] = useState(false);
     
     const copyAddress = () => {
@@ -1027,14 +575,6 @@ function Header({ account, onConnect, loading, theme, toggleTheme }) {
                     <p className="tagline">Decentralized Professional Network</p>
                 </div>
                 <div className="header-right">
-                    <button 
-                        className="theme-toggle" 
-                        onClick={toggleTheme}
-                        title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-                    >
-                        {theme === 'dark' ? '☀️' : '🌙'}
-                    </button>
-                    
                     {account ? (
                         <div className="account-info">
                             <div className="account-badge" onClick={() => setShowAccountMenu(!showAccountMenu)}>
@@ -1357,8 +897,6 @@ function TabNavigation({ activeTab, setActiveTab, userTokens }) {
         { id: 'credentials', label: 'Credentials', icon: '📜', disabled: userTokens.length === 0 },
         { id: 'access', label: 'Access Control', icon: '🔐', disabled: userTokens.length === 0 },
         { id: 'social', label: 'Social', icon: '🤝', disabled: userTokens.length === 0 },
-        { id: 'analytics', label: 'Analytics', icon: '📊', disabled: userTokens.length === 0 },
-        { id: 'events', label: 'Activity', icon: '📡', disabled: userTokens.length === 0 },
     ];
 
     return (
@@ -5127,405 +4665,3 @@ function EndorsementsSection({ endorsements, loading, contracts, selectedToken, 
         </>
     );
 }
-
-// ============================================
-// ANALYTICS TAB COMPONENT
-// ============================================
-function AnalyticsTab({ contracts, selectedToken, showNotification }) {
-    const [stats, setStats] = useState(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        if (!selectedToken || !contracts) return;
-        loadAnalytics();
-    }, [selectedToken, contracts]);
-
-    const loadAnalytics = async () => {
-        setLoading(true);
-        try {
-            const tokenId = selectedToken.id;
-
-            const credSummary = await contracts.credentials.getCredentialSummary(tokenId);
-            const repSummary = await contracts.social.getReputationSummary(tokenId);
-            const endorsements = await contracts.social.getEndorsements(tokenId);
-            const projects = await contracts.social.getProjects(tokenId);
-
-            setStats({
-                credentials: {
-                    degrees: credSummary.degrees.toNumber(),
-                    certifications: credSummary.certifications.toNumber(),
-                    workExperience: credSummary.workExperience.toNumber(),
-                    identityProofs: credSummary.identityProofs.toNumber(),
-                    skills: credSummary.skills.toNumber(),
-                    total: credSummary.degrees.add(credSummary.certifications)
-                        .add(credSummary.workExperience)
-                        .add(credSummary.identityProofs)
-                        .add(credSummary.skills).toNumber()
-                },
-                reputation: {
-                    average: repSummary.averageScore.toNumber(),
-                    total: repSummary.totalReviews.toNumber(),
-                    verified: repSummary.verifiedReviews.toNumber()
-                },
-                social: {
-                    endorsements: endorsements.length,
-                    projects: projects.length,
-                    completedProjects: projects.filter(p => p.status === 2).length,
-                    activeProjects: projects.filter(p => p.status === 1).length
-                }
-            });
-        } catch (error) {
-            console.error('Error loading analytics:', error);
-            showNotification('Failed to load analytics', 'error');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    if (!selectedToken) {
-        return (
-            <Card>
-                <div className="empty-state">
-                    <div className="empty-icon">📊</div>
-                    <h3>No Token Selected</h3>
-                    <p>Select a token to view analytics</p>
-                </div>
-            </Card>
-        );
-    }
-
-    if (loading) {
-        return <Card><LoadingSpinner /></Card>;
-    }
-
-    if (!stats) {
-        return <Card><div className="empty-message">Failed to load analytics</div></Card>;
-    }
-
-    return (
-        <div className="analytics-container">
-            <h2 style={{ marginBottom: '24px', color: 'var(--beige, #e8dfca)' }}>Analytics Dashboard</h2>
-            
-            <div className="analytics-dashboard" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
-                <Card className="stat-card" style={{ padding: '24px' }}>
-                    <div className="stat-card-header" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                        <span className="stat-icon" style={{ fontSize: '2rem' }}>📜</span>
-                        <h3 style={{ margin: 0 }}>Credentials</h3>
-                    </div>
-                    <div className="big-number" style={{ fontSize: '3rem', fontWeight: 'bold', color: 'var(--teal-light, #06b6d4)', marginBottom: '8px' }}>
-                        {stats.credentials.total}
-                    </div>
-                    <div className="stat-label" style={{ color: 'var(--gray, #6b7589)', marginBottom: '16px' }}>Total Credentials</div>
-                    <div className="stat-breakdown" style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '16px', borderTop: '1px solid var(--border-color, rgba(168, 178, 193, 0.1))' }}>
-                        <div className="breakdown-item">
-                            <span>🎓 Degrees: {stats.credentials.degrees}</span>
-                        </div>
-                        <div className="breakdown-item">
-                            <span>📋 Certifications: {stats.credentials.certifications}</span>
-                        </div>
-                        <div className="breakdown-item">
-                            <span>💼 Work Experience: {stats.credentials.workExperience}</span>
-                        </div>
-                        <div className="breakdown-item">
-                            <span>⚡ Skills: {stats.credentials.skills}</span>
-                        </div>
-                    </div>
-                </Card>
-
-                <Card className="stat-card" style={{ padding: '24px' }}>
-                    <div className="stat-card-header" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                        <span className="stat-icon" style={{ fontSize: '2rem' }}>⭐</span>
-                        <h3 style={{ margin: 0 }}>Reputation</h3>
-                    </div>
-                    <div className="big-number" style={{ fontSize: '3rem', fontWeight: 'bold', color: 'var(--teal-light, #06b6d4)', marginBottom: '8px' }}>
-                        {stats.reputation.average}
-                        <span style={{ fontSize: '1.5rem', color: 'var(--gray, #6b7589)' }}>/100</span>
-                    </div>
-                    <div className="stat-label" style={{ color: 'var(--gray, #6b7589)', marginBottom: '16px' }}>Average Score</div>
-                    <div className="stat-breakdown" style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '16px', borderTop: '1px solid var(--border-color, rgba(168, 178, 193, 0.1))' }}>
-                        <div className="breakdown-item">
-                            <span>Total Reviews: {stats.reputation.total}</span>
-                        </div>
-                        <div className="breakdown-item">
-                            <span>✓ Verified: {stats.reputation.verified}</span>
-                        </div>
-                        <div className="breakdown-item">
-                            <span>
-                                Verification Rate: {stats.reputation.total > 0 
-                                    ? Math.round((stats.reputation.verified / stats.reputation.total) * 100)
-                                    : 0}%
-                            </span>
-                        </div>
-                    </div>
-                </Card>
-
-                <Card className="stat-card" style={{ padding: '24px' }}>
-                    <div className="stat-card-header" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                        <span className="stat-icon" style={{ fontSize: '2rem' }}>🤝</span>
-                        <h3 style={{ margin: 0 }}>Social</h3>
-                    </div>
-                    <div className="stat-breakdown" style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingTop: '16px' }}>
-                        <div className="breakdown-item" style={{ fontSize: '1.1rem' }}>
-                            <span>👍 Endorsements: <strong>{stats.social.endorsements}</strong></span>
-                        </div>
-                        <div className="breakdown-item" style={{ fontSize: '1.1rem' }}>
-                            <span>🚀 Total Projects: <strong>{stats.social.projects}</strong></span>
-                        </div>
-                        <div className="breakdown-item" style={{ fontSize: '1.1rem' }}>
-                            <span>✅ Completed: <strong>{stats.social.completedProjects}</strong></span>
-                        </div>
-                        <div className="breakdown-item" style={{ fontSize: '1.1rem' }}>
-                            <span>⚡ Active: <strong>{stats.social.activeProjects}</strong></span>
-                        </div>
-                    </div>
-                </Card>
-            </div>
-        </div>
-    );
-}
-
-// ============================================
-// EVENTS TAB COMPONENT
-// ============================================
-function EventsTab({ contracts, selectedToken, showNotification }) {
-    const [events, setEvents] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState('all');
-
-    useEffect(() => {
-        if (!selectedToken || !contracts) return;
-        loadEventHistory();
-    }, [selectedToken, contracts, filter]);
-
-    const loadEventHistory = async () => {
-        setLoading(true);
-        try {
-            const allEvents = [];
-            const tokenId = selectedToken.id;
-            
-            // Fetch identity events
-            try {
-                const mintFilter = contracts.soulbound.filters.Minted(null, tokenId);
-                const mintEvents = await contracts.soulbound.queryFilter(mintFilter);
-                mintEvents.forEach(e => allEvents.push({
-                    type: 'identity',
-                    action: 'Token Minted',
-                    timestamp: e.blockNumber,
-                    data: { tokenId: e.args.tokenId.toString() },
-                    icon: '🎉',
-                    txHash: e.transactionHash
-                }));
-            } catch (err) {
-                console.log('No mint events');
-            }
-
-            try {
-                const accessReqFilter = contracts.soulbound.filters.AccessRequested(tokenId);
-                const accessEvents = await contracts.soulbound.queryFilter(accessReqFilter);
-                accessEvents.forEach(e => allEvents.push({
-                    type: 'identity',
-                    action: 'Access Requested',
-                    timestamp: e.blockNumber,
-                    data: { requester: shortenAddress(e.args.requester) },
-                    icon: '🔔',
-                    txHash: e.transactionHash
-                }));
-            } catch (err) {
-                console.log('No access request events');
-            }
-
-            // Fetch credential events
-            try {
-                const credFilter = contracts.credentials.filters.CredentialIssued(tokenId);
-                const credEvents = await contracts.credentials.queryFilter(credFilter);
-                credEvents.forEach(e => allEvents.push({
-                    type: 'credentials',
-                    action: 'Credential Issued',
-                    timestamp: e.blockNumber,
-                    data: { 
-                        type: credentialTypes[e.args.credType],
-                        id: e.args.credentialId.toString()
-                    },
-                    icon: '📜',
-                    txHash: e.transactionHash
-                }));
-            } catch (err) {
-                console.log('No credential events');
-            }
-
-            // Fetch social events
-            try {
-                const reviewFilter = contracts.social.filters.ReviewSubmitted(tokenId);
-                const reviewEvents = await contracts.social.queryFilter(reviewFilter);
-                reviewEvents.forEach(e => allEvents.push({
-                    type: 'social',
-                    action: 'Review Received',
-                    timestamp: e.blockNumber,
-                    data: { 
-                        score: e.args.score.toString(),
-                        reviewer: e.args.reviewerTokenId.toString()
-                    },
-                    icon: '⭐',
-                    txHash: e.transactionHash
-                }));
-            } catch (err) {
-                console.log('No review events');
-            }
-
-            try {
-                const projectFilter = contracts.social.filters.ProjectCreated(tokenId);
-                const projectEvents = await contracts.social.queryFilter(projectFilter);
-                projectEvents.forEach(e => allEvents.push({
-                    type: 'social',
-                    action: 'Project Created',
-                    timestamp: e.blockNumber,
-                    data: { 
-                        projectId: e.args.projectId.toString()
-                    },
-                    icon: '🚀',
-                    txHash: e.transactionHash
-                }));
-            } catch (err) {
-                console.log('No project events');
-            }
-
-            try {
-                const endorseFilter = contracts.social.filters.SkillEndorsed(tokenId);
-                const endorseEvents = await contracts.social.queryFilter(endorseFilter);
-                endorseEvents.forEach(e => allEvents.push({
-                    type: 'social',
-                    action: 'Skill Endorsed',
-                    timestamp: e.blockNumber,
-                    data: { 
-                        endorser: e.args.endorserTokenId.toString()
-                    },
-                    icon: '👍',
-                    txHash: e.transactionHash
-                }));
-            } catch (err) {
-                console.log('No endorsement events');
-            }
-
-            // Sort by block number (most recent first)
-            allEvents.sort((a, b) => b.timestamp - a.timestamp);
-            setEvents(allEvents);
-        } catch (error) {
-            console.error('Error loading events:', error);
-            showNotification('Failed to load event history', 'error');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    if (!selectedToken) {
-        return (
-            <Card>
-                <div className="empty-state">
-                    <div className="empty-icon" style={{ fontSize: '4rem', marginBottom: '16px' }}>📡</div>
-                    <h3>No Token Selected</h3>
-                    <p>Select a token to view activity history</p>
-                </div>
-            </Card>
-        );
-    }
-
-    const filteredEvents = filter === 'all' ? events : events.filter(e => e.type === filter);
-
-    return (
-        <div className="events-container">
-            <h2 style={{ marginBottom: '24px', color: 'var(--beige, #e8dfca)' }}>Activity History</h2>
-            
-            <Card>
-                <div className="events-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                    <h3>Events</h3>
-                    <div className="filter-buttons" style={{ display: 'flex', gap: '8px' }}>
-                        <Button 
-                            variant={filter === 'all' ? 'primary' : 'secondary'}
-                            onClick={() => setFilter('all')}
-                            style={{ padding: '8px 16px', fontSize: '14px' }}
-                        >
-                            All
-                        </Button>
-                        <Button 
-                            variant={filter === 'identity' ? 'primary' : 'secondary'}
-                            onClick={() => setFilter('identity')}
-                            style={{ padding: '8px 16px', fontSize: '14px' }}
-                        >
-                            Identity
-                        </Button>
-                        <Button 
-                            variant={filter === 'credentials' ? 'primary' : 'secondary'}
-                            onClick={() => setFilter('credentials')}
-                            style={{ padding: '8px 16px', fontSize: '14px' }}
-                        >
-                            Credentials
-                        </Button>
-                        <Button 
-                            variant={filter === 'social' ? 'primary' : 'secondary'}
-                            onClick={() => setFilter('social')}
-                            style={{ padding: '8px 16px', fontSize: '14px' }}
-                        >
-                            Social
-                        </Button>
-                    </div>
-                </div>
-
-                {loading ? (
-                    <LoadingSpinner />
-                ) : (
-                    <div className="events-timeline" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        {filteredEvents.length === 0 ? (
-                            <div className="empty-message" style={{ textAlign: 'center', padding: '40px', color: 'var(--gray-light, #a8b2c1)' }}>
-                                <p>No events yet</p>
-                            </div>
-                        ) : (
-                            filteredEvents.map((event, idx) => (
-                                <div key={idx} className="event-item" style={{ display: 'flex', gap: '16px', padding: '16px', background: 'var(--bg-tertiary, #2a3547)', borderRadius: '12px', border: '1px solid var(--border-color, rgba(168, 178, 193, 0.1))' }}>
-                                    <div className="event-icon" style={{ fontSize: '1.5rem', flexShrink: 0 }}>{event.icon}</div>
-                                    <div className="event-content" style={{ flex: 1 }}>
-                                        <div className="event-action" style={{ fontWeight: 600, color: 'var(--text-primary, #e8dfca)', marginBottom: '8px' }}>{event.action}</div>
-                                        <div className="event-data" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '8px' }}>
-                                            {Object.entries(event.data).map(([key, value]) => (
-                                                <span key={key} className="event-detail" style={{ fontSize: '14px', color: 'var(--text-secondary, #a8b2c1)' }}>
-                                                    {key}: <strong style={{ color: 'var(--text-primary, #e8dfca)' }}>{value}</strong>
-                                                </span>
-                                            ))}
-                                        </div>
-                                        <div className="event-meta" style={{ fontSize: '13px', color: 'var(--text-muted, #6b7589)' }}>
-                                            Block: {event.timestamp} • 
-                                            <a 
-                                                href={`${CONFIG.BLOCK_EXPLORER}/tx/${event.txHash}`} 
-                                                target="_blank" 
-                                                rel="noopener noreferrer"
-                                                style={{ color: 'var(--accent-sky-light, #38bdf8)', textDecoration: 'none', marginLeft: '8px' }}
-                                            >
-                                                View TX →
-                                            </a>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                )}
-            </Card>
-        </div>
-    );
-}
-
-// ============================================
-// ROOT APP WRAPPER WITH PROVIDERS
-// ============================================
-function AppRoot() {
-    return (
-        <ThemeProvider>
-            <ToastProvider>
-                <App />
-            </ToastProvider>
-        </ThemeProvider>
-    );
-}
-
-// Render the app
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<AppRoot />);
