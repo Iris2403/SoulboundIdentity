@@ -3590,9 +3590,39 @@ function ReputationSection({ reputation, reviews, reviewsWritten, loading, contr
                 return;
             }
 
+            const targetId = parseInt(reviewData.targetTokenId);
+            const reviewerId = parseInt(reviewData.reviewerTokenId);
+
+            // Validation 1: Can't review yourself
+            if (targetId === reviewerId) {
+                showNotification('You cannot review yourself!', 'error');
+                return;
+            }
+
+            // Validation 2: Check if target token exists
+            try {
+                await contracts.soulbound.ownerOf(targetId);
+            } catch (err) {
+                showNotification(`Token #${targetId} does not exist!`, 'error');
+                return;
+            }
+
+            // Validation 3: Check if you own the reviewer token
+            try {
+                const owner = await contracts.soulbound.ownerOf(reviewerId);
+                const myAddress = await contracts.soulbound.signer.getAddress();
+                if (owner.toLowerCase() !== myAddress.toLowerCase()) {
+                    showNotification(`You don't own Token #${reviewerId}!`, 'error');
+                    return;
+                }
+            } catch (err) {
+                showNotification(`Token #${reviewerId} does not exist!`, 'error');
+                return;
+            }
+
             const tx = await contracts.social.submitReview(
-                parseInt(reviewData.targetTokenId),
-                parseInt(reviewData.reviewerTokenId),
+                targetId,
+                reviewerId,
                 parseInt(reviewData.score),
                 reviewData.verified,
                 reviewData.isAnonymous,
@@ -3602,12 +3632,12 @@ function ReputationSection({ reputation, reviews, reviewsWritten, loading, contr
             await tx.wait();
             
             // Track this review in localStorage
-            const storedReviews = JSON.parse(localStorage.getItem(`reviews_written_${reviewData.reviewerTokenId}`) || '[]');
+            const storedReviews = JSON.parse(localStorage.getItem(`reviews_written_${reviewerId}`) || '[]');
             storedReviews.push({
-                targetTokenId: parseInt(reviewData.targetTokenId),
+                targetTokenId: targetId,
                 timestamp: Date.now()
             });
-            localStorage.setItem(`reviews_written_${reviewData.reviewerTokenId}`, JSON.stringify(storedReviews));
+            localStorage.setItem(`reviews_written_${reviewerId}`, JSON.stringify(storedReviews));
             
             showNotification('Review submitted successfully!', 'success');
             setShowReviewModal(false);
@@ -3970,6 +4000,24 @@ function ProjectsSection({ projects, collaboratingOn, loading, contracts, select
                 return;
             }
 
+            if (!selectedToken) {
+                showNotification('Please select a token first', 'error');
+                return;
+            }
+
+            // Validation: Check if you own the selected token
+            try {
+                const owner = await contracts.soulbound.ownerOf(selectedToken);
+                const myAddress = await contracts.soulbound.signer.getAddress();
+                if (owner.toLowerCase() !== myAddress.toLowerCase()) {
+                    showNotification(`You don't own Token #${selectedToken}!`, 'error');
+                    return;
+                }
+            } catch (err) {
+                showNotification(`Token #${selectedToken} does not exist!`, 'error');
+                return;
+            }
+
             // Create metadata hash
             const metadata = {
                 title: projectData.title,
@@ -3978,6 +4026,12 @@ function ProjectsSection({ projects, collaboratingOn, loading, contracts, select
                 createdAt: Date.now()
             };
             const metadataHash = ethers.utils.id(JSON.stringify(metadata));
+
+            console.log('Creating project with:', {
+                tokenId: selectedToken,
+                metadataHash,
+                metadata
+            });
 
             const tx = await contracts.social.createProject(selectedToken, metadataHash);
             showNotification('Creating project...', 'info');
@@ -4012,16 +4066,38 @@ function ProjectsSection({ projects, collaboratingOn, loading, contracts, select
                 return;
             }
 
+            const collabTokenId = parseInt(collabData);
+
+            // Validation: Check if collaborator token exists
+            try {
+                await contracts.soulbound.ownerOf(collabTokenId);
+            } catch (err) {
+                showNotification(`Token #${collabTokenId} does not exist!`, 'error');
+                return;
+            }
+
+            // Validation: Check if you own the selected token (project owner)
+            try {
+                const owner = await contracts.soulbound.ownerOf(selectedToken);
+                const myAddress = await contracts.soulbound.signer.getAddress();
+                if (owner.toLowerCase() !== myAddress.toLowerCase()) {
+                    showNotification(`You don't own Token #${selectedToken}!`, 'error');
+                    return;
+                }
+            } catch (err) {
+                showNotification(`Token #${selectedToken} does not exist!`, 'error');
+                return;
+            }
+
             const tx = await contracts.social.addCollaborator(
                 selectedToken,
                 selectedProject.projectId,
-                parseInt(collabData)
+                collabTokenId
             );
             showNotification('Adding collaborator...', 'info');
             await tx.wait();
             
             // Track this collaboration for the collaborator
-            const collabTokenId = parseInt(collabData);
             const storedCollabs = JSON.parse(localStorage.getItem(`collaborations_${collabTokenId}`) || '[]');
             storedCollabs.push({
                 ownerTokenId: selectedToken,
@@ -4354,11 +4430,41 @@ function EndorsementsSection({ endorsements, loading, contracts, selectedToken, 
                 return;
             }
 
+            const targetId = parseInt(endorseData.targetTokenId);
+            const endorserId = parseInt(endorseData.endorserTokenId);
+
+            // Validation 1: Can't endorse yourself
+            if (targetId === endorserId) {
+                showNotification('You cannot endorse yourself!', 'error');
+                return;
+            }
+
+            // Validation 2: Check if target token exists
+            try {
+                await contracts.soulbound.ownerOf(targetId);
+            } catch (err) {
+                showNotification(`Token #${targetId} does not exist!`, 'error');
+                return;
+            }
+
+            // Validation 3: Check if you own the endorser token
+            try {
+                const owner = await contracts.soulbound.ownerOf(endorserId);
+                const myAddress = await contracts.soulbound.signer.getAddress();
+                if (owner.toLowerCase() !== myAddress.toLowerCase()) {
+                    showNotification(`You don't own Token #${endorserId}!`, 'error');
+                    return;
+                }
+            } catch (err) {
+                showNotification(`Token #${endorserId} does not exist!`, 'error');
+                return;
+            }
+
             const skillHash = ethers.utils.id(endorseData.skillName);
             
             const tx = await contracts.social.endorseSkill(
-                parseInt(endorseData.targetTokenId),
-                parseInt(endorseData.endorserTokenId),
+                targetId,
+                endorserId,
                 skillHash,
                 endorseData.comment
             );
