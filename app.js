@@ -103,10 +103,10 @@ function ThemeProvider({ children }) {
         setTheme(prev => prev === 'dark' ? 'light' : 'dark');
     }, []);
 
-    return (
-        <ThemeContext.Provider value={{ theme, toggleTheme }}>
-            {children}
-        </ThemeContext.Provider>
+    return React.createElement(
+        ThemeContext.Provider,
+        { value: { theme, toggleTheme } },
+        children
     );
 }
 
@@ -158,20 +158,22 @@ function ToastProvider({ children }) {
         setToasts(prev => prev.filter(t => t.id !== id));
     }, []);
 
-    return (
-        <ToastContext.Provider value={{ addToast }}>
-            {children}
-            <div className="toast-container">
-                {toasts.map(toast => (
-                    <Toast 
-                        key={toast.id}
-                        message={toast.message}
-                        type={toast.type}
-                        onClose={() => removeToast(toast.id)}
-                    />
-                ))}
-            </div>
-        </ToastContext.Provider>
+    return React.createElement(
+        ToastContext.Provider,
+        { value: { addToast } },
+        children,
+        React.createElement(
+            'div',
+            { className: 'toast-container' },
+            toasts.map(toast => 
+                React.createElement(Toast, {
+                    key: toast.id,
+                    message: toast.message,
+                    type: toast.type,
+                    onClose: () => removeToast(toast.id)
+                })
+            )
+        )
     );
 }
 
