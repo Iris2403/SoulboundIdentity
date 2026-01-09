@@ -357,21 +357,44 @@ TextArea = ({ label, value, onChange, placeholder = '', rows = 4 }) => (
     </div>
 );
 
-Modal = ({ isOpen, onClose, title, children }) => {
+Modal = function({ isOpen, onClose, title, children }) {
     if (!isOpen) return null;
 
-    return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h2>{title}</h2>
-                    <button className="modal-close" onClick={onClose}>&times;</button>
-                </div>
-                <div className="modal-body">
-                    {children}
-                </div>
-            </div>
-        </div>
+    const handleOverlayClick = (e) => {
+        if (e.target === e.currentTarget) {
+            onClose();
+        }
+    };
+
+    return React.createElement('div', {
+        className: 'modal-overlay',
+        onClick: handleOverlayClick,
+        style: {
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px'
+        }
+    },
+        React.createElement('div', {
+            className: 'modal-content',
+            onClick: (e) => e.stopPropagation()
+        },
+            React.createElement('div', { className: 'modal-header' },
+                React.createElement('h2', null, title),
+                React.createElement('button', {
+                    className: 'modal-close',
+                    onClick: onClose
+                }, '×')
+            ),
+            React.createElement('div', { className: 'modal-body' }, children)
+        )
     );
 };
 
@@ -1827,7 +1850,12 @@ TokenCard = function({ token, isSelected, onSelect, contracts }) {
                 <div className="token-actions">
                     <button
                         className="view-details-btn"
-                        onClick={() => setShowDetails(true)}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            console.log('👁️ View Details clicked for token', token.id);
+                            setShowDetails(true);
+                        }}
+                        style={{ position: 'relative', zIndex: 100 }}
                     >
                         👁️ View Full Details
                     </button>
@@ -2216,6 +2244,14 @@ CredentialsTab = function({ contracts, selectedToken, userTokens, showNotificati
 
     const handleAddCredential = async () => {
         try {
+            console.log('🔵 Starting credential add...', { selectedToken, credentialData });
+            
+            // Validate required fields
+            if (!credentialData.institution || !credentialData.title) {
+                showNotification('Please fill in all required fields', 'error');
+                return;
+            }
+            
             setLoading(true);
 
             // Create metadata object
@@ -2226,11 +2262,16 @@ CredentialsTab = function({ contracts, selectedToken, userTokens, showNotificati
                 issuedBy: 'Self-Reported'
             };
 
+            console.log('📝 Metadata created:', metadata);
+
             // In production, upload to IPFS
             const metadataHash = ethers.utils.id(JSON.stringify(metadata));
+            console.log('🔐 Metadata hash:', metadataHash);
 
             const issueDate = credentialData.issueDate ? Math.floor(new Date(credentialData.issueDate).getTime() / 1000) : Math.floor(Date.now() / 1000);
             const expiryDate = credentialData.expiryDate ? Math.floor(new Date(credentialData.expiryDate).getTime() / 1000) : 0;
+
+            console.log('📅 Dates:', { issueDate, expiryDate });
 
             // Validate dates
             if (expiryDate !== 0 && expiryDate <= issueDate) {
@@ -2238,6 +2279,15 @@ CredentialsTab = function({ contracts, selectedToken, userTokens, showNotificati
                 setLoading(false);
                 return;
             }
+
+            console.log('📤 Calling addCredential with:', {
+                tokenId: selectedToken,
+                credType: parseInt(credentialData.credType),
+                metadataHash,
+                issueDate,
+                expiryDate,
+                category: parseInt(credentialData.category)
+            });
 
             const tx = await contracts.credentials.addCredential(
                 selectedToken,
@@ -2248,8 +2298,11 @@ CredentialsTab = function({ contracts, selectedToken, userTokens, showNotificati
                 parseInt(credentialData.category)
             );
 
+            console.log('⏳ Transaction hash:', tx.hash);
             showNotification('Transaction submitted...', 'info');
-            await tx.wait();
+            
+            const receipt = await tx.wait();
+            console.log('✅ Transaction confirmed:', receipt);
             showNotification('Credential added successfully!', 'success');
 
             setShowAddModal(false);
@@ -2265,7 +2318,12 @@ CredentialsTab = function({ contracts, selectedToken, userTokens, showNotificati
             loadCredentials();
             loadSummary();
         } catch (error) {
-            console.error('Error adding credential:', error);
+            console.error('❌ Error adding credential:', error);
+            console.error('Error details:', {
+                message: error.message,
+                code: error.code,
+                data: error.data
+            });
             showNotification(error.message || 'Failed to add credential', 'error');
         } finally {
             setLoading(false);
@@ -3122,17 +3180,61 @@ AccessControlTab = function({ contracts, selectedToken, userTokens, showNotifica
 
     const handleRequestAccess = async () => {
         try {
-            if (!requestTokenId) return;
+            if (!requestTokenId) {
+                showNotification('Please enter a token ID', 'warning');
+                return;
+            }
 
-            const tx = await contracts.soulbound.requestAccess(parseInt(requestTokenId));
+            console.log('🔵 Requesting access to token:', requestTokenId);
+            
+            const tokenIdNumber = parseInt(requestTokenId);
+            
+            // Check if token exists
+            try {
+                await contracts.soulbound.ownerOf(tokenIdNumber);
+            } catch (err) {
+                showNotification('Token does not exist', 'error');
+                return;
+            }
+
+            const tx = await contracts.soulbound.requestAccess(tokenIdNumber);
+            console.log('⏳ Request access transaction hash:', tx.hash);
             showNotification('Requesting access...', 'info');
-            await tx.wait();
+            
+            const receipt = await tx.wait();
+            console.log('✅ Access request confirmed:', receipt);
             showNotification('Access request sent!', 'success');
+            
             setShowRequestModal(false);
             setRequestTokenId('');
         } catch (error) {
-            console.error('Error requesting access:', error);
-            showNotification(error.message || 'Failed to request access', 'error');
+            console.error('❌ Error requesting access:', error);
+            console.error('Error details:', {
+                message: error.message,
+                code: error.code,
+                data: error.data,
+                reason: error.reason
+            });
+            
+            // Check for specific error messages from the contract
+            let errorMessage = 'Failed to request access';
+            if (error.message.includes('RequestAlreadyExists')) {
+                errorMessage = 'You already have a pending request for this token';
+            } else if (error.message.includes('TooManyRequests')) {
+                errorMessage = 'You have reached the maximum requests per day';
+            } else if (error.message.includes('RequestCooldown')) {
+                errorMessage = 'Please wait before requesting access again';
+            } else if (error.message.includes('OnlyTokenOwner')) {
+                errorMessage = 'You cannot request access to your own token';
+            } else if (error.message.includes('OwnerHasAccess')) {
+                errorMessage = 'Token owner already has full access';
+            } else if (error.reason) {
+                errorMessage = error.reason;
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+            
+            showNotification(errorMessage, 'error');
         }
     };
 
