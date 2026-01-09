@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SoulBound Identity - Debug Version</title>
+    <title>SoulBound Identity - Modular Version</title>
     
     <!-- React 18 - PRODUCTION -->
     <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
@@ -22,45 +22,57 @@
     <div id="root"></div>
     
     <script>
-        console.log('1. Starting app load...');
-        console.log('2. React available:', typeof React !== 'undefined');
-        console.log('3. ReactDOM available:', typeof ReactDOM !== 'undefined');
-        console.log('4. Babel available:', typeof Babel !== 'undefined');
-        console.log('5. ethers available:', typeof ethers !== 'undefined');
+        console.log('🚀 Starting modular app load...');
+        console.log('✅ React available:', typeof React !== 'undefined');
+        console.log('✅ ReactDOM available:', typeof ReactDOM !== 'undefined');
+        console.log('✅ Babel available:', typeof Babel !== 'undefined');
+        console.log('✅ ethers available:', typeof ethers !== 'undefined');
         
-        fetch('app.js')
-            .then(response => {
-                console.log('6. app.js fetched');
-                return response.text();
-            })
-            .then(code => {
-                console.log('7. Transforming with Babel...');
-                console.log('8. Code length:', code.length);
-                
-                const transformed = Babel.transform(code, { 
-                    presets: ['react'],
-                    filename: 'app.js'
-                }).code;
-                
-                console.log('9. Transformation complete');
-                console.log('10. Transformed code length:', transformed.length);
-                
-                // Log the last 500 chars to see the render call
-                console.log('11. End of transformed code:', transformed.slice(-500));
-                
-                console.log('12. Executing transformed code...');
-                eval(transformed);
-                console.log('13. Execution complete!');
-            })
-            .catch(error => {
-                console.error('ERROR:', error);
-                document.body.innerHTML = `
-                    <div style="color: white; background: #1a2332; padding: 50px; font-family: Arial;">
-                        <h1 style="color: #ef4444;">Error: ${error.message}</h1>
-                        <pre style="color: #a8b2c1; background: #0a0e1a; padding: 20px; border-radius: 8px; overflow-x: auto;">${error.stack}</pre>
-                    </div>
-                `;
-            });
+        // Load modules in sequence
+        const modules = ['contracts.js', 'utils.js', 'components.js', 'app.js'];
+        let loadedCount = 0;
+        
+        function loadModule(index) {
+            if (index >= modules.length) {
+                console.log('🎉 All modules loaded successfully!');
+                return;
+            }
+            
+            const module = modules[index];
+            console.log(`📦 Loading ${index + 1}/${modules.length}: ${module}...`);
+            
+            fetch(module)
+                .then(response => response.text())
+                .then(code => {
+                    console.log(`✨ Transforming ${module} with Babel...`);
+                    
+                    const transformed = Babel.transform(code, { 
+                        presets: ['react'],
+                        filename: module
+                    }).code;
+                    
+                    console.log(`✅ ${module} transformed (${transformed.length} chars)`);
+                    
+                    eval(transformed);
+                    loadedCount++;
+                    console.log(`✔️ ${module} executed successfully (${loadedCount}/${modules.length})`);
+                    
+                    // Load next module
+                    loadModule(index + 1);
+                })
+                .catch(error => {
+                    console.error(`❌ Error loading ${module}:`, error);
+                    document.body.innerHTML = `
+                        <div style="color: white; background: #1a2332; padding: 50px; font-family: Arial;">
+                            <h1 style="color: #ef4444;">Error loading ${module}</h1>
+                            <pre style="color: #a8b2c1; background: #0a0e1a; padding: 20px; border-radius: 8px; overflow-x: auto;">${error.message}\n\n${error.stack}</pre>
+                        </div>
+                    `;
+                });
+        }
+        
+        // Start loading from first module
+        loadModule(0);
     </script>
 </body>
 </html>
