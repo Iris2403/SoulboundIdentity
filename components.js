@@ -318,44 +318,86 @@ Button = ({ children, onClick, disabled = false, variant = 'primary', className 
     </button>
 );
 
-Input = ({ label, value, onChange, type = 'text', placeholder = '', required = false }) => (
-    <div className="input-group">
-        {label && <label className="input-label">{label}{required && ' *'}</label>}
-        <input
-            className="input-field"
-            type={type}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={placeholder}
-            required={required}
-        />
-    </div>
-);
+Input = ({ label, value, onChange, type = 'text', placeholder = '', required = false, id, name }) => {
+    // Generate unique ID if not provided
+    const inputId = id || `input-${label?.toLowerCase().replace(/\s+/g, '-') || Math.random().toString(36).substr(2, 9)}`;
+    const inputName = name || inputId;
+    
+    return (
+        <div className="input-group">
+            {label && (
+                <label className="input-label" htmlFor={inputId}>
+                    {label}{required && ' *'}
+                </label>
+            )}
+            <input
+                id={inputId}
+                name={inputName}
+                className="input-field"
+                type={type}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder={placeholder}
+                required={required}
+                autoComplete={type === 'email' ? 'email' : type === 'text' ? 'on' : 'off'}
+            />
+        </div>
+    );
+};
 
-Select = ({ label, value, onChange, options, required = false }) => (
-    <div className="input-group">
-        {label && <label className="input-label">{label}{required && ' *'}</label>}
-        <select className="input-field" value={value} onChange={(e) => onChange(e.target.value)} required={required}>
-            <option value="">Select...</option>
-            {options.map((opt, idx) => (
-                <option key={idx} value={opt.value}>{opt.label}</option>
-            ))}
-        </select>
-    </div>
-);
+Select = ({ label, value, onChange, options, required = false, id, name }) => {
+    // Generate unique ID if not provided
+    const selectId = id || `select-${label?.toLowerCase().replace(/\s+/g, '-') || Math.random().toString(36).substr(2, 9)}`;
+    const selectName = name || selectId;
+    
+    return (
+        <div className="input-group">
+            {label && (
+                <label className="input-label" htmlFor={selectId}>
+                    {label}{required && ' *'}
+                </label>
+            )}
+            <select 
+                id={selectId}
+                name={selectName}
+                className="input-field" 
+                value={value} 
+                onChange={(e) => onChange(e.target.value)} 
+                required={required}
+            >
+                <option value="">Select...</option>
+                {options.map((opt, idx) => (
+                    <option key={idx} value={opt.value}>{opt.label}</option>
+                ))}
+            </select>
+        </div>
+    );
+};
 
-TextArea = ({ label, value, onChange, placeholder = '', rows = 4 }) => (
-    <div className="input-group">
-        {label && <label className="input-label">{label}</label>}
-        <textarea
-            className="input-field"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={placeholder}
-            rows={rows}
-        />
-    </div>
-);
+TextArea = ({ label, value, onChange, placeholder = '', rows = 4, id, name }) => {
+    // Generate unique ID if not provided
+    const textareaId = id || `textarea-${label?.toLowerCase().replace(/\s+/g, '-') || Math.random().toString(36).substr(2, 9)}`;
+    const textareaName = name || textareaId;
+    
+    return (
+        <div className="input-group">
+            {label && (
+                <label className="input-label" htmlFor={textareaId}>
+                    {label}
+                </label>
+            )}
+            <textarea
+                id={textareaId}
+                name={textareaName}
+                className="input-field"
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder={placeholder}
+                rows={rows}
+            />
+        </div>
+    );
+};
 
 Modal = function({ isOpen, onClose, title, children }) {
     if (!isOpen) return null;
@@ -779,9 +821,9 @@ App = function() {
                         )}
 
                         {activeTab === 'events' && (
-                            <EventsTab
+                            <ViewIdentitiesTab
                                 contracts={contracts}
-                                selectedToken={selectedToken}
+                                account={account}
                                 showNotification={showNotification}
                             />
                         )}
@@ -1348,7 +1390,7 @@ TabNavigation = function({ activeTab, setActiveTab, userTokens }) {
         { id: 'access', label: 'Access Control', icon: '🔐', disabled: userTokens.length === 0 },
         { id: 'social', label: 'Social', icon: '🤝', disabled: userTokens.length === 0 },
         { id: 'analytics', label: 'Analytics', icon: '📊', disabled: userTokens.length === 0 },
-        { id: 'events', label: 'Activity', icon: '📡', disabled: userTokens.length === 0 },
+        { id: 'events', label: 'View Identities', icon: '🔍', disabled: false },
     ];
 
     return (
@@ -1600,7 +1642,22 @@ IdentityTab = function({ contracts, account, userTokens, selectedToken, setSelec
             <div className="tab-header">
                 <div>
                     <h2>My Identity Tokens</h2>
-                    <p className="tab-description">Create and manage your soulbound identity tokens</p>
+                    <p className="tab-description">
+                        Create and manage your soulbound identity tokens
+                        {userTokens.length > 0 && (
+                            <span style={{ 
+                                marginLeft: '12px', 
+                                padding: '4px 12px', 
+                                background: 'var(--gradient-teal)',
+                                borderRadius: '12px',
+                                fontSize: '0.9rem',
+                                fontWeight: '600',
+                                color: 'white'
+                            }}>
+                                {userTokens.length} {userTokens.length === 1 ? 'Token' : 'Tokens'}
+                            </span>
+                        )}
+                    </p>
                 </div>
                 <Button onClick={() => setShowMintModal(true)}>
                     <span style={{ marginRight: '8px' }}>+</span>
@@ -1782,6 +1839,8 @@ TokenCard = function({ token, isSelected, onSelect, contracts }) {
     const [metadata, setMetadata] = useState(null);
     const [loading, setLoading] = useState(true);
     const [showDetails, setShowDetails] = useState(false);
+    const [showBurnConfirm, setShowBurnConfirm] = useState(false);
+    const [burning, setBurning] = useState(false);
 
     useEffect(() => {
         loadMetadata();
@@ -1811,6 +1870,30 @@ TokenCard = function({ token, isSelected, onSelect, contracts }) {
     const copyToClipboard = (text) => {
         navigator.clipboard.writeText(text);
         alert('Copied to clipboard!');
+    };
+
+    const handleBurnToken = async () => {
+        try {
+            console.log('🔥 Burning token:', token.id);
+            setBurning(true);
+
+            const tx = await contracts.soulbound.burn(token.id);
+            console.log('⏳ Burn transaction hash:', tx.hash);
+            
+            await tx.wait();
+            console.log('✅ Token burned successfully');
+            
+            setShowBurnConfirm(false);
+            setShowDetails(false);
+            
+            // Reload page to refresh token list
+            window.location.reload();
+        } catch (error) {
+            console.error('❌ Error burning token:', error);
+            alert('Failed to burn token: ' + (error.message || 'Unknown error'));
+        } finally {
+            setBurning(false);
+        }
     };
 
     if (loading) {
@@ -1946,6 +2029,28 @@ TokenCard = function({ token, isSelected, onSelect, contracts }) {
                             </Button>
                         </div>
                     )}
+
+                    <div className="danger-zone" style={{ 
+                        marginTop: '32px', 
+                        padding: '20px', 
+                        background: 'rgba(239, 68, 68, 0.1)', 
+                        borderRadius: '12px',
+                        border: '1px solid rgba(239, 68, 68, 0.3)'
+                    }}>
+                        <h4 style={{ color: 'var(--error)', marginBottom: '12px', fontSize: '1rem' }}>
+                            ⚠️ Danger Zone
+                        </h4>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '16px' }}>
+                            Permanently delete this identity token and all associated access data. This action cannot be undone.
+                        </p>
+                        <Button 
+                            variant="danger" 
+                            onClick={() => setShowBurnConfirm(true)}
+                            disabled={burning}
+                        >
+                            🔥 Delete Identity Token
+                        </Button>
+                    </div>
                 </div>
 
                 <style>{`
@@ -2180,6 +2285,68 @@ TokenCard = function({ token, isSelected, onSelect, contracts }) {
                     font-weight: 600;
                 }
             `}</style>
+
+            {/* Burn Confirmation Modal */}
+            <Modal 
+                isOpen={showBurnConfirm} 
+                onClose={() => setShowBurnConfirm(false)} 
+                title="⚠️ Confirm Identity Deletion"
+            >
+                <div style={{ padding: '20px 0' }}>
+                    <div style={{ 
+                        background: 'rgba(239, 68, 68, 0.1)', 
+                        padding: '16px', 
+                        borderRadius: '8px',
+                        marginBottom: '20px',
+                        border: '1px solid rgba(239, 68, 68, 0.3)'
+                    }}>
+                        <p style={{ color: 'var(--error)', fontWeight: '600', marginBottom: '8px' }}>
+                            ⚠️ WARNING: This action is PERMANENT and IRREVERSIBLE
+                        </p>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                            You are about to permanently delete Token #{token.id}. This will:
+                        </p>
+                    </div>
+
+                    <ul style={{ 
+                        color: 'var(--text-secondary)', 
+                        marginLeft: '20px', 
+                        marginBottom: '24px',
+                        lineHeight: '1.8'
+                    }}>
+                        <li>Delete the identity token from the blockchain</li>
+                        <li>Remove all associated access permissions</li>
+                        <li>Clear all pending access requests</li>
+                        <li>Remove the token from your wallet permanently</li>
+                    </ul>
+
+                    <p style={{ 
+                        color: 'var(--text-primary)', 
+                        fontWeight: '600',
+                        marginBottom: '24px',
+                        fontSize: '1.1rem'
+                    }}>
+                        Are you absolutely sure you want to delete this identity?
+                    </p>
+
+                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                        <Button 
+                            variant="secondary" 
+                            onClick={() => setShowBurnConfirm(false)}
+                            disabled={burning}
+                        >
+                            Cancel
+                        </Button>
+                        <Button 
+                            variant="danger" 
+                            onClick={handleBurnToken}
+                            disabled={burning}
+                        >
+                            {burning ? '🔥 Deleting...' : '🔥 Yes, Delete Forever'}
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
         </>
     );
 }
@@ -2744,6 +2911,17 @@ CredentialCard = function({ credential, onRevoke }) {
                             <span className="meta-label">Verified:</span>
                             <span className="meta-value">{credential.verified ? '✓ Yes' : '✗ No'}</span>
                         </div>
+                        <div className="meta-item" style={{ gridColumn: '1 / -1' }}>
+                            <span className="meta-label">🔐 Metadata Hash:</span>
+                            <code className="meta-value" style={{ 
+                                fontSize: '0.75rem', 
+                                wordBreak: 'break-all',
+                                display: 'block',
+                                marginTop: '4px'
+                            }}>
+                                {credential.metadataHash}
+                            </code>
+                        </div>
                     </div>
                 </div>
 
@@ -3068,6 +3246,33 @@ AccessControlTab = function({ contracts, selectedToken, userTokens, showNotifica
     const [showViewModal, setShowViewModal] = useState(false);
     const [viewingToken, setViewingToken] = useState(null);
 
+    // Helper function to get countdown string
+    const getExpiryCountdown = (expiresAt) => {
+        const now = Math.floor(Date.now() / 1000);
+        const timeLeft = expiresAt - now;
+        
+        if (timeLeft <= 0) return '⚫ Expired';
+        
+        const days = Math.floor(timeLeft / 86400);
+        const hours = Math.floor((timeLeft % 86400) / 3600);
+        const minutes = Math.floor((timeLeft % 3600) / 60);
+        
+        if (days > 0) return `🟢 Expires in ${days} day${days > 1 ? 's' : ''} ${hours}h`;
+        if (hours > 0) return `🟡 Expires in ${hours} hour${hours > 1 ? 's' : ''} ${minutes}m`;
+        return `🔴 Expires in ${minutes} minute${minutes > 1 ? 's' : ''}`;
+    };
+
+    // Helper function to get access status label
+    const getAccessStatusLabel = (status) => {
+        const statusMap = {
+            0: { label: 'No Request', color: 'var(--text-muted)', icon: '⚪' },
+            1: { label: 'Pending', color: 'var(--warning)', icon: '🟡' },
+            2: { label: 'Approved', color: 'var(--success)', icon: '🟢' },
+            3: { label: 'Denied', color: 'var(--error)', icon: '🔴' }
+        };
+        return statusMap[status] || statusMap[0];
+    };
+
     useEffect(() => {
         if (selectedToken && contracts) {
             loadAccessData();
@@ -3082,9 +3287,28 @@ AccessControlTab = function({ contracts, selectedToken, userTokens, showNotifica
 
         setLoading(true);
         try {
-            // Load pending requests
+            // Load pending requests with status
             const requests = await contracts.soulbound.getPendingRequests(selectedToken, 0, 50);
-            setPendingRequests(requests.requesters);
+            
+            // Enhance pending requests with status info
+            const enhancedRequests = [];
+            for (const requester of requests.requesters) {
+                try {
+                    const status = await contracts.soulbound.getAccessStatus(selectedToken, requester);
+                    enhancedRequests.push({
+                        address: requester,
+                        status: status
+                    });
+                } catch (err) {
+                    console.log('Could not fetch status for:', requester);
+                    enhancedRequests.push({
+                        address: requester,
+                        status: 1 // Default to Pending
+                    });
+                }
+            }
+            
+            setPendingRequests(enhancedRequests);
 
             // Load granted access by checking stored addresses
             // Note: Your contract doesn't have a getGrantedAccess function
@@ -3337,32 +3561,51 @@ AccessControlTab = function({ contracts, selectedToken, userTokens, showNotifica
                         </div>
                     ) : (
                         <div className="requests-list">
-                            {pendingRequests.map((requester, idx) => (
-                                <div key={idx} className="request-item">
-                                    <div className="requester-info">
-                                        <div className="requester-avatar">👤</div>
-                                        <div>
-                                            <div className="requester-address">{shortenAddress(requester)}</div>
-                                            <div className="requester-label">Wallet Address</div>
+                            {pendingRequests.map((requester, idx) => {
+                                const statusInfo = getAccessStatusLabel(requester.status || 1);
+                                return (
+                                    <div key={idx} className="request-item">
+                                        <div className="requester-info">
+                                            <div className="requester-avatar">👤</div>
+                                            <div style={{ flex: 1 }}>
+                                                <div className="requester-address">
+                                                    {shortenAddress(requester.address || requester)}
+                                                </div>
+                                                <div className="requester-label">Wallet Address</div>
+                                                <div style={{ 
+                                                    marginTop: '8px', 
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '6px',
+                                                    padding: '4px 10px',
+                                                    background: 'rgba(245, 158, 11, 0.1)',
+                                                    borderRadius: '12px',
+                                                    fontSize: '0.85rem',
+                                                    fontWeight: '600',
+                                                    color: statusInfo.color
+                                                }}>
+                                                    {statusInfo.icon} {statusInfo.label}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="request-actions">
+                                            <Button
+                                                onClick={() => handleApproveAccess(requester.address || requester)}
+                                                style={{ padding: '8px 16px', fontSize: '13px' }}
+                                            >
+                                                Approve
+                                            </Button>
+                                            <Button
+                                                variant="danger"
+                                                onClick={() => handleDenyAccess(requester.address || requester)}
+                                                style={{ padding: '8px 16px', fontSize: '13px' }}
+                                            >
+                                                Deny
+                                            </Button>
                                         </div>
                                     </div>
-                                    <div className="request-actions">
-                                        <Button
-                                            onClick={() => handleApproveAccess(requester)}
-                                            style={{ padding: '8px 16px', fontSize: '13px' }}
-                                        >
-                                            Approve
-                                        </Button>
-                                        <Button
-                                            variant="danger"
-                                            onClick={() => handleDenyAccess(requester)}
-                                            style={{ padding: '8px 16px', fontSize: '13px' }}
-                                        >
-                                            Deny
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </Card>
@@ -3385,10 +3628,25 @@ AccessControlTab = function({ contracts, selectedToken, userTokens, showNotifica
                                 <div key={idx} className="request-item">
                                     <div className="requester-info">
                                         <div className="requester-avatar">✓</div>
-                                        <div>
+                                        <div style={{ flex: 1 }}>
                                             <div className="requester-address">{shortenAddress(item.address)}</div>
-                                            <div className="requester-label">
-                                                Access expires: {formatDate(item.expiresAt)}
+                                            <div className="requester-label" style={{ marginTop: '8px' }}>
+                                                📅 Granted: {formatDate(item.expiresAt - (30 * 24 * 60 * 60))}
+                                            </div>
+                                            <div style={{ 
+                                                marginTop: '8px', 
+                                                padding: '6px 12px', 
+                                                background: 'rgba(6, 182, 212, 0.1)',
+                                                borderRadius: '6px',
+                                                display: 'inline-block'
+                                            }}>
+                                                <span style={{ 
+                                                    fontSize: '0.9rem', 
+                                                    fontWeight: '600',
+                                                    color: item.expiresAt > Math.floor(Date.now() / 1000) ? 'var(--success)' : 'var(--error)'
+                                                }}>
+                                                    {getExpiryCountdown(item.expiresAt)}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
@@ -5355,228 +5613,398 @@ AnalyticsTab = function({ contracts, selectedToken, showNotification }) {
 }
 
 // ============================================
-// EVENTS TAB COMPONENT
+// VIEW IDENTITIES TAB - View tokens you have access to
 // ============================================
-EventsTab = function({ contracts, selectedToken, showNotification }) {
-    const [events, setEvents] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState('all');
+ViewIdentitiesTab = function({ contracts, account, showNotification }) {
+    const [viewTokenId, setViewTokenId] = useState('');
+    const [viewingToken, setViewingToken] = useState(null);
+    const [tokenData, setTokenData] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [hasAccess, setHasAccess] = useState(false);
 
-    useEffect(() => {
-        if (!selectedToken || !contracts) return;
-        loadEventHistory();
-    }, [selectedToken, contracts, filter]);
+    const handleViewToken = async () => {
+        if (!viewTokenId || !contracts) {
+            showNotification('Please enter a token ID', 'warning');
+            return;
+        }
 
-    const loadEventHistory = async () => {
         setLoading(true);
         try {
-            const allEvents = [];
-            // selectedToken is already the ID number
-            const tokenId = selectedToken;
-
-            // Fetch identity events
+            const tokenIdNumber = parseInt(viewTokenId);
+            
+            console.log('🔍 Checking access to token:', tokenIdNumber);
+            
+            // Check if token exists
+            let owner;
             try {
-                const mintFilter = contracts.soulbound.filters.Minted(null, tokenId);
-                const mintEvents = await contracts.soulbound.queryFilter(mintFilter);
-                mintEvents.forEach(e => allEvents.push({
-                    type: 'identity',
-                    action: 'Token Minted',
-                    timestamp: e.blockNumber,
-                    data: { tokenId: e.args.tokenId.toString() },
-                    icon: '🎉',
-                    txHash: e.transactionHash
-                }));
+                owner = await contracts.soulbound.ownerOf(tokenIdNumber);
             } catch (err) {
-                console.log('No mint events');
+                showNotification('Token does not exist', 'error');
+                setLoading(false);
+                return;
+            }
+
+            // Check if we have access
+            const canView = await contracts.soulbound.canView(tokenIdNumber, account);
+            
+            if (!canView) {
+                showNotification('You do not have access to this token', 'error');
+                setHasAccess(false);
+                setLoading(false);
+                return;
+            }
+
+            console.log('✅ Access granted! Loading data...');
+            setHasAccess(true);
+            setViewingToken(tokenIdNumber);
+
+            // Load token metadata
+            let metadata = { name: `Token #${tokenIdNumber}`, bio: 'No bio available' };
+            try {
+                const cid = await contracts.soulbound.getMetadata(tokenIdNumber);
+                // In production, fetch from IPFS
+                console.log('📝 Token CID:', cid);
+            } catch (err) {
+                console.log('Could not fetch metadata');
+            }
+
+            // Load credentials
+            const allCredentials = [];
+            for (let type = 0; type < 5; type++) {
+                try {
+                    const creds = await contracts.credentials.getCredentialsByType(tokenIdNumber, type);
+                    allCredentials.push(...creds.map(c => ({ 
+                        ...c, 
+                        credType: type,
+                        typeName: credentialTypes[type]
+                    })));
+                } catch (err) {
+                    console.log(`No credentials of type ${type}`);
+                }
+            }
+
+            // Load credentials summary
+            let summary = null;
+            try {
+                const sum = await contracts.credentials.getCredentialSummary(tokenIdNumber);
+                summary = {
+                    degrees: sum.degrees.toNumber(),
+                    certifications: sum.certifications.toNumber(),
+                    workExperience: sum.workExperience.toNumber(),
+                    identityProofs: sum.identityProofs.toNumber(),
+                    skills: sum.skills.toNumber()
+                };
+            } catch (err) {
+                console.log('Could not load credential summary');
+            }
+
+            // Load social data
+            let reputation = null;
+            let reviews = [];
+            let projects = [];
+            let endorsements = [];
+
+            try {
+                const rep = await contracts.social.getReputationSummary(tokenIdNumber);
+                reputation = {
+                    averageScore: rep.averageScore.toNumber(),
+                    totalReviews: rep.totalReviews.toNumber(),
+                    verifiedReviews: rep.verifiedReviews.toNumber()
+                };
+            } catch (err) {
+                console.log('Could not load reputation');
             }
 
             try {
-                const accessReqFilter = contracts.soulbound.filters.AccessRequested(tokenId);
-                const accessEvents = await contracts.soulbound.queryFilter(accessReqFilter);
-                accessEvents.forEach(e => allEvents.push({
-                    type: 'identity',
-                    action: 'Access Requested',
-                    timestamp: e.blockNumber,
-                    data: { requester: shortenAddress(e.args.requester) },
-                    icon: '🔔',
-                    txHash: e.transactionHash
-                }));
+                reviews = await contracts.social.getReviews(tokenIdNumber);
             } catch (err) {
-                console.log('No access request events');
-            }
-
-            // Fetch credential events
-            try {
-                const credFilter = contracts.credentials.filters.CredentialIssued(tokenId);
-                const credEvents = await contracts.credentials.queryFilter(credFilter);
-                credEvents.forEach(e => allEvents.push({
-                    type: 'credentials',
-                    action: 'Credential Issued',
-                    timestamp: e.blockNumber,
-                    data: {
-                        type: credentialTypes[e.args.credType],
-                        id: e.args.credentialId.toString()
-                    },
-                    icon: '📜',
-                    txHash: e.transactionHash
-                }));
-            } catch (err) {
-                console.log('No credential events');
-            }
-
-            // Fetch social events
-            try {
-                const reviewFilter = contracts.social.filters.ReviewSubmitted(tokenId);
-                const reviewEvents = await contracts.social.queryFilter(reviewFilter);
-                reviewEvents.forEach(e => allEvents.push({
-                    type: 'social',
-                    action: 'Review Received',
-                    timestamp: e.blockNumber,
-                    data: {
-                        score: e.args.score.toString(),
-                        reviewer: e.args.reviewerTokenId.toString()
-                    },
-                    icon: '⭐',
-                    txHash: e.transactionHash
-                }));
-            } catch (err) {
-                console.log('No review events');
+                console.log('Could not load reviews');
             }
 
             try {
-                const projectFilter = contracts.social.filters.ProjectCreated(tokenId);
-                const projectEvents = await contracts.social.queryFilter(projectFilter);
-                projectEvents.forEach(e => allEvents.push({
-                    type: 'social',
-                    action: 'Project Created',
-                    timestamp: e.blockNumber,
-                    data: {
-                        projectId: e.args.projectId.toString()
-                    },
-                    icon: '🚀',
-                    txHash: e.transactionHash
-                }));
+                projects = await contracts.social.getProjects(tokenIdNumber);
             } catch (err) {
-                console.log('No project events');
+                console.log('Could not load projects');
             }
 
             try {
-                const endorseFilter = contracts.social.filters.SkillEndorsed(tokenId);
-                const endorseEvents = await contracts.social.queryFilter(endorseFilter);
-                endorseEvents.forEach(e => allEvents.push({
-                    type: 'social',
-                    action: 'Skill Endorsed',
-                    timestamp: e.blockNumber,
-                    data: {
-                        endorser: e.args.endorserTokenId.toString()
-                    },
-                    icon: '👍',
-                    txHash: e.transactionHash
-                }));
+                endorsements = await contracts.social.getEndorsements(tokenIdNumber);
             } catch (err) {
-                console.log('No endorsement events');
+                console.log('Could not load endorsements');
             }
 
-            // Sort by block number (most recent first)
-            allEvents.sort((a, b) => b.timestamp - a.timestamp);
-            setEvents(allEvents);
+            setTokenData({
+                tokenId: tokenIdNumber,
+                owner,
+                metadata,
+                credentials: allCredentials,
+                summary,
+                reputation,
+                reviews,
+                projects,
+                endorsements
+            });
+
+            showNotification('Token data loaded successfully!', 'success');
         } catch (error) {
-            console.error('Error loading events:', error);
-            showNotification('Failed to load event history', 'error');
+            console.error('❌ Error viewing token:', error);
+            showNotification(error.message || 'Failed to load token data', 'error');
         } finally {
             setLoading(false);
         }
     };
 
-    if (!selectedToken) {
-        return (
-            <Card>
-                <div className="empty-state">
-                    <div className="empty-icon" style={{ fontSize: '4rem', marginBottom: '16px' }}>📡</div>
-                    <h3>No Token Selected</h3>
-                    <p>Select a token to view activity history</p>
-                </div>
-            </Card>
-        );
-    }
-
-    const filteredEvents = filter === 'all' ? events : events.filter(e => e.type === filter);
-
     return (
-        <div className="events-container">
-            <h2 style={{ marginBottom: '24px', color: 'var(--beige, #e8dfca)' }}>Activity History</h2>
-
+        <div className="view-identities-container">
+            <h2 style={{ marginBottom: '24px', color: 'var(--beige, #e8dfca)' }}>View Identities</h2>
+            
             <Card>
-                <div className="events-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                    <h3>Events</h3>
-                    <div className="filter-buttons" style={{ display: 'flex', gap: '8px' }}>
-                        <Button
-                            variant={filter === 'all' ? 'primary' : 'secondary'}
-                            onClick={() => setFilter('all')}
-                            style={{ padding: '8px 16px', fontSize: '14px' }}
+                <div style={{ marginBottom: '24px' }}>
+                    <h3 style={{ marginBottom: '16px' }}>Enter Token ID</h3>
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.95rem' }}>
+                        View the identity and credentials of tokens you have access to
+                    </p>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
+                        <Input
+                            label="Token ID"
+                            value={viewTokenId}
+                            onChange={setViewTokenId}
+                            type="number"
+                            placeholder="Enter token ID (e.g., 1, 2, 3...)"
+                        />
+                        <Button 
+                            onClick={handleViewToken}
+                            disabled={loading || !viewTokenId}
+                            style={{ minWidth: '120px', height: '48px' }}
                         >
-                            All
-                        </Button>
-                        <Button
-                            variant={filter === 'identity' ? 'primary' : 'secondary'}
-                            onClick={() => setFilter('identity')}
-                            style={{ padding: '8px 16px', fontSize: '14px' }}
-                        >
-                            Identity
-                        </Button>
-                        <Button
-                            variant={filter === 'credentials' ? 'primary' : 'secondary'}
-                            onClick={() => setFilter('credentials')}
-                            style={{ padding: '8px 16px', fontSize: '14px' }}
-                        >
-                            Credentials
-                        </Button>
-                        <Button
-                            variant={filter === 'social' ? 'primary' : 'secondary'}
-                            onClick={() => setFilter('social')}
-                            style={{ padding: '8px 16px', fontSize: '14px' }}
-                        >
-                            Social
+                            {loading ? 'Loading...' : '🔍 View'}
                         </Button>
                     </div>
                 </div>
 
-                {loading ? (
-                    <LoadingSpinner />
-                ) : (
-                    <div className="events-timeline" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        {filteredEvents.length === 0 ? (
-                            <div className="empty-message" style={{ textAlign: 'center', padding: '40px', color: 'var(--gray-light, #a8b2c1)' }}>
-                                <p>No events yet</p>
+                {loading && <LoadingSpinner />}
+
+                {!loading && tokenData && (
+                    <div className="token-data-display" style={{ marginTop: '32px' }}>
+                        {/* Token Info Section */}
+                        <div style={{ 
+                            background: 'var(--bg-tertiary)', 
+                            padding: '20px', 
+                            borderRadius: '12px', 
+                            marginBottom: '24px',
+                            borderLeft: '4px solid var(--teal)'
+                        }}>
+                            <h3 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span>👤</span> Token #{tokenData.tokenId}
+                            </h3>
+                            <div style={{ display: 'grid', gap: '12px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: 'var(--text-secondary)' }}>Owner:</span>
+                                    <code style={{ color: 'var(--teal-light)', fontSize: '0.9rem' }}>
+                                        {shortenAddress(tokenData.owner)}
+                                    </code>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: 'var(--text-secondary)' }}>Access Status:</span>
+                                    <span style={{ color: 'var(--success)', fontWeight: 600 }}>✓ Granted</span>
+                                </div>
                             </div>
-                        ) : (
-                            filteredEvents.map((event, idx) => (
-                                <div key={idx} className="event-item" style={{ display: 'flex', gap: '16px', padding: '16px', background: 'var(--bg-tertiary, #2a3547)', borderRadius: '12px', border: '1px solid var(--border-color, rgba(168, 178, 193, 0.1))' }}>
-                                    <div className="event-icon" style={{ fontSize: '1.5rem', flexShrink: 0 }}>{event.icon}</div>
-                                    <div className="event-content" style={{ flex: 1 }}>
-                                        <div className="event-action" style={{ fontWeight: 600, color: 'var(--text-primary, #e8dfca)', marginBottom: '8px' }}>{event.action}</div>
-                                        <div className="event-data" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '8px' }}>
-                                            {Object.entries(event.data).map(([key, value]) => (
-                                                <span key={key} className="event-detail" style={{ fontSize: '14px', color: 'var(--text-secondary, #a8b2c1)' }}>
-                                                    {key}: <strong style={{ color: 'var(--text-primary, #e8dfca)' }}>{value}</strong>
-                                                </span>
-                                            ))}
+                        </div>
+
+                        {/* Credentials Summary */}
+                        {tokenData.summary && (
+                            <div style={{ marginBottom: '24px' }}>
+                                <h3 style={{ marginBottom: '16px' }}>📜 Credentials Summary</h3>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
+                                    <div style={{ background: 'var(--bg-tertiary)', padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
+                                        <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🎓</div>
+                                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--teal-light)' }}>
+                                            {tokenData.summary.degrees}
                                         </div>
-                                        <div className="event-meta" style={{ fontSize: '13px', color: 'var(--text-muted, #6b7589)' }}>
-                                            Block: {event.timestamp} •
-                                            <a
-                                                href={`${CONFIG.BLOCK_EXPLORER}/tx/${event.txHash}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                style={{ color: 'var(--accent-sky-light, #38bdf8)', textDecoration: 'none', marginLeft: '8px' }}
-                                            >
-                                                View TX →
-                                            </a>
+                                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Degrees</div>
+                                    </div>
+                                    <div style={{ background: 'var(--bg-tertiary)', padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
+                                        <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📜</div>
+                                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--teal-light)' }}>
+                                            {tokenData.summary.certifications}
+                                        </div>
+                                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Certifications</div>
+                                    </div>
+                                    <div style={{ background: 'var(--bg-tertiary)', padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
+                                        <div style={{ fontSize: '2rem', marginBottom: '8px' }}>💼</div>
+                                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--teal-light)' }}>
+                                            {tokenData.summary.workExperience}
+                                        </div>
+                                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Work Experience</div>
+                                    </div>
+                                    <div style={{ background: 'var(--bg-tertiary)', padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
+                                        <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⚡</div>
+                                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--teal-light)' }}>
+                                            {tokenData.summary.skills}
+                                        </div>
+                                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Skills</div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Credentials List */}
+                        {tokenData.credentials.length > 0 && (
+                            <div style={{ marginBottom: '24px' }}>
+                                <h3 style={{ marginBottom: '16px' }}>📋 Credentials ({tokenData.credentials.length})</h3>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    {tokenData.credentials.map((cred, idx) => (
+                                        <div 
+                                            key={idx}
+                                            style={{ 
+                                                background: 'var(--bg-tertiary)', 
+                                                padding: '16px', 
+                                                borderRadius: '8px',
+                                                borderLeft: '4px solid var(--teal)'
+                                            }}
+                                        >
+                                            <div style={{ fontWeight: 600, color: 'var(--teal-light)', marginBottom: '8px' }}>
+                                                {cred.typeName}
+                                            </div>
+                                            <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                                                Credential ID: {cred.credentialId.toString()}
+                                            </div>
+                                            <div style={{ 
+                                                fontSize: '0.85rem', 
+                                                color: 'var(--text-muted)', 
+                                                marginBottom: '8px',
+                                                wordBreak: 'break-all'
+                                            }}>
+                                                <div style={{ marginBottom: '4px', color: 'var(--text-secondary)' }}>
+                                                    🔐 Metadata Hash:
+                                                </div>
+                                                <code style={{ 
+                                                    background: 'var(--bg-secondary)', 
+                                                    padding: '4px 8px', 
+                                                    borderRadius: '4px',
+                                                    fontSize: '0.8rem',
+                                                    color: 'var(--teal-light)'
+                                                }}>
+                                                    {cred.metadataHash}
+                                                </code>
+                                            </div>
+                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                                📅 Issued: {formatDate(cred.issueDate)} • 
+                                                Expires: {cred.expiryDate.toNumber() === 0 ? 'Never' : formatDate(cred.expiryDate)}
+                                            </div>
+                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                                                👤 Issuer: <code style={{ fontSize: '0.8rem' }}>{shortenAddress(cred.issuer)}</code> •
+                                                Status: {cred.status === 0 ? '✅ Active' : '❌ Revoked'}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Reputation */}
+                        {tokenData.reputation && (
+                            <div style={{ marginBottom: '24px' }}>
+                                <h3 style={{ marginBottom: '16px' }}>⭐ Reputation</h3>
+                                <div style={{ background: 'var(--bg-tertiary)', padding: '20px', borderRadius: '12px' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px' }}>
+                                        <div>
+                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                                                Average Score
+                                            </div>
+                                            <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--teal-light)' }}>
+                                                {tokenData.reputation.averageScore}/10
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                                                Total Reviews
+                                            </div>
+                                            <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--teal-light)' }}>
+                                                {tokenData.reputation.totalReviews}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                                                Verified Reviews
+                                            </div>
+                                            <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--success)' }}>
+                                                {tokenData.reputation.verifiedReviews}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            ))
+                            </div>
                         )}
+
+                        {/* Projects */}
+                        {tokenData.projects.length > 0 && (
+                            <div style={{ marginBottom: '24px' }}>
+                                <h3 style={{ marginBottom: '16px' }}>🚀 Projects ({tokenData.projects.length})</h3>
+                                <div style={{ display: 'grid', gap: '12px' }}>
+                                    {tokenData.projects.map((proj, idx) => (
+                                        <div 
+                                            key={idx}
+                                            style={{ 
+                                                background: 'var(--bg-tertiary)', 
+                                                padding: '16px', 
+                                                borderRadius: '8px'
+                                            }}
+                                        >
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                                                    Project #{proj.projectId.toString()}
+                                                </div>
+                                                <div style={{ 
+                                                    padding: '4px 12px', 
+                                                    borderRadius: '12px', 
+                                                    background: proj.status === 2 ? 'var(--success)' : 'var(--info)',
+                                                    color: 'white',
+                                                    fontSize: '0.85rem',
+                                                    fontWeight: 600
+                                                }}>
+                                                    {projectStatuses[proj.status]}
+                                                </div>
+                                            </div>
+                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '8px' }}>
+                                                Created: {formatDate(proj.createdAt)}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Endorsements */}
+                        {tokenData.endorsements.length > 0 && (
+                            <div>
+                                <h3 style={{ marginBottom: '16px' }}>👍 Skill Endorsements ({tokenData.endorsements.length})</h3>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                                    {tokenData.endorsements.map((end, idx) => (
+                                        <div 
+                                            key={idx}
+                                            style={{ 
+                                                background: 'var(--bg-tertiary)', 
+                                                padding: '12px 16px', 
+                                                borderRadius: '20px',
+                                                fontSize: '0.9rem',
+                                                color: 'var(--teal-light)',
+                                                border: '1px solid var(--teal)'
+                                            }}
+                                        >
+                                            👍 Endorsement #{idx + 1}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {!loading && !tokenData && (
+                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+                        <div style={{ fontSize: '4rem', marginBottom: '16px' }}>🔍</div>
+                        <p>Enter a token ID above to view its identity and credentials</p>
                     </div>
                 )}
             </Card>

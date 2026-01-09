@@ -1,6 +1,7 @@
 // Contract ABIs - declared globally
 SOULBOUND_IDENTITY_ABI = [
     "function mint(string calldata ipfsCID, uint8 burnAuth) external returns (uint256)",
+    "function burn(uint256 tokenId) external",
     "function tokensOfOwner(address owner) external view returns (uint256[] memory)",
     "function getMetadata(uint256 tokenId) external view returns (string memory)",
     "function requestAccess(uint256 tokenId) external",
