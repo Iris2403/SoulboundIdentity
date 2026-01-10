@@ -3106,13 +3106,9 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                             const isExpired = cred.expiryDate > 0 &&
                                 Math.floor(Date.now() / 1000) >= cred.expiryDate.toNumber();
 
-                            // Check if issuer is authorized (async check would be cached)
-                            const [issuerIsAuth, setIssuerIsAuth] = React.useState(null);
-                            React.useEffect(() => {
-                                if (cred.verified) {
-                                    checkCredentialIssuerAuth(cred.credType, cred.issuer).then(setIssuerIsAuth);
-                                }
-                            }, [cred.credentialId]);
+                            // NOTE: Issuer auth checking is done during checkIssuerAuthorization
+                            // We can check from issuerAuthStatus if current account is authorized for this type
+                            const issuerIsAuth = cred.verified && issuerAuthStatus[cred.credType];
 
                             const catInfo = selectedType === 4 ? getSkillCategoryInfo(cred.category) : null;
 
