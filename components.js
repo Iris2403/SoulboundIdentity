@@ -4466,17 +4466,38 @@ SocialTab = function ({ contracts, selectedToken, userTokens, account, showNotif
     const [collaboratingOn, setCollaboratingOn] = useState([]);
     const [endorsements, setEndorsements] = useState([]);
     const [endorsementCounts, setEndorsementCounts] = useState({});
+    const [projectStats, setProjectStats] = useState(null); // NEW: Project statistics
+    const [hasReviewedCache, setHasReviewedCache] = useState({}); // NEW: Cache for hasReviewed
     const [loading, setLoading] = useState(false);
-    const [showReviewModal, setShowReviewModal] = useState(false);
-    const [showProjectModal, setShowProjectModal] = useState(false);
-    const [showEndorseModal, setShowEndorseModal] = useState(false);
+
+    // Constants from contract
+    const MAX_PROJECTS = 50;
+    const MAX_COLLABORATORS = 20;
+    const MAX_SCORE = 100;
 
     useEffect(() => {
         if (selectedToken && contracts) {
             loadSocialData();
             loadMyActivity();
+            loadProjectStats(); // NEW
         }
     }, [selectedToken, contracts]);
+
+    // NEW: Load project statistics by status
+    const loadProjectStats = async () => {
+        if (!selectedToken || !contracts) return;
+
+        try {
+            const stats = {};
+            for (let status = 0; status < 4; status++) {
+                const count = await contracts.social.getProjectCountByStatus(selectedToken, status);
+                stats[status] = count.toNumber();
+            }
+            setProjectStats(stats);
+        } catch (error) {
+            console.error('Error loading project stats:', error);
+        }
+    };
 
     const loadSocialData = async () => {
         if (!selectedToken) return;
@@ -4498,18 +4519,24 @@ SocialTab = function ({ contracts, selectedToken, userTokens, account, showNotif
             // Load projects
             const projs = await contracts.social.getProjects(selectedToken);
             setProjects(projs);
-            setMyProjects(projs); // These are projects on my token
+            setMyProjects(projs);
 
             // Load endorsements received
             const ends = await contracts.social.getEndorsements(selectedToken);
             setEndorsements(ends);
 
-            // Count endorsements per skill
+            // NEW: Count endorsements per skill using contract function
+            const skillHashes = [...new Set(ends.map(e => e.skillHash))];
             const counts = {};
-            ends.forEach(end => {
-                const skillHash = end.skillHash;
-                counts[skillHash] = (counts[skillHash] || 0) + 1;
-            });
+            for (const skillHash of skillHashes) {
+                try {
+                    const count = await contracts.social.getEndorsementCount(selectedToken, skillHash);
+                    counts[skillHash] = count.toNumber();
+                } catch (error) {
+                    // Fallback to manual count if contract doesn't have this function
+                    counts[skillHash] = ends.filter(e => e.skillHash === skillHash).length;
+                }
+            }
             setEndorsementCounts(counts);
         } catch (error) {
             console.error('Error loading social data:', error);
@@ -4525,33 +4552,26 @@ SocialTab = function ({ contracts, selectedToken, userTokens, account, showNotif
             // Load reviews I've written
             const writtenReviews = [];
             const storedReviews = JSON.parse(localStorage.getItem(`reviews_written_${selectedToken}`) || '[]');
-            console.log(`Loading reviews for token ${selectedToken}, found ${storedReviews.length} stored reviews`);
 
             for (const item of storedReviews) {
                 try {
                     const tokenReviews = await contracts.social.getReviews(item.targetTokenId);
-                    console.log(`Checking token ${item.targetTokenId}, found ${tokenReviews.length} reviews`);
-                    // Find my review in their reviews
                     const myReview = tokenReviews.find(r =>
                         r.reviewerTokenId.toString() === selectedToken.toString()
                     );
                     if (myReview) {
-                        console.log('Found my review!', myReview);
                         writtenReviews.push({
                             ...myReview,
                             targetTokenId: item.targetTokenId
                         });
-                    } else {
-                        console.log('My review not found in their reviews');
                     }
                 } catch (err) {
-                    console.log('Could not load review for token', item.targetTokenId, err);
+                    console.log('Could not load review for token', item.targetTokenId);
                 }
             }
-            console.log(`Total reviews written: ${writtenReviews.length}`);
             setReviewsWritten(writtenReviews);
 
-            // Load projects I'm collaborating on (other people's projects)
+            // Load projects I'm collaborating on
             const collaborations = [];
             const storedCollabs = JSON.parse(localStorage.getItem(`collaborations_${selectedToken}`) || '[]');
 
@@ -4589,6 +4609,10 @@ SocialTab = function ({ contracts, selectedToken, userTokens, account, showNotif
         );
     }
 
+    // Calculate total projects
+    const totalProjects = projectStats ? Object.values(projectStats).reduce((a, b) => a + b, 0) : 0;
+    const isNearProjectLimit = totalProjects >= MAX_PROJECTS * 0.9;
+
     return (
         <div className="social-tab">
             <div className="tab-header">
@@ -4597,6 +4621,103 @@ SocialTab = function ({ contracts, selectedToken, userTokens, account, showNotif
                     <p className="tab-description">Build reputation, showcase projects, and receive endorsements</p>
                 </div>
             </div>
+
+            {/* NEW: Project limit warning banner */}
+            {isNearProjectLimit && activeSection === 'projects' && (
+                <div style={{
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    marginBottom: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
+                }}>
+                    <span style={{ fontSize: '1.5rem' }}>⚠️</span>
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: '600', color: 'var(--warning)', marginBottom: '4px' }}>
+                            Approaching Project Limit
+                        </div>
+                        <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                            You have {totalProjects}/{MAX_PROJECTS} total projects across all statuses.
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* NEW: Project Statistics Dashboard */}
+            {projectStats && activeSection === 'projects' && (
+                <Card style={{ marginBottom: '24px' }}>
+                    <h3 style={{ marginBottom: '16px', color: 'var(--teal-light)' }}>
+                        📊 Project Statistics
+                    </h3>
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                        gap: '16px'
+                    }}>
+                        {projectStatuses.map((status, idx) => {
+                            const count = projectStats[idx] || 0;
+                            const colors = ['#667eea', '#4facfe', '#43e97b', '#fa709a'];
+                            const icons = ['📋', '🚀', '✅', '❌'];
+
+                            return (
+                                <div key={idx} style={{
+                                    textAlign: 'center',
+                                    padding: '16px',
+                                    background: `${colors[idx]}15`,
+                                    borderRadius: '12px',
+                                    position: 'relative'
+                                }}>
+                                    <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>
+                                        {icons[idx]}
+                                    </div>
+                                    <div style={{
+                                        fontSize: '1.8rem',
+                                        fontWeight: 'bold',
+                                        color: colors[idx]
+                                    }}>
+                                        {count}
+                                    </div>
+                                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                                        {status}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                        {/* Total summary */}
+                        <div style={{
+                            textAlign: 'center',
+                            padding: '16px',
+                            background: 'rgba(6, 182, 212, 0.1)',
+                            borderRadius: '12px',
+                            border: isNearProjectLimit ? '2px solid var(--warning)' : 'none'
+                        }}>
+                            <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>
+                                📁
+                            </div>
+                            <div style={{
+                                fontSize: '1.8rem',
+                                fontWeight: 'bold',
+                                color: isNearProjectLimit ? 'var(--warning)' : 'var(--teal-light)'
+                            }}>
+                                {totalProjects}
+                                <span style={{
+                                    fontSize: '0.9rem',
+                                    color: 'var(--text-muted)',
+                                    marginLeft: '4px'
+                                }}>
+                                    /{MAX_PROJECTS}
+                                </span>
+                            </div>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                                Total Projects
+                            </div>
+                        </div>
+                    </div>
+                </Card>
+            )}
 
             <div className="social-nav">
                 <button
@@ -4610,12 +4731,34 @@ SocialTab = function ({ contracts, selectedToken, userTokens, account, showNotif
                     onClick={() => setActiveSection('projects')}
                 >
                     📁 Projects
+                    {projectStats && (
+                        <span style={{
+                            marginLeft: '6px',
+                            background: 'rgba(255,255,255,0.2)',
+                            padding: '2px 8px',
+                            borderRadius: '10px',
+                            fontSize: '0.75rem'
+                        }}>
+                            {totalProjects}
+                        </span>
+                    )}
                 </button>
                 <button
                     className={`social-nav-btn ${activeSection === 'endorsements' ? 'active' : ''}`}
                     onClick={() => setActiveSection('endorsements')}
                 >
                     👍 Endorsements
+                    {Object.keys(endorsementCounts).length > 0 && (
+                        <span style={{
+                            marginLeft: '6px',
+                            background: 'rgba(255,255,255,0.2)',
+                            padding: '2px 8px',
+                            borderRadius: '10px',
+                            fontSize: '0.75rem'
+                        }}>
+                            {Object.keys(endorsementCounts).length}
+                        </span>
+                    )}
                 </button>
             </div>
 
@@ -4630,6 +4773,9 @@ SocialTab = function ({ contracts, selectedToken, userTokens, account, showNotif
                     userTokens={userTokens}
                     showNotification={showNotification}
                     onReload={loadSocialData}
+                    hasReviewedCache={hasReviewedCache}
+                    setHasReviewedCache={setHasReviewedCache}
+                    MAX_SCORE={MAX_SCORE}
                 />
             )}
 
@@ -4641,13 +4787,19 @@ SocialTab = function ({ contracts, selectedToken, userTokens, account, showNotif
                     contracts={contracts}
                     selectedToken={selectedToken}
                     showNotification={showNotification}
-                    onReload={loadSocialData}
+                    onReload={() => {
+                        loadSocialData();
+                        loadProjectStats();
+                    }}
+                    MAX_PROJECTS={MAX_PROJECTS}
+                    MAX_COLLABORATORS={MAX_COLLABORATORS}
                 />
             )}
 
             {activeSection === 'endorsements' && (
                 <EndorsementsSection
                     endorsements={endorsements}
+                    endorsementCounts={endorsementCounts}
                     loading={loading}
                     contracts={contracts}
                     selectedToken={selectedToken}
@@ -4692,13 +4844,14 @@ SocialTab = function ({ contracts, selectedToken, userTokens, account, showNotif
                     border: none;
                     color: var(--gray-light);
                     padding: 12px 24px;
-                    font-family: 'Work Sans', sans-serif;
                     font-size: 15px;
                     font-weight: 500;
                     cursor: pointer;
                     transition: all 0.3s ease;
                     border-bottom: 3px solid transparent;
                     margin-bottom: -2px;
+                    display: flex;
+                    align-items: center;
                 }
 
                 .social-nav-btn:hover {
@@ -4747,9 +4900,13 @@ SocialTab = function ({ contracts, selectedToken, userTokens, account, showNotif
     );
 }
 
-// Reputation Section Component
-ReputationSection = function ({ reputation, reviews, reviewsWritten, loading, contracts, selectedToken, userTokens, showNotification, onReload }) {
+// Enhanced Reputation Section Component
+ReputationSection = function ({
+    reputation, reviews, reviewsWritten, loading, contracts, selectedToken,
+    userTokens, showNotification, onReload, hasReviewedCache, setHasReviewedCache, MAX_SCORE
+}) {
     const [showReviewModal, setShowReviewModal] = useState(false);
+    const [checkingReviewed, setCheckingReviewed] = useState(false);
     const [reviewData, setReviewData] = useState({
         targetTokenId: '',
         reviewerTokenId: '',
@@ -4758,6 +4915,29 @@ ReputationSection = function ({ reputation, reviews, reviewsWritten, loading, co
         isAnonymous: false,
         comment: ''
     });
+
+    // NEW: Check if already reviewed when target changes
+    useEffect(() => {
+        if (reviewData.targetTokenId && reviewData.reviewerTokenId && contracts) {
+            checkHasReviewed(reviewData.reviewerTokenId, reviewData.targetTokenId);
+        }
+    }, [reviewData.targetTokenId, reviewData.reviewerTokenId]);
+
+    // NEW: Check if reviewer has already reviewed target
+    const checkHasReviewed = async (reviewerId, targetId) => {
+        const cacheKey = `${reviewerId}-${targetId}`;
+        if (hasReviewedCache[cacheKey] !== undefined) return;
+
+        setCheckingReviewed(true);
+        try {
+            const hasReviewed = await contracts.social.hasReviewed(reviewerId, targetId);
+            setHasReviewedCache(prev => ({ ...prev, [cacheKey]: hasReviewed }));
+        } catch (error) {
+            console.error('Error checking hasReviewed:', error);
+        } finally {
+            setCheckingReviewed(false);
+        }
+    };
 
     const handleSubmitReview = async () => {
         try {
@@ -4769,13 +4949,19 @@ ReputationSection = function ({ reputation, reviews, reviewsWritten, loading, co
             const targetId = parseInt(reviewData.targetTokenId);
             const reviewerId = parseInt(reviewData.reviewerTokenId);
 
-            // Validation 1: Can't review yourself
             if (targetId === reviewerId) {
                 showNotification('You cannot review yourself!', 'error');
                 return;
             }
 
-            // Validation 2: Check if target token exists
+            // NEW: Check if already reviewed
+            const cacheKey = `${reviewerId}-${targetId}`;
+            if (hasReviewedCache[cacheKey]) {
+                showNotification('You have already reviewed this token!', 'error');
+                return;
+            }
+
+            // Validate tokens exist
             try {
                 await contracts.soulbound.ownerOf(targetId);
             } catch (err) {
@@ -4783,7 +4969,6 @@ ReputationSection = function ({ reputation, reviews, reviewsWritten, loading, co
                 return;
             }
 
-            // Validation 3: Check if you own the reviewer token
             try {
                 const owner = await contracts.soulbound.ownerOf(reviewerId);
                 const myAddress = await contracts.soulbound.signer.getAddress();
@@ -4796,10 +4981,17 @@ ReputationSection = function ({ reputation, reviews, reviewsWritten, loading, co
                 return;
             }
 
+            // NEW: Validate score range
+            const score = parseInt(reviewData.score);
+            if (score < 0 || score > MAX_SCORE) {
+                showNotification(`Score must be between 0 and ${MAX_SCORE}!`, 'error');
+                return;
+            }
+
             const tx = await contracts.social.submitReview(
                 targetId,
                 reviewerId,
-                parseInt(reviewData.score),
+                score,
                 reviewData.verified,
                 reviewData.isAnonymous,
                 reviewData.comment
@@ -4807,7 +4999,7 @@ ReputationSection = function ({ reputation, reviews, reviewsWritten, loading, co
             showNotification('Submitting review...', 'info');
             await tx.wait();
 
-            // Track this review in localStorage
+            // Track this review
             const storedReviews = JSON.parse(localStorage.getItem(`reviews_written_${reviewerId}`) || '[]');
             storedReviews.push({
                 targetTokenId: targetId,
@@ -4815,15 +5007,31 @@ ReputationSection = function ({ reputation, reviews, reviewsWritten, loading, co
             });
             localStorage.setItem(`reviews_written_${reviewerId}`, JSON.stringify(storedReviews));
 
+            // Update cache
+            setHasReviewedCache(prev => ({ ...prev, [cacheKey]: true }));
+
             showNotification('Review submitted successfully!', 'success');
             setShowReviewModal(false);
             setReviewData({ targetTokenId: '', reviewerTokenId: '', score: '75', verified: false, isAnonymous: false, comment: '' });
             onReload();
         } catch (error) {
             console.error('Error submitting review:', error);
-            showNotification(error.message || 'Failed to submit review', 'error');
+
+            if (error.message.includes('AlreadyReviewed')) {
+                showNotification('You have already reviewed this token!', 'error');
+            } else {
+                showNotification(error.message || 'Failed to submit review', 'error');
+            }
         }
     };
+
+    // NEW: Check if current inputs show already reviewed
+    const cacheKey = `${reviewData.reviewerTokenId}-${reviewData.targetTokenId}`;
+    const alreadyReviewed = hasReviewedCache[cacheKey];
+
+    // NEW: Calculate character count for comment
+    const commentLength = reviewData.comment.length;
+    const commentLimit = 500; // Recommended limit for gas costs
 
     return (
         <div className="reputation-section">
@@ -4852,7 +5060,7 @@ ReputationSection = function ({ reputation, reviews, reviewsWritten, loading, co
 
             <Card>
                 <div className="section-header">
-                    <h3>Reviews</h3>
+                    <h3>Reviews Received</h3>
                     <Button onClick={() => setShowReviewModal(true)}>
                         Write Review
                     </Button>
@@ -4871,15 +5079,35 @@ ReputationSection = function ({ reputation, reviews, reviewsWritten, loading, co
                                 <div className="review-header">
                                     <div className="reviewer-info">
                                         {review.isAnonymous ? (
-                                            <span>Anonymous</span>
+                                            <span>👤 Anonymous</span>
                                         ) : (
                                             <span>Token #{review.reviewerTokenId.toString()}</span>
                                         )}
                                         {review.verified && <span className="verified-badge">✓ Verified</span>}
                                     </div>
-                                    <div className="review-score">{review.score}/100</div>
+                                    <div className="review-score">{review.score}/{MAX_SCORE}</div>
                                 </div>
-                                {review.comment && <p className="review-comment">{review.comment}</p>}
+                                {/* NEW: Display comment */}
+                                {review.comment && review.comment.trim() !== '' && (
+                                    <div style={{
+                                        background: 'rgba(6, 182, 212, 0.05)',
+                                        padding: '12px',
+                                        borderRadius: '8px',
+                                        marginTop: '12px',
+                                        marginBottom: '12px',
+                                        borderLeft: '3px solid var(--teal)'
+                                    }}>
+                                        <div style={{
+                                            fontSize: '0.85rem',
+                                            color: 'var(--text-muted)',
+                                            marginBottom: '4px',
+                                            fontWeight: '600'
+                                        }}>
+                                            💬 Comment:
+                                        </div>
+                                        <p className="review-comment">{review.comment}</p>
+                                    </div>
+                                )}
                                 <div className="review-date">{formatDate(review.createdAt)}</div>
                             </div>
                         ))}
@@ -4893,36 +5121,11 @@ ReputationSection = function ({ reputation, reviews, reviewsWritten, loading, co
                     <span className="badge">{reviewsWritten?.length || 0}</span>
                 </div>
 
-                <div className="info-box" style={{ background: 'rgba(56, 189, 248, 0.1)', fontSize: '12px', marginBottom: '16px' }}>
-                    <strong>Debug:</strong> Checking localStorage key: reviews_written_{selectedToken}
-                    {(() => {
-                        const stored = localStorage.getItem(`reviews_written_${selectedToken}`);
-                        return stored ? ` - Found ${JSON.parse(stored).length} stored reviews` : ' - No stored reviews found';
-                    })()}
-                </div>
-
                 {loading ? (
                     <LoadingSpinner />
                 ) : !reviewsWritten || reviewsWritten.length === 0 ? (
                     <div className="empty-message">
                         <p>You haven't written any reviews yet</p>
-                        <button
-                            onClick={() => {
-                                console.log('All localStorage keys:', Object.keys(localStorage).filter(k => k.startsWith('reviews_written_')));
-                                alert('Check browser console for all review keys');
-                            }}
-                            style={{
-                                marginTop: '12px',
-                                padding: '8px 16px',
-                                background: 'var(--teal)',
-                                border: 'none',
-                                borderRadius: '6px',
-                                color: 'white',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            Show All Review Keys (Debug)
-                        </button>
                     </div>
                 ) : (
                     <div className="reviews-list">
@@ -4933,9 +5136,29 @@ ReputationSection = function ({ reputation, reviews, reviewsWritten, loading, co
                                         <span>For Token #{review.targetTokenId}</span>
                                         {review.verified && <span className="verified-badge">✓ Verified</span>}
                                     </div>
-                                    <div className="review-score">{review.score}/100</div>
+                                    <div className="review-score">{review.score}/{MAX_SCORE}</div>
                                 </div>
-                                {review.comment && <p className="review-comment">{review.comment}</p>}
+                                {/* NEW: Display comment */}
+                                {review.comment && review.comment.trim() !== '' && (
+                                    <div style={{
+                                        background: 'rgba(6, 182, 212, 0.05)',
+                                        padding: '12px',
+                                        borderRadius: '8px',
+                                        marginTop: '12px',
+                                        marginBottom: '12px',
+                                        borderLeft: '3px solid var(--teal)'
+                                    }}>
+                                        <div style={{
+                                            fontSize: '0.85rem',
+                                            color: 'var(--text-muted)',
+                                            marginBottom: '4px',
+                                            fontWeight: '600'
+                                        }}>
+                                            💬 Your Comment:
+                                        </div>
+                                        <p className="review-comment">{review.comment}</p>
+                                    </div>
+                                )}
                                 <div className="review-date">{formatDate(review.createdAt)}</div>
                             </div>
                         ))}
@@ -4945,6 +5168,28 @@ ReputationSection = function ({ reputation, reviews, reviewsWritten, loading, co
 
             <Modal isOpen={showReviewModal} onClose={() => setShowReviewModal(false)} title="Write Review">
                 <div className="review-form">
+                    {/* NEW: Already reviewed warning */}
+                    {alreadyReviewed && reviewData.targetTokenId && reviewData.reviewerTokenId && (
+                        <div style={{
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            borderRadius: '8px',
+                            padding: '12px',
+                            marginBottom: '16px'
+                        }}>
+                            <div style={{
+                                color: 'var(--error)',
+                                fontWeight: '600',
+                                marginBottom: '4px'
+                            }}>
+                                ❌ Already Reviewed
+                            </div>
+                            <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                                You have already reviewed Token #{reviewData.targetTokenId}. The contract prevents duplicate reviews.
+                            </div>
+                        </div>
+                    )}
+
                     <Input
                         label="Token ID to Review"
                         value={reviewData.targetTokenId || ''}
@@ -4963,27 +5208,64 @@ ReputationSection = function ({ reputation, reviews, reviewsWritten, loading, co
                     />
 
                     <div className="input-group">
-                        <label className="input-label">Score (0-100) *</label>
+                        <label className="input-label">
+                            Score (0-{MAX_SCORE}) *
+                            <span style={{
+                                marginLeft: '8px',
+                                fontSize: '0.85rem',
+                                color: 'var(--text-muted)'
+                            }}>
+                                Higher is better
+                            </span>
+                        </label>
                         <input
                             className="input-field"
                             type="range"
                             min="0"
-                            max="100"
+                            max={MAX_SCORE}
                             value={reviewData.score}
                             onChange={(e) => setReviewData({ ...reviewData, score: e.target.value })}
                         />
-                        <div style={{ textAlign: 'center', color: 'var(--teal-light)', fontSize: '24px', fontWeight: '600' }}>
-                            {reviewData.score}
+                        <div style={{
+                            textAlign: 'center',
+                            color: parseInt(reviewData.score) >= 70 ? 'var(--success)' :
+                                parseInt(reviewData.score) >= 40 ? 'var(--warning)' : 'var(--error)',
+                            fontSize: '32px',
+                            fontWeight: '700',
+                            marginTop: '8px'
+                        }}>
+                            {reviewData.score} / {MAX_SCORE}
                         </div>
                     </div>
 
-                    <TextArea
-                        label="Comment (Optional)"
-                        value={reviewData.comment}
-                        onChange={(val) => setReviewData({ ...reviewData, comment: val })}
-                        placeholder="Share your experience..."
-                        rows={3}
-                    />
+                    {/* NEW: Comment with character counter */}
+                    <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <label className="input-label">Comment (Optional)</label>
+                            <span style={{
+                                fontSize: '0.8rem',
+                                color: commentLength > commentLimit ? 'var(--error)' : 'var(--text-muted)'
+                            }}>
+                                {commentLength}/{commentLimit}
+                                {commentLength > commentLimit && ' ⚠️'}
+                            </span>
+                        </div>
+                        <TextArea
+                            value={reviewData.comment}
+                            onChange={(val) => setReviewData({ ...reviewData, comment: val })}
+                            placeholder="Share your experience working with this person..."
+                            rows={4}
+                        />
+                        {commentLength > commentLimit && (
+                            <div style={{
+                                fontSize: '0.8rem',
+                                color: 'var(--warning)',
+                                marginTop: '4px'
+                            }}>
+                                ⚠️ Long comments cost more gas. Consider keeping it under {commentLimit} characters.
+                            </div>
+                        )}
+                    </div>
 
                     <div className="checkbox-group">
                         <label>
@@ -4992,7 +5274,7 @@ ReputationSection = function ({ reputation, reviews, reviewsWritten, loading, co
                                 checked={reviewData.verified}
                                 onChange={(e) => setReviewData({ ...reviewData, verified: e.target.checked })}
                             />
-                            <span>We worked together</span>
+                            <span>✓ We worked together (Verified)</span>
                         </label>
                         <label>
                             <input
@@ -5000,7 +5282,7 @@ ReputationSection = function ({ reputation, reviews, reviewsWritten, loading, co
                                 checked={reviewData.isAnonymous}
                                 onChange={(e) => setReviewData({ ...reviewData, isAnonymous: e.target.checked })}
                             />
-                            <span>Submit anonymously</span>
+                            <span>👤 Submit anonymously</span>
                         </label>
                     </div>
 
@@ -5008,8 +5290,13 @@ ReputationSection = function ({ reputation, reviews, reviewsWritten, loading, co
                         <Button variant="secondary" onClick={() => setShowReviewModal(false)}>
                             Cancel
                         </Button>
-                        <Button onClick={handleSubmitReview} disabled={!reviewData.reviewerTokenId}>
-                            Submit Review
+                        <Button
+                            onClick={handleSubmitReview}
+                            disabled={!reviewData.reviewerTokenId || alreadyReviewed || checkingReviewed}
+                        >
+                            {checkingReviewed ? 'Checking...' :
+                                alreadyReviewed ? 'Already Reviewed' :
+                                    'Submit Review'}
                         </Button>
                     </div>
                 </div>
@@ -5035,7 +5322,6 @@ ReputationSection = function ({ reputation, reviews, reviewsWritten, loading, co
                     font-size: 48px;
                     font-weight: 700;
                     color: var(--teal-light);
-                    font-family: 'Playfair Display', serif;
                     margin-bottom: 8px;
                 }
 
@@ -5056,6 +5342,15 @@ ReputationSection = function ({ reputation, reviews, reviewsWritten, loading, co
                 .section-header h3 {
                     font-size: 20px;
                     color: var(--beige);
+                }
+
+                .badge {
+                    background: var(--teal);
+                    color: white;
+                    padding: 4px 12px;
+                    borderRadius: 12px;
+                    font-size: 13px;
+                    font-weight: 600;
                 }
 
                 .empty-message {
@@ -5108,15 +5403,16 @@ ReputationSection = function ({ reputation, reviews, reviewsWritten, loading, co
                 }
 
                 .review-comment {
-                    color: var(--gray-light);
-                    font-size: 14px;
+                    color: var(--text-primary);
+                    font-size: 0.95rem;
                     line-height: 1.6;
-                    margin-bottom: 12px;
+                    margin: 0;
                 }
 
                 .review-date {
                     font-size: 12px;
                     color: var(--gray);
+                    marginTop: 8px;
                 }
 
                 .review-form {
@@ -5157,8 +5453,7 @@ ReputationSection = function ({ reputation, reviews, reviewsWritten, loading, co
     );
 }
 
-// Projects Section - Simplified placeholder
-ProjectsSection = function ({ projects, collaboratingOn, loading, contracts, selectedToken, showNotification, onReload }) {
+ProjectsSection = function ({ projects, collaboratingOn, loading, contracts, selectedToken, showNotification, onReload, MAX_PROJECTS, MAX_COLLABORATORS }) {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showCollabModal, setShowCollabModal] = useState(false);
     const [selectedProject, setSelectedProject] = useState(null);
@@ -5169,6 +5464,10 @@ ProjectsSection = function ({ projects, collaboratingOn, loading, contracts, sel
     });
     const [collabData, setCollabData] = useState('');
 
+    // Calculate total projects across all statuses
+    const totalProjects = projects?.length || 0;
+    const isNearLimit = totalProjects >= MAX_PROJECTS * 0.9;
+
     const handleCreateProject = async () => {
         try {
             if (!projectData.title) {
@@ -5178,6 +5477,12 @@ ProjectsSection = function ({ projects, collaboratingOn, loading, contracts, sel
 
             if (!selectedToken) {
                 showNotification('Please select a token first', 'error');
+                return;
+            }
+
+            // NEW: Check project limit
+            if (totalProjects >= MAX_PROJECTS) {
+                showNotification(`❌ Maximum project limit reached (${MAX_PROJECTS} projects)`, 'error');
                 return;
             }
 
@@ -5203,12 +5508,6 @@ ProjectsSection = function ({ projects, collaboratingOn, loading, contracts, sel
             };
             const metadataHash = ethers.utils.id(JSON.stringify(metadata));
 
-            console.log('Creating project with:', {
-                tokenId: selectedToken,
-                metadataHash,
-                metadata
-            });
-
             const tx = await contracts.social.createProject(selectedToken, metadataHash);
             showNotification('Creating project...', 'info');
             await tx.wait();
@@ -5218,7 +5517,12 @@ ProjectsSection = function ({ projects, collaboratingOn, loading, contracts, sel
             onReload();
         } catch (error) {
             console.error('Error creating project:', error);
-            showNotification(error.message || 'Failed to create project', 'error');
+
+            if (error.message.includes('TooManyProjects')) {
+                showNotification(`❌ Maximum project limit reached (${MAX_PROJECTS} projects)`, 'error');
+            } else {
+                showNotification(error.message || 'Failed to create project', 'error');
+            }
         }
     };
 
@@ -5243,6 +5547,13 @@ ProjectsSection = function ({ projects, collaboratingOn, loading, contracts, sel
             }
 
             const collabTokenId = parseInt(collabData);
+
+            // NEW: Check collaborator limit
+            const currentCollabCount = selectedProject.collaborators?.length || 0;
+            if (currentCollabCount >= MAX_COLLABORATORS) {
+                showNotification(`❌ Maximum collaborator limit reached (${MAX_COLLABORATORS} per project)`, 'error');
+                return;
+            }
 
             // Validation: Check if collaborator token exists
             try {
@@ -5289,7 +5600,12 @@ ProjectsSection = function ({ projects, collaboratingOn, loading, contracts, sel
             onReload();
         } catch (error) {
             console.error('Error adding collaborator:', error);
-            showNotification(error.message || 'Failed to add collaborator', 'error');
+
+            if (error.message.includes('TooManyCollaborators')) {
+                showNotification(`❌ Maximum collaborator limit reached (${MAX_COLLABORATORS} per project)`, 'error');
+            } else {
+                showNotification(error.message || 'Failed to add collaborator', 'error');
+            }
         }
     };
 
@@ -5299,12 +5615,41 @@ ProjectsSection = function ({ projects, collaboratingOn, loading, contracts, sel
                 <div className="section-header">
                     <h3>Projects Portfolio</h3>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <span className="badge">{projects?.length || 0}</span>
-                        <Button onClick={() => setShowCreateModal(true)} style={{ padding: '8px 16px', fontSize: '13px' }}>
+                        {/* NEW: Show limit warning in badge */}
+                        <span className="badge" style={{
+                            background: isNearLimit ? 'var(--warning)' : 'var(--teal)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                        }}>
+                            {totalProjects}/{MAX_PROJECTS}
+                            {isNearLimit && <span>⚠️</span>}
+                        </span>
+                        <Button
+                            onClick={() => setShowCreateModal(true)}
+                            style={{ padding: '8px 16px', fontSize: '13px' }}
+                            disabled={totalProjects >= MAX_PROJECTS}
+                        >
                             + Create Project
                         </Button>
                     </div>
                 </div>
+
+                {/* NEW: Limit warning banner */}
+                {isNearLimit && (
+                    <div style={{
+                        background: 'rgba(245, 158, 11, 0.1)',
+                        border: '1px solid rgba(245, 158, 11, 0.3)',
+                        borderRadius: '8px',
+                        padding: '12px',
+                        marginBottom: '16px'
+                    }}>
+                        <div style={{ color: 'var(--warning)', fontWeight: '600', fontSize: '0.9rem' }}>
+                            ⚠️ You have {totalProjects}/{MAX_PROJECTS} projects. {totalProjects >= MAX_PROJECTS ? 'Limit reached!' : 'Approaching limit!'}
+                        </div>
+                    </div>
+                )}
+
                 {loading ? (
                     <LoadingSpinner />
                 ) : !projects || projects.length === 0 ? (
@@ -5313,45 +5658,74 @@ ProjectsSection = function ({ projects, collaboratingOn, loading, contracts, sel
                     </div>
                 ) : (
                     <div className="projects-grid">
-                        {projects.map((project, idx) => (
-                            <div key={idx} className="project-card">
-                                <h4>Project #{project.projectId.toString()}</h4>
-                                <div className="project-status" style={{
-                                    color: project.status === 2 ? 'var(--success)' :
-                                        project.status === 3 ? 'var(--error)' : 'var(--sky)'
-                                }}>
-                                    Status: {projectStatuses[project.status]}
-                                </div>
-                                <p>Created: {formatDate(project.createdAt)}</p>
-                                {project.completedAt > 0 && (
-                                    <p>Completed: {formatDate(project.completedAt)}</p>
-                                )}
-                                {project.collaborators && project.collaborators.length > 0 && (
-                                    <p>Collaborators: {project.collaborators.length}</p>
-                                )}
+                        {projects.map((project, idx) => {
+                            // NEW: Calculate collaborator status
+                            const collabCount = project.collaborators?.length || 0;
+                            const isNearCollabLimit = collabCount >= MAX_COLLABORATORS * 0.9;
 
-                                <div className="project-actions">
-                                    <select
-                                        className="status-select"
-                                        value={project.status}
-                                        onChange={(e) => handleUpdateStatus(project.projectId, parseInt(e.target.value))}
-                                    >
-                                        {projectStatuses.map((status, idx) => (
-                                            <option key={idx} value={idx}>{status}</option>
-                                        ))}
-                                    </select>
-                                    <button
-                                        className="collab-btn"
-                                        onClick={() => {
-                                            setSelectedProject(project);
-                                            setShowCollabModal(true);
-                                        }}
-                                    >
-                                        + Collaborator
-                                    </button>
+                            return (
+                                <div key={idx} className="project-card" style={{
+                                    borderLeft: isNearCollabLimit ? '4px solid var(--warning)' : '4px solid var(--teal)'
+                                }}>
+                                    <h4>Project #{project.projectId.toString()}</h4>
+                                    <div className="project-status" style={{
+                                        color: project.status === 2 ? 'var(--success)' :
+                                            project.status === 3 ? 'var(--error)' : 'var(--sky)'
+                                    }}>
+                                        Status: {projectStatuses[project.status]}
+                                    </div>
+                                    <p>Created: {formatDate(project.createdAt)}</p>
+                                    {project.completedAt > 0 && (
+                                        <p>Completed: {formatDate(project.completedAt)}</p>
+                                    )}
+
+                                    {/* NEW: Enhanced collaborator display with limit */}
+                                    {collabCount > 0 && (
+                                        <div style={{
+                                            marginTop: '8px',
+                                            padding: '8px',
+                                            background: isNearCollabLimit ? 'rgba(245, 158, 11, 0.1)' : 'rgba(6, 182, 212, 0.1)',
+                                            borderRadius: '6px',
+                                            fontSize: '0.9rem'
+                                        }}>
+                                            <span style={{
+                                                fontWeight: '600',
+                                                color: isNearCollabLimit ? 'var(--warning)' : 'var(--teal-light)'
+                                            }}>
+                                                👥 Collaborators: {collabCount}/{MAX_COLLABORATORS}
+                                                {isNearCollabLimit && ' ⚠️'}
+                                            </span>
+                                        </div>
+                                    )}
+
+                                    <div className="project-actions">
+                                        <select
+                                            className="status-select"
+                                            value={project.status}
+                                            onChange={(e) => handleUpdateStatus(project.projectId, parseInt(e.target.value))}
+                                        >
+                                            {projectStatuses.map((status, idx) => (
+                                                <option key={idx} value={idx}>{status}</option>
+                                            ))}
+                                        </select>
+                                        <button
+                                            className="collab-btn"
+                                            onClick={() => {
+                                                setSelectedProject(project);
+                                                setShowCollabModal(true);
+                                            }}
+                                            disabled={collabCount >= MAX_COLLABORATORS}
+                                            style={{
+                                                opacity: collabCount >= MAX_COLLABORATORS ? 0.5 : 1,
+                                                cursor: collabCount >= MAX_COLLABORATORS ? 'not-allowed' : 'pointer'
+                                            }}
+                                        >
+                                            + Collaborator
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </Card>
@@ -5362,36 +5736,11 @@ ProjectsSection = function ({ projects, collaboratingOn, loading, contracts, sel
                     <span className="badge">{collaboratingOn?.length || 0}</span>
                 </div>
 
-                <div className="info-box" style={{ background: 'rgba(56, 189, 248, 0.1)', fontSize: '12px', marginBottom: '16px' }}>
-                    <strong>Debug:</strong> Checking localStorage key: collaborations_{selectedToken}
-                    {(() => {
-                        const stored = localStorage.getItem(`collaborations_${selectedToken}`);
-                        return stored ? ` - Found ${JSON.parse(stored).length} stored collaborations` : ' - No stored collaborations found';
-                    })()}
-                </div>
-
                 {loading ? (
                     <LoadingSpinner />
                 ) : !collaboratingOn || collaboratingOn.length === 0 ? (
                     <div className="empty-message">
                         <p>You're not collaborating on any projects yet</p>
-                        <button
-                            onClick={() => {
-                                console.log('All localStorage keys:', Object.keys(localStorage).filter(k => k.startsWith('collaborations_')));
-                                alert('Check browser console for all collaboration keys');
-                            }}
-                            style={{
-                                marginTop: '12px',
-                                padding: '8px 16px',
-                                background: 'var(--teal)',
-                                border: 'none',
-                                borderRadius: '6px',
-                                color: 'white',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            Show All Collaboration Keys (Debug)
-                        </button>
                     </div>
                 ) : (
                     <div className="projects-grid">
@@ -5419,6 +5768,21 @@ ProjectsSection = function ({ projects, collaboratingOn, loading, contracts, sel
 
             <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} title="Create Project">
                 <div className="project-form">
+                    {/* NEW: Limit warning in modal */}
+                    {isNearLimit && (
+                        <div style={{
+                            background: 'rgba(245, 158, 11, 0.1)',
+                            border: '1px solid rgba(245, 158, 11, 0.3)',
+                            borderRadius: '8px',
+                            padding: '12px',
+                            marginBottom: '16px'
+                        }}>
+                            <div style={{ color: 'var(--warning)', fontSize: '0.9rem' }}>
+                                ⚠️ You have {totalProjects}/{MAX_PROJECTS} projects. {totalProjects >= MAX_PROJECTS ? 'Cannot create more!' : 'Approaching limit!'}
+                            </div>
+                        </div>
+                    )}
+
                     <Input
                         label="Project Title"
                         value={projectData.title}
@@ -5446,8 +5810,8 @@ ProjectsSection = function ({ projects, collaboratingOn, loading, contracts, sel
                         <Button variant="secondary" onClick={() => setShowCreateModal(false)}>
                             Cancel
                         </Button>
-                        <Button onClick={handleCreateProject}>
-                            Create Project
+                        <Button onClick={handleCreateProject} disabled={totalProjects >= MAX_PROJECTS}>
+                            {totalProjects >= MAX_PROJECTS ? 'Limit Reached' : 'Create Project'}
                         </Button>
                     </div>
                 </div>
@@ -5455,6 +5819,32 @@ ProjectsSection = function ({ projects, collaboratingOn, loading, contracts, sel
 
             <Modal isOpen={showCollabModal} onClose={() => setShowCollabModal(false)} title="Add Collaborator">
                 <div className="collab-form">
+                    {/* NEW: Collaborator limit warning */}
+                    {selectedProject && (
+                        <>
+                            <div style={{
+                                background: (selectedProject.collaborators?.length || 0) >= MAX_COLLABORATORS * 0.9 ?
+                                    'rgba(245, 158, 11, 0.1)' : 'rgba(6, 182, 212, 0.1)',
+                                border: `1px solid ${(selectedProject.collaborators?.length || 0) >= MAX_COLLABORATORS * 0.9 ?
+                                    'rgba(245, 158, 11, 0.3)' : 'rgba(6, 182, 212, 0.3)'}`,
+                                borderRadius: '8px',
+                                padding: '12px',
+                                marginBottom: '16px'
+                            }}>
+                                <div style={{
+                                    fontSize: '0.9rem',
+                                    color: (selectedProject.collaborators?.length || 0) >= MAX_COLLABORATORS * 0.9 ?
+                                        'var(--warning)' : 'var(--teal-light)'
+                                }}>
+                                    👥 Project #{selectedProject.projectId.toString()} has {selectedProject.collaborators?.length || 0}/{MAX_COLLABORATORS} collaborators
+                                    {(selectedProject.collaborators?.length || 0) >= MAX_COLLABORATORS && ' - Limit reached!'}
+                                    {(selectedProject.collaborators?.length || 0) >= MAX_COLLABORATORS * 0.9 &&
+                                        (selectedProject.collaborators?.length || 0) < MAX_COLLABORATORS && ' - Approaching limit!'}
+                                </div>
+                            </div>
+                        </>
+                    )}
+
                     <Input
                         label="Collaborator Token ID"
                         value={collabData}
@@ -5464,16 +5854,16 @@ ProjectsSection = function ({ projects, collaboratingOn, loading, contracts, sel
                         required
                     />
 
-                    <div className="info-box" style={{ marginTop: '16px' }}>
-                        Adding collaborators to <strong>Project #{selectedProject?.projectId.toString()}</strong>
-                    </div>
-
                     <div className="modal-actions">
                         <Button variant="secondary" onClick={() => setShowCollabModal(false)}>
                             Cancel
                         </Button>
-                        <Button onClick={handleAddCollaborator}>
-                            Add Collaborator
+                        <Button
+                            onClick={handleAddCollaborator}
+                            disabled={(selectedProject?.collaborators?.length || 0) >= MAX_COLLABORATORS}
+                        >
+                            {(selectedProject?.collaborators?.length || 0) >= MAX_COLLABORATORS ?
+                                'Limit Reached' : 'Add Collaborator'}
                         </Button>
                     </div>
                 </div>
@@ -5531,6 +5921,13 @@ ProjectsSection = function ({ projects, collaboratingOn, loading, contracts, sel
                     margin-bottom: 8px;
                 }
 
+                .project-owner {
+                    font-size: 13px;
+                    color: var(--sky-light);
+                    margin-bottom: 8px;
+                    font-weight: 500;
+                }
+
                 .project-card p {
                     color: var(--gray-light);
                     font-size: 13px;
@@ -5568,17 +5965,22 @@ ProjectsSection = function ({ projects, collaboratingOn, loading, contracts, sel
                     transition: all 0.3s ease;
                 }
 
-                .collab-btn:hover {
+                .collab-btn:hover:not(:disabled) {
                     background: var(--sky-light);
                     transform: translateY(-1px);
+                }
+
+                .collab-btn:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
                 }
             `}</style>
         </>
     );
 }
 
-// Endorsements Section - Simplified placeholder
-EndorsementsSection = function ({ endorsements, loading, contracts, selectedToken, userTokens, showNotification, onReload }) {
+// Endorsements Section - Enhanced with counts and comments
+EndorsementsSection = function ({ endorsements, endorsementCounts, loading, contracts, selectedToken, userTokens, showNotification, onReload }) {
     const [showEndorseModal, setShowEndorseModal] = useState(false);
     const [endorseData, setEndorseData] = useState({
         targetTokenId: '',
@@ -5587,7 +5989,7 @@ EndorsementsSection = function ({ endorsements, loading, contracts, selectedToke
         comment: ''
     });
 
-    // Group endorsements by skill hash
+    // Group endorsements by skill hash - NOW SORTED BY COUNT
     const endorsementsBySkill = {};
     if (endorsements && endorsements.length > 0) {
         endorsements.forEach(end => {
@@ -5599,6 +6001,17 @@ EndorsementsSection = function ({ endorsements, loading, contracts, selectedToke
         });
     }
 
+    // NEW: Sort skills by endorsement count (most endorsed first)
+    const sortedSkills = Object.entries(endorsementsBySkill).sort((a, b) => {
+        const countA = endorsementCounts[a[0]] || a[1].length;
+        const countB = endorsementCounts[b[0]] || b[1].length;
+        return countB - countA; // Descending order
+    });
+
+    // NEW: Calculate character count for comment
+    const commentLength = endorseData.comment.length;
+    const commentLimit = 300; // Recommended limit
+
     const handleEndorseSkill = async () => {
         try {
             if (!endorseData.targetTokenId || !endorseData.endorserTokenId || !endorseData.skillName) {
@@ -5609,13 +6022,12 @@ EndorsementsSection = function ({ endorsements, loading, contracts, selectedToke
             const targetId = parseInt(endorseData.targetTokenId);
             const endorserId = parseInt(endorseData.endorserTokenId);
 
-            // Validation 1: Can't endorse yourself
             if (targetId === endorserId) {
                 showNotification('You cannot endorse yourself!', 'error');
                 return;
             }
 
-            // Validation 2: Check if target token exists
+            // Validate tokens exist
             try {
                 await contracts.soulbound.ownerOf(targetId);
             } catch (err) {
@@ -5623,7 +6035,6 @@ EndorsementsSection = function ({ endorsements, loading, contracts, selectedToke
                 return;
             }
 
-            // Validation 3: Check if you own the endorser token
             try {
                 const owner = await contracts.soulbound.ownerOf(endorserId);
                 const myAddress = await contracts.soulbound.signer.getAddress();
@@ -5662,12 +6073,17 @@ EndorsementsSection = function ({ endorsements, loading, contracts, selectedToke
                 <div className="section-header">
                     <h3>Skill Endorsements</h3>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <span className="badge">{endorsements?.length || 0}</span>
+                        {/* NEW: Show unique skill count */}
+                        <span className="badge" style={{ background: 'rgba(102, 126, 234, 0.8)' }}>
+                            {Object.keys(endorsementsBySkill).length} Skills
+                        </span>
+                        <span className="badge">{endorsements?.length || 0} Total</span>
                         <Button onClick={() => setShowEndorseModal(true)} style={{ padding: '8px 16px', fontSize: '13px' }}>
                             + Endorse Skill
                         </Button>
                     </div>
                 </div>
+
                 {loading ? (
                     <LoadingSpinner />
                 ) : !endorsements || endorsements.length === 0 ? (
@@ -5676,25 +6092,77 @@ EndorsementsSection = function ({ endorsements, loading, contracts, selectedToke
                     </div>
                 ) : (
                     <div className="endorsements-grouped">
-                        {Object.entries(endorsementsBySkill).map(([skillHash, skillEndorsements]) => (
-                            <div key={skillHash} className="skill-group">
-                                <div className="skill-header">
-                                    <span className="skill-name">Skill Hash: {skillHash.substring(0, 10)}...</span>
-                                    <span className="endorsement-count">
-                                        ⚡ {skillEndorsements.length} {skillEndorsements.length === 1 ? 'person' : 'people'} endorsed this
-                                    </span>
+                        {/* NEW: Render sorted skills */}
+                        {sortedSkills.map(([skillHash, skillEndorsements]) => {
+                            const count = endorsementCounts[skillHash] || skillEndorsements.length;
+
+                            return (
+                                <div key={skillHash} className="skill-group">
+                                    <div className="skill-header">
+                                        <span className="skill-name">
+                                            Skill Hash: {skillHash.substring(0, 10)}...
+                                        </span>
+                                        {/* NEW: Enhanced count display */}
+                                        <span className="endorsement-count" style={{
+                                            background: 'rgba(102, 126, 234, 0.2)',
+                                            padding: '4px 12px',
+                                            borderRadius: '12px',
+                                            fontSize: '0.9rem',
+                                            fontWeight: '600'
+                                        }}>
+                                            ⚡ {count} {count === 1 ? 'endorsement' : 'endorsements'}
+                                        </span>
+                                    </div>
+                                    <div className="endorsements-list">
+                                        {skillEndorsements.map((endorsement, idx) => (
+                                            <div key={idx} className="endorsement-item">
+                                                <div style={{
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    alignItems: 'center',
+                                                    marginBottom: '8px'
+                                                }}>
+                                                    <div style={{ fontWeight: '500', color: 'var(--beige)' }}>
+                                                        From Token #{endorsement.endorserId.toString()}
+                                                    </div>
+                                                    <div className="endorsement-date">
+                                                        {formatDate(endorsement.endorsedAt)}
+                                                    </div>
+                                                </div>
+
+                                                {/* NEW: Display comment if exists */}
+                                                {endorsement.comment && endorsement.comment.trim() !== '' && (
+                                                    <div style={{
+                                                        background: 'rgba(6, 182, 212, 0.05)',
+                                                        padding: '10px',
+                                                        borderRadius: '6px',
+                                                        marginTop: '8px',
+                                                        borderLeft: '3px solid var(--teal)'
+                                                    }}>
+                                                        <div style={{
+                                                            fontSize: '0.8rem',
+                                                            color: 'var(--text-muted)',
+                                                            marginBottom: '4px',
+                                                            fontWeight: '600'
+                                                        }}>
+                                                            💬 Comment:
+                                                        </div>
+                                                        <p style={{
+                                                            color: 'var(--text-primary)',
+                                                            fontSize: '0.9rem',
+                                                            lineHeight: '1.5',
+                                                            margin: 0
+                                                        }}>
+                                                            {endorsement.comment}
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                                <div className="endorsements-list">
-                                    {skillEndorsements.map((endorsement, idx) => (
-                                        <div key={idx} className="endorsement-item">
-                                            <div>From Token #{endorsement.endorserId.toString()}</div>
-                                            <div className="endorsement-date">{formatDate(endorsement.endorsedAt)}</div>
-                                            {endorsement.comment && <p>{endorsement.comment}</p>}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
 
@@ -5764,7 +6232,7 @@ EndorsementsSection = function ({ endorsements, loading, contracts, selectedToke
                 .endorsements-list {
                     display: flex;
                     flex-direction: column;
-                    gap: 8px;
+                    gap: 12px;
                 }
 
                 .endorsement-item {
@@ -5772,19 +6240,11 @@ EndorsementsSection = function ({ endorsements, loading, contracts, selectedToke
                     border-radius: 8px;
                     padding: 12px;
                     border-left: 4px solid var(--sky);
-                    color: var(--beige);
                 }
 
                 .endorsement-date {
                     font-size: 12px;
                     color: var(--gray);
-                    margin-top: 4px;
-                }
-
-                .endorsement-item p {
-                    color: var(--gray-light);
-                    font-size: 14px;
-                    margin-top: 8px;
                 }
             `}</style>
             </Card>
@@ -5816,13 +6276,34 @@ EndorsementsSection = function ({ endorsements, loading, contracts, selectedToke
                         required
                     />
 
-                    <TextArea
-                        label="Comment (Optional)"
-                        value={endorseData.comment}
-                        onChange={(val) => setEndorseData({ ...endorseData, comment: val })}
-                        placeholder="Add a comment about this skill..."
-                        rows={3}
-                    />
+                    {/* NEW: Comment with character counter */}
+                    <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <label className="input-label">Comment (Optional)</label>
+                            <span style={{
+                                fontSize: '0.8rem',
+                                color: commentLength > commentLimit ? 'var(--warning)' : 'var(--text-muted)'
+                            }}>
+                                {commentLength}/{commentLimit}
+                                {commentLength > commentLimit && ' ⚠️'}
+                            </span>
+                        </div>
+                        <TextArea
+                            value={endorseData.comment}
+                            onChange={(val) => setEndorseData({ ...endorseData, comment: val })}
+                            placeholder="Add a comment about this skill..."
+                            rows={3}
+                        />
+                        {commentLength > commentLimit && (
+                            <div style={{
+                                fontSize: '0.8rem',
+                                color: 'var(--warning)',
+                                marginTop: '4px'
+                            }}>
+                                ⚠️ Long comments cost more gas. Consider keeping it under {commentLimit} characters.
+                            </div>
+                        )}
+                    </div>
 
                     <div className="info-box">
                         <strong>💡 Tip:</strong> Skill names are hashed on-chain. Use consistent naming (e.g., "Solidity" not "solidity programming") so endorsements group together.
@@ -5841,6 +6322,7 @@ EndorsementsSection = function ({ endorsements, loading, contracts, selectedToke
         </>
     );
 }
+
 
 // ============================================
 // ANALYTICS TAB COMPONENT
