@@ -37,12 +37,14 @@ CREDENTIALS_HUB_ABI = [
     "function issueCredential(uint256 tokenId, uint8 credType, bytes32 metadataHash, uint64 issueDate, uint64 expiryDate, uint8 category) external returns (uint256)",
     "function addCredential(uint256 tokenId, uint8 credType, bytes32 metadataHash, uint64 issueDate, uint64 expiryDate, uint8 category) external returns (uint256)",
     "function revokeCredential(uint256 tokenId, uint256 credentialId) external",
+    "function updateCredentialStatus(uint256 tokenId, uint256 credentialId) external",
     "function setIssuerAuthorization(uint8 credType, address issuer, bool authorized) external",
     "function batchAuthorizeIssuers(uint8 credType, address[] calldata issuers, bool authorized) external",
     "function getCredential(uint256 tokenId, uint256 credentialId) external view returns (tuple(uint256 credentialId, uint8 credType, bytes32 metadataHash, address issuer, uint64 issueDate, uint64 expiryDate, uint8 status, uint8 category, bool verified))",
     "function getCredentialsByType(uint256 tokenId, uint8 credType) external view returns (tuple(uint256 credentialId, uint8 credType, bytes32 metadataHash, address issuer, uint64 issueDate, uint64 expiryDate, uint8 status, uint8 category, bool verified)[] memory)",
     "function getActiveCredentials(uint256 tokenId, uint8 credType) external view returns (tuple(uint256 credentialId, uint8 credType, bytes32 metadataHash, address issuer, uint64 issueDate, uint64 expiryDate, uint8 status, uint8 category, bool verified)[] memory)",
     "function getCredentialSummary(uint256 tokenId) external view returns (uint256 degrees, uint256 certifications, uint256 workExperience, uint256 identityProofs, uint256 skills)",
+    "function getCredentialCount(uint256 tokenId, uint8 credType) external view returns (uint256)",
     "function isCredentialValid(uint256 tokenId, uint256 credentialId) external view returns (bool)",
     "function authorizedIssuers(uint8 credType, address issuer) external view returns (bool)",
     "error NotTokenOwner()",
@@ -53,6 +55,7 @@ CREDENTIALS_HUB_ABI = [
     "error TooManyCredentials()",
     "event CredentialIssued(uint256 indexed tokenId, uint256 indexed credentialId, uint8 indexed credType, address issuer)",
     "event CredentialRevoked(uint256 indexed credentialId, address indexed revoker)",
+    "event CredentialStatusChanged(uint256 indexed credentialId, uint8 newStatus)",
     "event IssuerAuthorized(uint8 indexed credType, address indexed issuer, bool authorized)"
 ];
 

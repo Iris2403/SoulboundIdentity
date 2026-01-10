@@ -9,7 +9,7 @@ ThemeContext = React.createContext({
     theme: 'dark'
 });
 
-ThemeProvider = function({ children }) {
+ThemeProvider = function ({ children }) {
     // Always use dark mode
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', 'dark');
@@ -36,7 +36,7 @@ ToastContext = React.createContext({
     addToast: () => { }
 });
 
-Toast = function({ message, type, onClose }) {
+Toast = function ({ message, type, onClose }) {
     return (
         <div className={`toast toast-${type}`}>
             <div className="toast-icon">
@@ -51,7 +51,7 @@ Toast = function({ message, type, onClose }) {
     );
 }
 
-ToastProvider = function({ children }) {
+ToastProvider = function ({ children }) {
     const [toasts, setToasts] = useState([]);
 
     const addToast = useCallback((message, type = 'info') => {
@@ -130,7 +130,7 @@ Checkbox = ({
 // ============================================
 // TRANSACTION STATUS WIDGET
 // ============================================
-TransactionStatus = function({ pendingTxs }) {
+TransactionStatus = function ({ pendingTxs }) {
     const activeTxs = pendingTxs.filter(tx => tx.status === 'pending');
 
     if (activeTxs.length === 0) return null;
@@ -163,7 +163,7 @@ TransactionStatus = function({ pendingTxs }) {
 // ============================================
 // GAS ESTIMATE DISPLAY
 // ============================================
-GasEstimate = function({ gasEstimate }) {
+GasEstimate = function ({ gasEstimate }) {
     if (!gasEstimate) return null;
 
     return (
@@ -192,7 +192,7 @@ GasEstimate = function({ gasEstimate }) {
 // ============================================
 // IPFS METADATA DISPLAY
 // ============================================
-MetadataDisplay = function({ cid, showNotification }) {
+MetadataDisplay = function ({ cid, showNotification }) {
     const [metadata, setMetadata] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
@@ -322,7 +322,7 @@ Input = ({ label, value, onChange, type = 'text', placeholder = '', required = f
     // Generate unique ID if not provided
     const inputId = id || `input-${label?.toLowerCase().replace(/\s+/g, '-') || Math.random().toString(36).substr(2, 9)}`;
     const inputName = name || inputId;
-    
+
     return (
         <div className="input-group">
             {label && (
@@ -349,7 +349,7 @@ Select = ({ label, value, onChange, options, required = false, id, name }) => {
     // Generate unique ID if not provided
     const selectId = id || `select-${label?.toLowerCase().replace(/\s+/g, '-') || Math.random().toString(36).substr(2, 9)}`;
     const selectName = name || selectId;
-    
+
     return (
         <div className="input-group">
             {label && (
@@ -357,12 +357,12 @@ Select = ({ label, value, onChange, options, required = false, id, name }) => {
                     {label}{required && ' *'}
                 </label>
             )}
-            <select 
+            <select
                 id={selectId}
                 name={selectName}
-                className="input-field" 
-                value={value} 
-                onChange={(e) => onChange(e.target.value)} 
+                className="input-field"
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
                 required={required}
             >
                 <option value="">Select...</option>
@@ -378,7 +378,7 @@ TextArea = ({ label, value, onChange, placeholder = '', rows = 4, id, name }) =>
     // Generate unique ID if not provided
     const textareaId = id || `textarea-${label?.toLowerCase().replace(/\s+/g, '-') || Math.random().toString(36).substr(2, 9)}`;
     const textareaName = name || textareaId;
-    
+
     return (
         <div className="input-group">
             {label && (
@@ -399,7 +399,7 @@ TextArea = ({ label, value, onChange, placeholder = '', rows = 4, id, name }) =>
     );
 };
 
-Modal = function({ isOpen, onClose, title, children }) {
+Modal = function ({ isOpen, onClose, title, children }) {
     if (!isOpen) return null;
 
     const handleOverlayClick = (e) => {
@@ -447,7 +447,7 @@ LoadingSpinner = () => (
 );
 
 // Main App Component
-App = function() {
+App = function () {
     const [account, setAccount] = useState(null);
     const [provider, setProvider] = useState(null);
     const [signer, setSigner] = useState(null);
@@ -1035,7 +1035,7 @@ App = function() {
 
 
 // Header Component
-Header = function({ account, onConnect, loading }) {
+Header = function ({ account, onConnect, loading }) {
     const [showAccountMenu, setShowAccountMenu] = useState(false);
 
     const copyAddress = () => {
@@ -1260,7 +1260,7 @@ Header = function({ account, onConnect, loading }) {
 }
 
 // Welcome Screen Component
-WelcomeScreen = function({ onConnect, loading }) {
+WelcomeScreen = function ({ onConnect, loading }) {
     return (
         <div className="welcome-screen">
             <div className="welcome-content slide-in">
@@ -1383,7 +1383,7 @@ WelcomeScreen = function({ onConnect, loading }) {
 }
 
 // Tab Navigation Component
-TabNavigation = function({ activeTab, setActiveTab, userTokens }) {
+TabNavigation = function ({ activeTab, setActiveTab, userTokens }) {
     const tabs = [
         { id: 'identity', label: 'Identity', icon: '👤' },
         { id: 'credentials', label: 'Credentials', icon: '📜', disabled: userTokens.length === 0 },
@@ -1483,7 +1483,7 @@ TabNavigation = function({ activeTab, setActiveTab, userTokens }) {
 }
 
 // Notification Component
-Notification = function({ message, type, onClose }) {
+Notification = function ({ message, type, onClose }) {
     const icons = {
         success: '✓',
         error: '✕',
@@ -1588,7 +1588,7 @@ Notification = function({ message, type, onClose }) {
 // Render App
 ReactDOM.render(<App />, document.getElementById('root'));
 // Identity Tab Component
-IdentityTab = function({ contracts, account, userTokens, selectedToken, setSelectedToken, onTokenCreated, showNotification }) {
+IdentityTab = function ({ contracts, account, userTokens, selectedToken, setSelectedToken, onTokenCreated, showNotification }) {
     const [showMintModal, setShowMintModal] = useState(false);
     const [minting, setMinting] = useState(false);
     const [mintData, setMintData] = useState({
@@ -1645,9 +1645,9 @@ IdentityTab = function({ contracts, account, userTokens, selectedToken, setSelec
                     <p className="tab-description">
                         Create and manage your soulbound identity tokens
                         {userTokens.length > 0 && (
-                            <span style={{ 
-                                marginLeft: '12px', 
-                                padding: '4px 12px', 
+                            <span style={{
+                                marginLeft: '12px',
+                                padding: '4px 12px',
                                 background: 'var(--gradient-teal)',
                                 borderRadius: '12px',
                                 fontSize: '0.9rem',
@@ -1835,7 +1835,7 @@ IdentityTab = function({ contracts, account, userTokens, selectedToken, setSelec
 }
 
 // Token Card Component
-TokenCard = function({ token, isSelected, onSelect, contracts }) {
+TokenCard = function ({ token, isSelected, onSelect, contracts }) {
     const [metadata, setMetadata] = useState(null);
     const [loading, setLoading] = useState(true);
     const [showDetails, setShowDetails] = useState(false);
@@ -1879,13 +1879,13 @@ TokenCard = function({ token, isSelected, onSelect, contracts }) {
 
             const tx = await contracts.soulbound.burn(token.id);
             console.log('⏳ Burn transaction hash:', tx.hash);
-            
+
             await tx.wait();
             console.log('✅ Token burned successfully');
-            
+
             setShowBurnConfirm(false);
             setShowDetails(false);
-            
+
             // Reload page to refresh token list
             window.location.reload();
         } catch (error) {
@@ -2030,10 +2030,10 @@ TokenCard = function({ token, isSelected, onSelect, contracts }) {
                         </div>
                     )}
 
-                    <div className="danger-zone" style={{ 
-                        marginTop: '32px', 
-                        padding: '20px', 
-                        background: 'rgba(239, 68, 68, 0.1)', 
+                    <div className="danger-zone" style={{
+                        marginTop: '32px',
+                        padding: '20px',
+                        background: 'rgba(239, 68, 68, 0.1)',
                         borderRadius: '12px',
                         border: '1px solid rgba(239, 68, 68, 0.3)'
                     }}>
@@ -2043,8 +2043,8 @@ TokenCard = function({ token, isSelected, onSelect, contracts }) {
                         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '16px' }}>
                             Permanently delete this identity token and all associated access data. This action cannot be undone.
                         </p>
-                        <Button 
-                            variant="danger" 
+                        <Button
+                            variant="danger"
                             onClick={() => setShowBurnConfirm(true)}
                             disabled={burning}
                         >
@@ -2287,15 +2287,15 @@ TokenCard = function({ token, isSelected, onSelect, contracts }) {
             `}</style>
 
             {/* Burn Confirmation Modal */}
-            <Modal 
-                isOpen={showBurnConfirm} 
-                onClose={() => setShowBurnConfirm(false)} 
+            <Modal
+                isOpen={showBurnConfirm}
+                onClose={() => setShowBurnConfirm(false)}
                 title="⚠️ Confirm Identity Deletion"
             >
                 <div style={{ padding: '20px 0' }}>
-                    <div style={{ 
-                        background: 'rgba(239, 68, 68, 0.1)', 
-                        padding: '16px', 
+                    <div style={{
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        padding: '16px',
                         borderRadius: '8px',
                         marginBottom: '20px',
                         border: '1px solid rgba(239, 68, 68, 0.3)'
@@ -2308,9 +2308,9 @@ TokenCard = function({ token, isSelected, onSelect, contracts }) {
                         </p>
                     </div>
 
-                    <ul style={{ 
-                        color: 'var(--text-secondary)', 
-                        marginLeft: '20px', 
+                    <ul style={{
+                        color: 'var(--text-secondary)',
+                        marginLeft: '20px',
                         marginBottom: '24px',
                         lineHeight: '1.8'
                     }}>
@@ -2320,8 +2320,8 @@ TokenCard = function({ token, isSelected, onSelect, contracts }) {
                         <li>Remove the token from your wallet permanently</li>
                     </ul>
 
-                    <p style={{ 
-                        color: 'var(--text-primary)', 
+                    <p style={{
+                        color: 'var(--text-primary)',
                         fontWeight: '600',
                         marginBottom: '24px',
                         fontSize: '1.1rem'
@@ -2330,15 +2330,15 @@ TokenCard = function({ token, isSelected, onSelect, contracts }) {
                     </p>
 
                     <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                        <Button 
-                            variant="secondary" 
+                        <Button
+                            variant="secondary"
                             onClick={() => setShowBurnConfirm(false)}
                             disabled={burning}
                         >
                             Cancel
                         </Button>
-                        <Button 
-                            variant="danger" 
+                        <Button
+                            variant="danger"
                             onClick={handleBurnToken}
                             disabled={burning}
                         >
@@ -2350,14 +2350,30 @@ TokenCard = function({ token, isSelected, onSelect, contracts }) {
         </>
     );
 }
-// Credentials Tab Component
-CredentialsTab = function({ contracts, selectedToken, userTokens, showNotification }) {
+CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotification }) {
+    // State management
     const [credentials, setCredentials] = useState([]);
     const [summary, setSummary] = useState(null);
     const [loading, setLoading] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
+    const [showIssueModal, setShowIssueModal] = useState(false);
     const [selectedType, setSelectedType] = useState(0);
+    const [showActiveOnly, setShowActiveOnly] = useState(false);
+    const [credentialCounts, setCredentialCounts] = useState({});
+    const [validationStatus, setValidationStatus] = useState({});
+
     const [credentialData, setCredentialData] = useState({
+        credType: '0',
+        institution: '',
+        title: '',
+        description: '',
+        issueDate: '',
+        expiryDate: '',
+        category: '0'
+    });
+
+    const [issueData, setIssueData] = useState({
+        targetTokenId: selectedToken || '',
         credType: '0',
         institution: '',
         title: '',
@@ -2371,29 +2387,78 @@ CredentialsTab = function({ contracts, selectedToken, userTokens, showNotificati
         if (selectedToken && contracts) {
             loadCredentials();
             loadSummary();
+            loadCredentialCounts();
         }
-    }, [selectedToken, contracts]);
+    }, [selectedToken, contracts, selectedType, showActiveOnly]);
 
+    // Helper function to get credential status info
+    const getCredentialStatusInfo = (status) => {
+        const statusMap = {
+            0: { label: 'Active', color: 'var(--success)', icon: '🟢', bg: 'rgba(16, 185, 129, 0.1)' },
+            1: { label: 'Revoked', color: 'var(--error)', icon: '🔴', bg: 'rgba(239, 68, 68, 0.1)' },
+            2: { label: 'Expired', color: 'var(--text-muted)', icon: '⚫', bg: 'rgba(107, 117, 137, 0.1)' }
+        };
+        return statusMap[status] || statusMap[0];
+    };
+
+    // Load credential counts per type
+    const loadCredentialCounts = async () => {
+        if (!selectedToken || !contracts) return;
+
+        try {
+            const counts = {};
+            for (let i = 0; i < credentialTypes.length; i++) {
+                const count = await contracts.credentials.getCredentialCount(selectedToken, i);
+                counts[i] = count.toNumber();
+            }
+            setCredentialCounts(counts);
+        } catch (error) {
+            console.error('Error loading credential counts:', error);
+        }
+    };
+
+    // Load credentials with active filter
     const loadCredentials = async () => {
-        if (!selectedToken) return;
+        if (!selectedToken || !contracts) return;
 
         setLoading(true);
         try {
-            const allCreds = [];
-            for (let type = 0; type < 5; type++) {
-                const creds = await contracts.credentials.getCredentialsByType(selectedToken, type);
-                allCreds.push(...creds.map(c => ({ ...c, credType: type })));
+            let creds;
+
+            if (showActiveOnly) {
+                // Load only active credentials
+                creds = await contracts.credentials.getActiveCredentials(selectedToken, selectedType);
+            } else {
+                // Load all credentials
+                creds = await contracts.credentials.getCredentialsByType(selectedToken, selectedType);
             }
-            setCredentials(allCreds);
+
+            // Validate each credential
+            const validationStatuses = {};
+            for (const cred of creds) {
+                try {
+                    const isValid = await contracts.credentials.isCredentialValid(
+                        selectedToken,
+                        cred.credentialId
+                    );
+                    validationStatuses[cred.credentialId.toString()] = isValid;
+                } catch (err) {
+                    validationStatuses[cred.credentialId.toString()] = false;
+                }
+            }
+
+            setValidationStatus(validationStatuses);
+            setCredentials(creds);
         } catch (error) {
             console.error('Error loading credentials:', error);
+            setCredentials([]);
         } finally {
             setLoading(false);
         }
     };
 
     const loadSummary = async () => {
-        if (!selectedToken) return;
+        if (!selectedToken || !contracts) return;
 
         try {
             const sum = await contracts.credentials.getCredentialSummary(selectedToken);
@@ -2409,19 +2474,18 @@ CredentialsTab = function({ contracts, selectedToken, userTokens, showNotificati
         }
     };
 
+    // Add self-reported credential (unverified)
     const handleAddCredential = async () => {
         try {
             console.log('🔵 Starting credential add...', { selectedToken, credentialData });
-            
-            // Validate required fields
+
             if (!credentialData.institution || !credentialData.title) {
                 showNotification('Please fill in all required fields', 'error');
                 return;
             }
-            
+
             setLoading(true);
 
-            // Create metadata object
             const metadata = {
                 institution: credentialData.institution,
                 title: credentialData.title,
@@ -2429,32 +2493,18 @@ CredentialsTab = function({ contracts, selectedToken, userTokens, showNotificati
                 issuedBy: 'Self-Reported'
             };
 
-            console.log('📝 Metadata created:', metadata);
-
-            // In production, upload to IPFS
             const metadataHash = ethers.utils.id(JSON.stringify(metadata));
-            console.log('🔐 Metadata hash:', metadataHash);
+            const issueDate = credentialData.issueDate ?
+                Math.floor(new Date(credentialData.issueDate).getTime() / 1000) :
+                Math.floor(Date.now() / 1000);
+            const expiryDate = credentialData.expiryDate ?
+                Math.floor(new Date(credentialData.expiryDate).getTime() / 1000) : 0;
 
-            const issueDate = credentialData.issueDate ? Math.floor(new Date(credentialData.issueDate).getTime() / 1000) : Math.floor(Date.now() / 1000);
-            const expiryDate = credentialData.expiryDate ? Math.floor(new Date(credentialData.expiryDate).getTime() / 1000) : 0;
-
-            console.log('📅 Dates:', { issueDate, expiryDate });
-
-            // Validate dates
             if (expiryDate !== 0 && expiryDate <= issueDate) {
                 showNotification('Expiry date must be after issue date!', 'error');
                 setLoading(false);
                 return;
             }
-
-            console.log('📤 Calling addCredential with:', {
-                tokenId: selectedToken,
-                credType: parseInt(credentialData.credType),
-                metadataHash,
-                issueDate,
-                expiryDate,
-                category: parseInt(credentialData.category)
-            });
 
             const tx = await contracts.credentials.addCredential(
                 selectedToken,
@@ -2465,12 +2515,9 @@ CredentialsTab = function({ contracts, selectedToken, userTokens, showNotificati
                 parseInt(credentialData.category)
             );
 
-            console.log('⏳ Transaction hash:', tx.hash);
             showNotification('Transaction submitted...', 'info');
-            
-            const receipt = await tx.wait();
-            console.log('✅ Transaction confirmed:', receipt);
-            showNotification('Credential added successfully!', 'success');
+            await tx.wait();
+            showNotification('Self-reported credential added! (Unverified)', 'success');
 
             setShowAddModal(false);
             setCredentialData({
@@ -2482,18 +2529,103 @@ CredentialsTab = function({ contracts, selectedToken, userTokens, showNotificati
                 expiryDate: '',
                 category: '0'
             });
+
             loadCredentials();
             loadSummary();
+            loadCredentialCounts();
         } catch (error) {
             console.error('❌ Error adding credential:', error);
-            console.error('Error details:', {
-                message: error.message,
-                code: error.code,
-                data: error.data
-            });
             showNotification(error.message || 'Failed to add credential', 'error');
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Issue verified credential (for authorized issuers)
+    const handleIssueCredential = async () => {
+        try {
+            console.log('✅ Issuing verified credential...', issueData);
+
+            if (!issueData.institution || !issueData.title || !issueData.targetTokenId) {
+                showNotification('Please fill in all required fields', 'error');
+                return;
+            }
+
+            setLoading(true);
+
+            const metadata = {
+                institution: issueData.institution,
+                title: issueData.title,
+                description: issueData.description,
+                issuedBy: 'Authorized Issuer'
+            };
+
+            const metadataHash = ethers.utils.id(JSON.stringify(metadata));
+            const issueDate = issueData.issueDate ?
+                Math.floor(new Date(issueData.issueDate).getTime() / 1000) :
+                Math.floor(Date.now() / 1000);
+            const expiryDate = issueData.expiryDate ?
+                Math.floor(new Date(issueData.expiryDate).getTime() / 1000) : 0;
+
+            if (expiryDate !== 0 && expiryDate <= issueDate) {
+                showNotification('Expiry date must be after issue date!', 'error');
+                setLoading(false);
+                return;
+            }
+
+            const tx = await contracts.credentials.issueCredential(
+                parseInt(issueData.targetTokenId),
+                parseInt(issueData.credType),
+                metadataHash,
+                issueDate,
+                expiryDate,
+                parseInt(issueData.category)
+            );
+
+            showNotification('Issuing verified credential...', 'info');
+            await tx.wait();
+            showNotification('✅ Verified credential issued successfully!', 'success');
+
+            setShowIssueModal(false);
+            setIssueData({
+                targetTokenId: selectedToken || '',
+                credType: '0',
+                institution: '',
+                title: '',
+                description: '',
+                issueDate: '',
+                expiryDate: '',
+                category: '0'
+            });
+
+            loadCredentials();
+            loadSummary();
+            loadCredentialCounts();
+        } catch (error) {
+            console.error('❌ Error issuing credential:', error);
+
+            if (error.message.includes('NotAuthorizedIssuer')) {
+                showNotification('❌ You are not authorized to issue this credential type', 'error');
+            } else {
+                showNotification(error.message || 'Failed to issue credential', 'error');
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Update expired credential status
+    const handleUpdateStatus = async (credentialId) => {
+        try {
+            const tx = await contracts.credentials.updateCredentialStatus(selectedToken, credentialId);
+            showNotification('Updating credential status...', 'info');
+            await tx.wait();
+            showNotification('Status updated!', 'success');
+            loadCredentials();
+            loadSummary();
+        } catch (error) {
+            console.error('Error updating status:', error);
+            showNotification('Failed to update status', 'error');
         }
     };
 
@@ -2504,6 +2636,8 @@ CredentialsTab = function({ contracts, selectedToken, userTokens, showNotificati
             await tx.wait();
             showNotification('Credential revoked', 'success');
             loadCredentials();
+            loadSummary();
+            loadCredentialCounts();
         } catch (error) {
             console.error('Error revoking credential:', error);
             showNotification('Failed to revoke credential', 'error');
@@ -2515,8 +2649,8 @@ CredentialsTab = function({ contracts, selectedToken, userTokens, showNotificati
             <Card>
                 <div className="empty-state">
                     <div className="empty-icon">📜</div>
-                    <h3>Select an Identity Token</h3>
-                    <p>Choose a token from the Identity tab to manage credentials</p>
+                    <h3>No Token Selected</h3>
+                    <p>Select a token from the Identity tab to manage credentials</p>
                 </div>
             </Card>
         );
@@ -2524,1552 +2658,615 @@ CredentialsTab = function({ contracts, selectedToken, userTokens, showNotificati
 
     return (
         <div className="credentials-tab">
+            {/* Header with action buttons */}
             <div className="tab-header">
                 <div>
-                    <h2>Professional Credentials</h2>
-                    <p className="tab-description">Manage your degrees, certifications, work experience, and skills</p>
+                    <h2>Credentials</h2>
+                    <p className="tab-description">Manage your professional credentials and achievements</p>
                 </div>
-                <Button onClick={() => setShowAddModal(true)}>
-                    <span style={{ marginRight: '8px' }}>+</span>
-                    Add Credential
-                </Button>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                    <Button onClick={() => setShowAddModal(true)} variant="secondary">
+                        ➕ Add Self-Reported
+                    </Button>
+                    <Button onClick={() => setShowIssueModal(true)}>
+                        ✅ Issue Verified
+                    </Button>
+                </div>
             </div>
 
+            {/* Credential Counts Dashboard */}
             {summary && (
-                <div className="summary-cards">
-                    <SummaryCard icon="🎓" label="Degrees" count={summary.degrees} color="var(--teal)" />
-                    <SummaryCard icon="📜" label="Certifications" count={summary.certifications} color="var(--sky)" />
-                    <SummaryCard icon="💼" label="Work Experience" count={summary.workExperience} color="var(--teal-light)" />
-                    <SummaryCard icon="🆔" label="Identity Proofs" count={summary.identityProofs} color="var(--sky-light)" />
-                    <SummaryCard icon="⚡" label="Skills" count={summary.skills} color="var(--teal-dark)" />
-                </div>
-            )}
-
-            <div className="credentials-filter">
-                <div className="filter-buttons">
-                    <button
-                        className={`filter-btn ${selectedType === null ? 'active' : ''}`}
-                        onClick={() => setSelectedType(null)}
-                    >
-                        All ({credentials.length})
-                    </button>
-                    {credentialTypes.map((type, idx) => (
-                        <button
-                            key={idx}
-                            className={`filter-btn ${selectedType === idx ? 'active' : ''}`}
-                            onClick={() => setSelectedType(idx)}
-                        >
-                            {type} ({credentials.filter(c => c.credType === idx).length})
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            {loading ? (
-                <Card>
-                    <LoadingSpinner />
-                </Card>
-            ) : credentials.length === 0 ? (
-                <Card>
-                    <div className="empty-state">
-                        <div className="empty-icon">📄</div>
-                        <h3>No Credentials Yet</h3>
-                        <p>Start adding your professional credentials</p>
+                <Card style={{ marginBottom: '24px' }}>
+                    <h3 style={{ marginBottom: '16px', color: 'var(--teal-light)' }}>
+                        📊 Credential Summary
+                    </h3>
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                        gap: '16px'
+                    }}>
+                        <div style={{
+                            textAlign: 'center',
+                            padding: '16px',
+                            background: 'rgba(102, 126, 234, 0.1)',
+                            borderRadius: '12px'
+                        }}>
+                            <div style={{ fontSize: '2rem' }}>🎓</div>
+                            <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--teal-light)' }}>
+                                {summary.degrees}
+                            </div>
+                            <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                                Degrees
+                            </div>
+                        </div>
+                        <div style={{
+                            textAlign: 'center',
+                            padding: '16px',
+                            background: 'rgba(14, 165, 233, 0.1)',
+                            borderRadius: '12px'
+                        }}>
+                            <div style={{ fontSize: '2rem' }}>📜</div>
+                            <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--teal-light)' }}>
+                                {summary.certifications}
+                            </div>
+                            <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                                Certifications
+                            </div>
+                        </div>
+                        <div style={{
+                            textAlign: 'center',
+                            padding: '16px',
+                            background: 'rgba(6, 182, 212, 0.1)',
+                            borderRadius: '12px'
+                        }}>
+                            <div style={{ fontSize: '2rem' }}>💼</div>
+                            <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--teal-light)' }}>
+                                {summary.workExperience}
+                            </div>
+                            <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                                Work Experience
+                            </div>
+                        </div>
+                        <div style={{
+                            textAlign: 'center',
+                            padding: '16px',
+                            background: 'rgba(240, 147, 251, 0.1)',
+                            borderRadius: '12px'
+                        }}>
+                            <div style={{ fontSize: '2rem' }}>🆔</div>
+                            <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--teal-light)' }}>
+                                {summary.identityProofs}
+                            </div>
+                            <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                                Identity Proofs
+                            </div>
+                        </div>
+                        <div style={{
+                            textAlign: 'center',
+                            padding: '16px',
+                            background: 'rgba(42, 245, 152, 0.1)',
+                            borderRadius: '12px'
+                        }}>
+                            <div style={{ fontSize: '2rem' }}>⚡</div>
+                            <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--teal-light)' }}>
+                                {summary.skills}
+                            </div>
+                            <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                                Skills
+                            </div>
+                        </div>
                     </div>
                 </Card>
-            ) : (
-                <div className="credentials-list">
-                    {credentials
-                        .filter(c => selectedType === null || c.credType === selectedType)
-                        .map((cred, idx) => (
-                            <CredentialCard
-                                key={idx}
-                                credential={cred}
-                                onRevoke={() => handleRevoke(cred.credentialId)}
-                            />
-                        ))}
-                </div>
             )}
 
-            <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add Credential">
-                <div className="credential-form">
+            {/* Filters and Credentials List */}
+            <Card>
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '20px',
+                    flexWrap: 'wrap',
+                    gap: '16px'
+                }}>
+                    {/* Type filter */}
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {credentialTypes.map((type, idx) => (
+                            <button
+                                key={idx}
+                                className={`filter-btn ${selectedType === idx ? 'active' : ''}`}
+                                onClick={() => setSelectedType(idx)}
+                                style={{
+                                    position: 'relative',
+                                    padding: '8px 16px',
+                                    border: selectedType === idx ? '2px solid var(--teal)' : '1px solid var(--border-color)',
+                                    background: selectedType === idx ? 'rgba(6, 182, 212, 0.1)' : 'transparent',
+                                    color: selectedType === idx ? 'var(--teal-light)' : 'var(--text-secondary)',
+                                    borderRadius: '20px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.9rem',
+                                    fontWeight: selectedType === idx ? '600' : '400',
+                                    transition: 'all 0.3s'
+                                }}
+                            >
+                                {type}
+                                {credentialCounts[idx] !== undefined && (
+                                    <span style={{
+                                        marginLeft: '6px',
+                                        background: selectedType === idx ? 'rgba(255,255,255,0.3)' : 'var(--teal)',
+                                        padding: '2px 8px',
+                                        borderRadius: '10px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 'bold',
+                                        color: selectedType === idx ? 'var(--teal-light)' : 'white'
+                                    }}>
+                                        {credentialCounts[idx]}
+                                    </span>
+                                )}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Active/All toggle */}
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        background: 'var(--bg-tertiary)',
+                        padding: '8px 16px',
+                        borderRadius: '24px'
+                    }}>
+                        <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                            Show:
+                        </span>
+                        <button
+                            onClick={() => setShowActiveOnly(false)}
+                            style={{
+                                background: !showActiveOnly ? 'var(--gradient-teal)' : 'transparent',
+                                border: 'none',
+                                color: !showActiveOnly ? 'white' : 'var(--text-secondary)',
+                                padding: '6px 16px',
+                                borderRadius: '16px',
+                                cursor: 'pointer',
+                                fontSize: '0.85rem',
+                                fontWeight: '600',
+                                transition: 'all 0.3s'
+                            }}
+                        >
+                            All
+                        </button>
+                        <button
+                            onClick={() => setShowActiveOnly(true)}
+                            style={{
+                                background: showActiveOnly ? 'var(--gradient-teal)' : 'transparent',
+                                border: 'none',
+                                color: showActiveOnly ? 'white' : 'var(--text-secondary)',
+                                padding: '6px 16px',
+                                borderRadius: '16px',
+                                cursor: 'pointer',
+                                fontSize: '0.85rem',
+                                fontWeight: '600',
+                                transition: 'all 0.3s'
+                            }}
+                        >
+                            🟢 Active Only
+                        </button>
+                    </div>
+                </div>
+
+                {/* Credentials list */}
+                {loading ? (
+                    <LoadingSpinner />
+                ) : credentials.length === 0 ? (
+                    <div className="empty-message" style={{ textAlign: 'center', padding: '40px' }}>
+                        <p>No {showActiveOnly ? 'active ' : ''}{credentialTypes[selectedType].toLowerCase()} credentials yet</p>
+                    </div>
+                ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        {credentials.map((cred, idx) => {
+                            const statusInfo = getCredentialStatusInfo(cred.status);
+                            const isValid = validationStatus[cred.credentialId.toString()];
+                            const isExpired = cred.expiryDate > 0 &&
+                                Math.floor(Date.now() / 1000) >= cred.expiryDate.toNumber();
+
+                            return (
+                                <div
+                                    key={idx}
+                                    style={{
+                                        background: 'var(--bg-tertiary)',
+                                        padding: '20px',
+                                        borderRadius: '12px',
+                                        borderLeft: `4px solid ${statusInfo.color}`
+                                    }}
+                                >
+                                    {/* Header with status badges */}
+                                    <div style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'flex-start',
+                                        marginBottom: '12px',
+                                        flexWrap: 'wrap',
+                                        gap: '12px'
+                                    }}>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{
+                                                fontSize: '1.1rem',
+                                                fontWeight: '600',
+                                                color: 'var(--teal-light)',
+                                                marginBottom: '8px'
+                                            }}>
+                                                {credentialTypes[cred.credType]}
+                                            </div>
+                                            <div style={{
+                                                fontSize: '0.85rem',
+                                                color: 'var(--text-secondary)'
+                                            }}>
+                                                ID: {cred.credentialId.toString()}
+                                            </div>
+                                        </div>
+
+                                        {/* Badges */}
+                                        <div style={{
+                                            display: 'flex',
+                                            gap: '8px',
+                                            flexWrap: 'wrap'
+                                        }}>
+                                            {/* Verified badge */}
+                                            <span style={{
+                                                padding: '4px 12px',
+                                                borderRadius: '12px',
+                                                fontSize: '0.8rem',
+                                                fontWeight: '600',
+                                                background: cred.verified ?
+                                                    'rgba(16, 185, 129, 0.2)' :
+                                                    'rgba(245, 158, 11, 0.2)',
+                                                color: cred.verified ? 'var(--success)' : 'var(--warning)'
+                                            }}>
+                                                {cred.verified ? '✅ Verified' : '⚠️ Self-Reported'}
+                                            </span>
+
+                                            {/* Status badge */}
+                                            <span style={{
+                                                padding: '4px 12px',
+                                                borderRadius: '12px',
+                                                fontSize: '0.8rem',
+                                                fontWeight: '600',
+                                                background: statusInfo.bg,
+                                                color: statusInfo.color
+                                            }}>
+                                                {statusInfo.icon} {statusInfo.label}
+                                            </span>
+
+                                            {/* Validation badge */}
+                                            {isValid !== undefined && (
+                                                <span style={{
+                                                    padding: '4px 12px',
+                                                    borderRadius: '12px',
+                                                    fontSize: '0.8rem',
+                                                    fontWeight: '600',
+                                                    background: isValid ?
+                                                        'rgba(16, 185, 129, 0.2)' :
+                                                        'rgba(239, 68, 68, 0.2)',
+                                                    color: isValid ? 'var(--success)' : 'var(--error)'
+                                                }}>
+                                                    {isValid ? '✓ Valid' : '✗ Invalid'}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Details */}
+                                    <div style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                                        gap: '12px',
+                                        marginTop: '16px',
+                                        paddingTop: '16px',
+                                        borderTop: '1px solid rgba(6, 182, 212, 0.2)'
+                                    }}>
+                                        <div>
+                                            <div style={{
+                                                fontSize: '0.8rem',
+                                                color: 'var(--text-muted)',
+                                                marginBottom: '4px'
+                                            }}>
+                                                Issuer
+                                            </div>
+                                            <code style={{ fontSize: '0.85rem', color: 'var(--teal-light)' }}>
+                                                {shortenAddress(cred.issuer)}
+                                            </code>
+                                        </div>
+                                        <div>
+                                            <div style={{
+                                                fontSize: '0.8rem',
+                                                color: 'var(--text-muted)',
+                                                marginBottom: '4px'
+                                            }}>
+                                                Issue Date
+                                            </div>
+                                            <div style={{ fontSize: '0.9rem' }}>
+                                                {formatDate(cred.issueDate)}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div style={{
+                                                fontSize: '0.8rem',
+                                                color: 'var(--text-muted)',
+                                                marginBottom: '4px'
+                                            }}>
+                                                Expiry
+                                            </div>
+                                            <div style={{
+                                                fontSize: '0.9rem',
+                                                color: isExpired ? 'var(--error)' : 'inherit'
+                                            }}>
+                                                {cred.expiryDate.toNumber() === 0 ?
+                                                    'Never' :
+                                                    formatDate(cred.expiryDate)
+                                                }
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div style={{
+                                                fontSize: '0.8rem',
+                                                color: 'var(--text-muted)',
+                                                marginBottom: '4px'
+                                            }}>
+                                                Metadata Hash
+                                            </div>
+                                            <code style={{
+                                                fontSize: '0.75rem',
+                                                color: 'var(--teal-light)',
+                                                wordBreak: 'break-all'
+                                            }}>
+                                                {cred.metadataHash.slice(0, 20)}...
+                                            </code>
+                                        </div>
+                                    </div>
+
+                                    {/* Actions */}
+                                    <div style={{
+                                        display: 'flex',
+                                        gap: '8px',
+                                        marginTop: '16px',
+                                        flexWrap: 'wrap'
+                                    }}>
+                                        {/* Update status button (if expired but status not updated) */}
+                                        {isExpired && cred.status === 0 && (
+                                            <Button
+                                                variant="secondary"
+                                                onClick={() => handleUpdateStatus(cred.credentialId)}
+                                                style={{ fontSize: '0.85rem', padding: '6px 12px' }}
+                                            >
+                                                🔄 Update to Expired
+                                            </Button>
+                                        )}
+
+                                        {/* Revoke button (if active) */}
+                                        {cred.status === 0 && (
+                                            <Button
+                                                variant="danger"
+                                                onClick={() => handleRevoke(cred.credentialId)}
+                                                style={{ fontSize: '0.85rem', padding: '6px 12px' }}
+                                            >
+                                                Revoke
+                                            </Button>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </Card>
+
+            {/* Add Self-Reported Modal */}
+            <Modal
+                isOpen={showAddModal}
+                onClose={() => setShowAddModal(false)}
+                title="➕ Add Self-Reported Credential"
+            >
+                <div>
+                    <div style={{
+                        background: 'rgba(245, 158, 11, 0.1)',
+                        padding: '12px',
+                        borderRadius: '8px',
+                        marginBottom: '20px',
+                        border: '1px solid rgba(245, 158, 11, 0.3)'
+                    }}>
+                        <p style={{
+                            fontSize: '0.9rem',
+                            color: 'var(--warning)',
+                            margin: 0
+                        }}>
+                            ⚠️ Self-reported credentials are marked as unverified. Request verification from authorized issuers.
+                        </p>
+                    </div>
+
                     <Select
                         label="Credential Type"
                         value={credentialData.credType}
                         onChange={(val) => setCredentialData({ ...credentialData, credType: val })}
-                        options={credentialTypes.map((type, idx) => ({ value: idx.toString(), label: type }))}
-                        required
+                        options={credentialTypes.map((t, i) => ({ value: i.toString(), label: t }))}
                     />
 
                     <Input
-                        label="Institution / Organization"
+                        label="Institution/Organization"
                         value={credentialData.institution}
                         onChange={(val) => setCredentialData({ ...credentialData, institution: val })}
                         placeholder="e.g., MIT, Google, AWS"
-                        required
                     />
 
                     <Input
-                        label="Title / Name"
+                        label="Title/Name"
                         value={credentialData.title}
                         onChange={(val) => setCredentialData({ ...credentialData, title: val })}
-                        placeholder="e.g., Bachelor of Science, AWS Certified Developer"
-                        required
+                        placeholder="e.g., Bachelor of Computer Science"
                     />
 
                     <TextArea
                         label="Description"
                         value={credentialData.description}
                         onChange={(val) => setCredentialData({ ...credentialData, description: val })}
-                        placeholder="Add details about this credential..."
-                        rows={3}
+                        placeholder="Brief description of the credential"
                     />
 
-                    <div className="date-fields">
-                        <Input
-                            label="Issue Date"
-                            value={credentialData.issueDate}
-                            onChange={(val) => setCredentialData({ ...credentialData, issueDate: val })}
-                            type="date"
-                        />
+                    <Input
+                        label="Issue Date"
+                        type="date"
+                        value={credentialData.issueDate}
+                        onChange={(val) => setCredentialData({ ...credentialData, issueDate: val })}
+                    />
 
-                        <Input
-                            label="Expiry Date (Optional)"
-                            value={credentialData.expiryDate}
-                            onChange={(val) => setCredentialData({ ...credentialData, expiryDate: val })}
-                            type="date"
-                        />
-                    </div>
+                    <Input
+                        label="Expiry Date (optional)"
+                        type="date"
+                        value={credentialData.expiryDate}
+                        onChange={(val) => setCredentialData({ ...credentialData, expiryDate: val })}
+                    />
 
-                    <div className="info-box" style={{ background: 'rgba(56, 189, 248, 0.1)', borderColor: 'var(--sky)' }}>
-                        <strong>💡 Tip:</strong> Leave expiry date empty if the credential never expires. If set, expiry date must be after issue date.
-                    </div>
-
-                    {credentialData.credType === '4' && (
+                    {parseInt(credentialData.credType) === 4 && (
                         <Select
                             label="Skill Category"
                             value={credentialData.category}
                             onChange={(val) => setCredentialData({ ...credentialData, category: val })}
-                            options={skillCategories.map((cat, idx) => ({ value: idx.toString(), label: cat }))}
+                            options={skillCategories.map((c, i) => ({ value: i.toString(), label: c }))}
                         />
                     )}
 
-                    <div className="info-box">
-                        <strong>Note:</strong> This credential will be marked as unverified. Contact an authorized issuer for verification.
-                    </div>
-
-                    <div className="modal-actions">
-                        <Button variant="secondary" onClick={() => setShowAddModal(false)} disabled={loading}>
+                    <div style={{
+                        display: 'flex',
+                        gap: '12px',
+                        justifyContent: 'flex-end',
+                        marginTop: '24px'
+                    }}>
+                        <Button
+                            variant="secondary"
+                            onClick={() => setShowAddModal(false)}
+                            disabled={loading}
+                        >
                             Cancel
                         </Button>
                         <Button
                             onClick={handleAddCredential}
-                            disabled={loading || !credentialData.institution || !credentialData.title}
+                            disabled={loading}
                         >
-                            {loading ? 'Adding...' : 'Add Credential'}
+                            {loading ? 'Adding...' : '➕ Add Credential'}
                         </Button>
                     </div>
                 </div>
             </Modal>
 
-            <style>{`
-                .credentials-tab {
-                    animation: fadeIn 0.5s ease-out;
-                }
-
-                .tab-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: flex-start;
-                    margin-bottom: 30px;
-                }
-
-                .tab-header h2 {
-                    font-size: 32px;
-                    color: var(--teal-light);
-                    margin-bottom: 8px;
-                }
-
-                .tab-description {
-                    color: var(--gray-light);
-                    font-size: 14px;
-                }
-
-                .summary-cards {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                    gap: 16px;
-                    margin-bottom: 30px;
-                }
-
-                .credentials-filter {
-                    margin-bottom: 20px;
-                }
-
-                .filter-buttons {
-                    display: flex;
-                    gap: 8px;
-                    flex-wrap: wrap;
-                }
-
-                .filter-btn {
-                    background: rgba(45, 62, 80, 0.5);
-                    border: 1px solid rgba(14, 116, 144, 0.3);
-                    color: var(--gray-light);
-                    padding: 8px 16px;
-                    border-radius: 20px;
-                    font-size: 13px;
-                    cursor: pointer;
-                    transition: all 0.3s ease;
-                }
-
-                .filter-btn:hover {
-                    border-color: var(--teal);
-                    color: var(--teal-light);
-                }
-
-                .filter-btn.active {
-                    background: var(--teal);
-                    border-color: var(--teal);
-                    color: white;
-                }
-
-                .credentials-list {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 16px;
-                }
-
-                .credential-form {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 20px;
-                }
-
-                .date-fields {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 16px;
-                }
-
-                .empty-state {
-                    text-align: center;
-                    padding: 60px 20px;
-                }
-
-                .empty-icon {
-                    font-size: 64px;
-                    margin-bottom: 20px;
-                }
-
-                .empty-state h3 {
-                    font-size: 24px;
-                    color: var(--beige);
-                    margin-bottom: 12px;
-                }
-
-                .empty-state p {
-                    color: var(--gray-light);
-                    font-size: 16px;
-                }
-
-                .info-box {
-                    background: rgba(245, 158, 11, 0.1);
-                    border: 1px solid var(--warning);
-                    border-radius: 8px;
-                    padding: 16px;
-                    color: var(--beige);
-                    font-size: 13px;
-                    line-height: 1.5;
-                }
-
-                .modal-actions {
-                    display: flex;
-                    gap: 12px;
-                    justify-content: flex-end;
-                    margin-top: 24px;
-                }
-
-                @media (max-width: 768px) {
-                    .tab-header {
-                        flex-direction: column;
-                        gap: 16px;
-                    }
-
-                    .date-fields {
-                        grid-template-columns: 1fr;
-                    }
-                }
-            `}</style>
-        </div>
-    );
-}
-
-// Summary Card Component
-SummaryCard = function({ icon, label, count, color }) {
-    return (
-        <div className="summary-card" style={{ borderColor: color }}>
-            <div className="summary-icon" style={{ color }}>{icon}</div>
-            <div className="summary-info">
-                <div className="summary-count" style={{ color }}>{count}</div>
-                <div className="summary-label">{label}</div>
-            </div>
-
-            <style>{`
-                .summary-card {
-                    background: rgba(45, 62, 80, 0.5);
-                    border: 2px solid;
-                    border-radius: 12px;
-                    padding: 20px;
-                    display: flex;
-                    align-items: center;
-                    gap: 16px;
-                    transition: all 0.3s ease;
-                }
-
-                .summary-card:hover {
-                    transform: translateY(-4px);
-                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-                }
-
-                .summary-icon {
-                    font-size: 36px;
-                }
-
-                .summary-info {
-                    flex: 1;
-                }
-
-                .summary-count {
-                    font-size: 32px;
-                    font-weight: 700;
-                    font-family: 'Playfair Display', serif;
-                    line-height: 1;
-                    margin-bottom: 4px;
-                }
-
-                .summary-label {
-                    font-size: 13px;
-                    color: var(--gray-light);
-                    text-transform: uppercase;
-                    letter-spacing: 0.5px;
-                }
-            `}</style>
-        </div>
-    );
-}
-
-// Credential Card Component
-CredentialCard = function({ credential, onRevoke }) {
-    const [showDetails, setShowDetails] = useState(false);
-
-    const statusColors = {
-        0: 'var(--success)', // Active
-        1: 'var(--error)',   // Revoked
-        2: 'var(--warning)'  // Expired
-    };
-
-    const statusLabels = ['Active', 'Revoked', 'Expired'];
-    const typeIcons = ['🎓', '📜', '💼', '🆔', '⚡'];
-
-    const copyToClipboard = (text) => {
-        navigator.clipboard.writeText(text);
-        alert('Copied to clipboard!');
-    };
-
-    return (
-        <>
-            <Card className="credential-card">
-                <div className="credential-header">
-                    <div className="credential-type-badge">
-                        <span className="type-icon">{typeIcons[credential.credType]}</span>
-                        <span className="type-label">{credentialTypes[credential.credType]}</span>
-                    </div>
-                    <div className="credential-status" style={{ color: statusColors[credential.status] }}>
-                        {statusLabels[credential.status]}
-                    </div>
-                </div>
-
-                <div className="credential-body">
-                    <h3 className="credential-title">Credential ID: {credential.credentialId.toString()}</h3>
-                    <div className="credential-meta">
-                        <div className="meta-item">
-                            <span className="meta-label">Issuer:</span>
-                            <code className="meta-value">{shortenAddress(credential.issuer)}</code>
-                        </div>
-                        <div className="meta-item">
-                            <span className="meta-label">Issue Date:</span>
-                            <span className="meta-value">{formatDate(credential.issueDate)}</span>
-                        </div>
-                        {credential.expiryDate > 0 && (
-                            <div className="meta-item">
-                                <span className="meta-label">Expiry Date:</span>
-                                <span className="meta-value">{formatDate(credential.expiryDate)}</span>
-                            </div>
-                        )}
-                        <div className="meta-item">
-                            <span className="meta-label">Verified:</span>
-                            <span className="meta-value">{credential.verified ? '✓ Yes' : '✗ No'}</span>
-                        </div>
-                        <div className="meta-item" style={{ gridColumn: '1 / -1' }}>
-                            <span className="meta-label">🔐 Metadata Hash:</span>
-                            <code className="meta-value" style={{ 
-                                fontSize: '0.75rem', 
-                                wordBreak: 'break-all',
-                                display: 'block',
-                                marginTop: '4px'
-                            }}>
-                                {credential.metadataHash}
-                            </code>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="credential-actions">
-                    <button
-                        className="view-credential-btn"
-                        onClick={() => setShowDetails(true)}
-                    >
-                        👁️ View Details
-                    </button>
-                    {credential.status === 0 && (
-                        <Button variant="danger" onClick={onRevoke} style={{ fontSize: '12px', padding: '8px 16px' }}>
-                            Revoke
-                        </Button>
-                    )}
-                </div>
-            </Card>
-
-            <Modal isOpen={showDetails} onClose={() => setShowDetails(false)} title={`Credential #${credential.credentialId.toString()} Details`}>
-                <div className="credential-details">
-                    <div className="detail-section">
-                        <h4>Credential Information</h4>
-                        <div className="detail-row">
-                            <span className="detail-label">Credential ID:</span>
-                            <span className="detail-value">{credential.credentialId.toString()}</span>
-                        </div>
-                        <div className="detail-row">
-                            <span className="detail-label">Type:</span>
-                            <span className="detail-value">{typeIcons[credential.credType]} {credentialTypes[credential.credType]}</span>
-                        </div>
-                        <div className="detail-row">
-                            <span className="detail-label">Status:</span>
-                            <span className="detail-value" style={{ color: statusColors[credential.status] }}>
-                                {statusLabels[credential.status]}
-                            </span>
-                        </div>
-                        <div className="detail-row">
-                            <span className="detail-label">Verified:</span>
-                            <span className="detail-value" style={{ color: credential.verified ? 'var(--success)' : 'var(--warning)' }}>
-                                {credential.verified ? '✓ Verified by Issuer' : '✗ Self-Reported (Unverified)'}
-                            </span>
-                        </div>
-                        {credential.credType === 4 && (
-                            <div className="detail-row">
-                                <span className="detail-label">Category:</span>
-                                <span className="detail-value">{skillCategories[credential.category]}</span>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="detail-section">
-                        <h4>Issuer Information</h4>
-                        <div className="detail-row">
-                            <span className="detail-label">Issuer Address:</span>
-                            <code className="detail-value">{credential.issuer}</code>
-                        </div>
-                        <button
-                            className="copy-btn"
-                            onClick={() => copyToClipboard(credential.issuer)}
-                            style={{ marginTop: '8px' }}
-                        >
-                            📋 Copy Issuer Address
-                        </button>
-                    </div>
-
-                    <div className="detail-section">
-                        <h4>Dates</h4>
-                        <div className="detail-row">
-                            <span className="detail-label">Issue Date:</span>
-                            <span className="detail-value">{formatDate(credential.issueDate)}</span>
-                        </div>
-                        <div className="detail-row">
-                            <span className="detail-label">Expiry Date:</span>
-                            <span className="detail-value">
-                                {credential.expiryDate > 0 ? formatDate(credential.expiryDate) : 'Never Expires'}
-                            </span>
-                        </div>
-                        {credential.expiryDate > 0 && (
-                            <div className="detail-row">
-                                <span className="detail-label">Days Until Expiry:</span>
-                                <span className="detail-value">
-                                    {Math.max(0, Math.floor((credential.expiryDate - Date.now() / 1000) / 86400))} days
-                                </span>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="detail-section">
-                        <h4>Metadata</h4>
-                        <div className="cid-display">
-                            <code className="full-cid">{credential.metadataHash}</code>
-                            <button
-                                className="copy-btn"
-                                onClick={() => copyToClipboard(credential.metadataHash)}
-                            >
-                                📋 Copy
-                            </button>
-                        </div>
-                        <p style={{ fontSize: '13px', color: 'var(--gray)', marginTop: '12px' }}>
-                            This hash represents the IPFS metadata containing detailed information about this credential.
+            {/* Issue Verified Credential Modal (for authorized issuers) */}
+            <Modal
+                isOpen={showIssueModal}
+                onClose={() => setShowIssueModal(false)}
+                title="✅ Issue Verified Credential"
+            >
+                <div>
+                    <div style={{
+                        background: 'rgba(16, 185, 129, 0.1)',
+                        padding: '12px',
+                        borderRadius: '8px',
+                        marginBottom: '20px',
+                        border: '1px solid rgba(16, 185, 129, 0.3)'
+                    }}>
+                        <p style={{
+                            fontSize: '0.9rem',
+                            color: 'var(--success)',
+                            margin: 0
+                        }}>
+                            ✅ You must be an authorized issuer for the selected credential type.
                         </p>
                     </div>
 
-                    <div className="detail-section">
-                        <h4>Blockchain Information</h4>
-                        <div className="detail-row">
-                            <span className="detail-label">Contract:</span>
-                            <code className="detail-value">{CONFIG.CONTRACTS.CREDENTIALS_HUB}</code>
-                        </div>
-                        <div className="detail-row">
-                            <span className="detail-label">Network:</span>
-                            <span className="detail-value">{CONFIG.NETWORK_NAME}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <style>{`
-                    .credential-details {
-                        display: flex;
-                        flex-direction: column;
-                        gap: 24px;
-                    }
-
-                    .detail-section {
-                        border-bottom: 1px solid rgba(14, 116, 144, 0.2);
-                        padding-bottom: 20px;
-                    }
-
-                    .detail-section:last-child {
-                        border-bottom: none;
-                        padding-bottom: 0;
-                    }
-
-                    .detail-section h4 {
-                        color: var(--teal-light);
-                        font-size: 16px;
-                        margin-bottom: 12px;
-                    }
-
-                    .detail-row {
-                        display: flex;
-                        justify-content: space-between;
-                        padding: 8px 0;
-                        gap: 16px;
-                    }
-
-                    .detail-label {
-                        color: var(--gray);
-                        font-size: 14px;
-                        font-weight: 500;
-                    }
-
-                    .detail-value {
-                        color: var(--beige);
-                        font-size: 14px;
-                        text-align: right;
-                        word-break: break-word;
-                    }
-
-                    code.detail-value {
-                        color: var(--teal-light);
-                        font-family: monospace;
-                        font-size: 12px;
-                    }
-
-                    .cid-display {
-                        display: flex;
-                        gap: 12px;
-                        align-items: center;
-                        background: rgba(26, 35, 50, 0.5);
-                        padding: 12px;
-                        border-radius: 8px;
-                    }
-
-                    .full-cid {
-                        flex: 1;
-                        color: var(--teal-light);
-                        font-family: monospace;
-                        font-size: 12px;
-                        word-break: break-all;
-                    }
-
-                    .copy-btn {
-                        background: var(--teal);
-                        border: none;
-                        color: white;
-                        padding: 8px 16px;
-                        border-radius: 6px;
-                        cursor: pointer;
-                        font-size: 12px;
-                        white-space: nowrap;
-                        transition: all 0.3s ease;
-                    }
-
-                    .copy-btn:hover {
-                        background: var(--teal-light);
-                        transform: translateY(-1px);
-                    }
-                `}</style>
-            </Modal>
-
-            <style>{`
-                .credential-card {
-                    border-left: 4px solid ${statusColors[credential.status]};
-                }
-
-                .credential-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 16px;
-                }
-
-                .credential-type-badge {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    background: rgba(14, 116, 144, 0.2);
-                    padding: 6px 12px;
-                    border-radius: 16px;
-                }
-
-                .type-icon {
-                    font-size: 18px;
-                }
-
-                .type-label {
-                    font-size: 13px;
-                    color: var(--teal-light);
-                    font-weight: 500;
-                }
-
-                .credential-status {
-                    font-size: 13px;
-                    font-weight: 600;
-                    text-transform: uppercase;
-                    letter-spacing: 0.5px;
-                }
-
-                .credential-body {
-                    margin-bottom: 16px;
-                }
-
-                .credential-title {
-                    font-size: 16px;
-                    color: var(--beige);
-                    margin-bottom: 12px;
-                    font-family: monospace;
-                }
-
-                .credential-meta {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                    gap: 12px;
-                }
-
-                .meta-item {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 4px;
-                }
-
-                .meta-label {
-                    font-size: 12px;
-                    color: var(--gray);
-                    text-transform: uppercase;
-                    letter-spacing: 0.5px;
-                }
-
-                .meta-value {
-                    font-size: 14px;
-                    color: var(--beige);
-                }
-
-                code.meta-value {
-                    font-family: monospace;
-                    color: var(--teal-light);
-                }
-
-                .credential-actions {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    gap: 12px;
-                    padding-top: 16px;
-                    border-top: 1px solid rgba(14, 116, 144, 0.2);
-                }
-
-                .view-credential-btn {
-                    flex: 1;
-                    padding: 10px 16px;
-                    background: var(--teal);
-                    border: none;
-                    color: white;
-                    border-radius: 6px;
-                    cursor: pointer;
-                    font-size: 13px;
-                    font-weight: 600;
-                    transition: all 0.3s ease;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 6px;
-                }
-
-                .view-credential-btn:hover {
-                    background: var(--teal-light);
-                    transform: translateY(-1px);
-                }
-            `}</style>
-        </>
-    );
-}
-// Access Control Tab Component
-AccessControlTab = function({ contracts, selectedToken, userTokens, showNotification }) {
-    const [pendingRequests, setPendingRequests] = useState([]);
-    const [grantedAccess, setGrantedAccess] = useState([]);
-    const [tokensICanAccess, setTokensICanAccess] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [showRequestModal, setShowRequestModal] = useState(false);
-    const [requestTokenId, setRequestTokenId] = useState('');
-    const [showViewModal, setShowViewModal] = useState(false);
-    const [viewingToken, setViewingToken] = useState(null);
-
-    // Helper function to get countdown string
-    const getExpiryCountdown = (expiresAt) => {
-        const now = Math.floor(Date.now() / 1000);
-        const timeLeft = expiresAt - now;
-        
-        if (timeLeft <= 0) return '⚫ Expired';
-        
-        const days = Math.floor(timeLeft / 86400);
-        const hours = Math.floor((timeLeft % 86400) / 3600);
-        const minutes = Math.floor((timeLeft % 3600) / 60);
-        
-        if (days > 0) return `🟢 Expires in ${days} day${days > 1 ? 's' : ''} ${hours}h`;
-        if (hours > 0) return `🟡 Expires in ${hours} hour${hours > 1 ? 's' : ''} ${minutes}m`;
-        return `🔴 Expires in ${minutes} minute${minutes > 1 ? 's' : ''}`;
-    };
-
-    // Helper function to get access status label
-    const getAccessStatusLabel = (status) => {
-        const statusMap = {
-            0: { label: 'No Request', color: 'var(--text-muted)', icon: '⚪' },
-            1: { label: 'Pending', color: 'var(--warning)', icon: '🟡' },
-            2: { label: 'Approved', color: 'var(--success)', icon: '🟢' },
-            3: { label: 'Denied', color: 'var(--error)', icon: '🔴' }
-        };
-        return statusMap[status] || statusMap[0];
-    };
-
-    useEffect(() => {
-        if (selectedToken && contracts) {
-            loadAccessData();
-        }
-        if (contracts) {
-            loadTokensICanAccess();
-        }
-    }, [selectedToken, contracts]);
-
-    const loadAccessData = async () => {
-        if (!selectedToken) return;
-
-        setLoading(true);
-        try {
-            // Load pending requests with status
-            const requests = await contracts.soulbound.getPendingRequests(selectedToken, 0, 50);
-            
-            // Enhance pending requests with status info
-            const enhancedRequests = [];
-            for (const requester of requests.requesters) {
-                try {
-                    const status = await contracts.soulbound.getAccessStatus(selectedToken, requester);
-                    enhancedRequests.push({
-                        address: requester,
-                        status: status
-                    });
-                } catch (err) {
-                    console.log('Could not fetch status for:', requester);
-                    enhancedRequests.push({
-                        address: requester,
-                        status: 1 // Default to Pending
-                    });
-                }
-            }
-            
-            setPendingRequests(enhancedRequests);
-
-            // Load granted access by checking stored addresses
-            // Note: Your contract doesn't have a getGrantedAccess function
-            // So we'll track addresses we've approved
-            const storedGrantedAddresses = JSON.parse(
-                localStorage.getItem(`grantedAccess_${selectedToken}`) || '[]'
-            );
-
-            // Verify each address still has access
-            const stillActive = [];
-            for (const address of storedGrantedAddresses) {
-                try {
-                    const [hasAccess, expiresAt] = await contracts.soulbound.checkAccess(selectedToken, address);
-                    if (hasAccess) {
-                        stillActive.push({
-                            address,
-                            expiresAt: expiresAt.toNumber()
-                        });
-                    }
-                } catch (err) {
-                    // Address no longer has access, skip it
-                    continue;
-                }
-            }
-
-            // Update localStorage with only active addresses
-            localStorage.setItem(
-                `grantedAccess_${selectedToken}`,
-                JSON.stringify(stillActive.map(item => item.address))
-            );
-
-            setGrantedAccess(stillActive);
-        } catch (error) {
-            console.error('Error loading access data:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const loadTokensICanAccess = async () => {
-        if (!contracts) return;
-
-        try {
-            const accessibleTokens = [];
-            // Check a range of token IDs
-            // For demo purposes, checking first 10 tokens (adjust based on your needs)
-            const maxTokenId = 10;
-
-            for (let tokenId = 1; tokenId <= maxTokenId; tokenId++) {
-                try {
-                    // First check if token exists
-                    const owner = await contracts.soulbound.ownerOf(tokenId);
-                    const myAddress = await contracts.soulbound.signer.getAddress();
-
-                    // Skip if I'm the owner
-                    if (owner.toLowerCase() === myAddress.toLowerCase()) {
-                        continue;
-                    }
-
-                    // Check if I have access
-                    const hasAccess = await contracts.soulbound.canView(tokenId, myAddress);
-
-                    // Only include if I have access
-                    if (hasAccess) {
-                        const [, expiresAt] = await contracts.soulbound.checkAccess(tokenId, myAddress);
-
-                        // Try to get metadata, but don't fail if we can't
-                        let metadataCID = '';
-                        try {
-                            metadataCID = await contracts.soulbound.getMetadata(tokenId);
-                        } catch (metadataError) {
-                            console.log(`Could not fetch metadata for token ${tokenId}:`, metadataError.message);
-                            // Continue without CID
-                        }
-
-                        accessibleTokens.push({
-                            tokenId,
-                            owner,
-                            expiresAt: expiresAt.toNumber(),
-                            cid: metadataCID || 'N/A'
-                        });
-                    }
-                } catch (err) {
-                    // Token doesn't exist or other error, skip it
-                    continue;
-                }
-            }
-            setTokensICanAccess(accessibleTokens);
-        } catch (error) {
-            console.error('Error loading accessible tokens:', error);
-        }
-    };
-
-    const handleRequestAccess = async () => {
-        try {
-            if (!requestTokenId) {
-                showNotification('Please enter a token ID', 'warning');
-                return;
-            }
-
-            console.log('🔵 Requesting access to token:', requestTokenId);
-            
-            const tokenIdNumber = parseInt(requestTokenId);
-            
-            // Check if token exists
-            try {
-                await contracts.soulbound.ownerOf(tokenIdNumber);
-            } catch (err) {
-                showNotification('Token does not exist', 'error');
-                return;
-            }
-
-            const tx = await contracts.soulbound.requestAccess(tokenIdNumber);
-            console.log('⏳ Request access transaction hash:', tx.hash);
-            showNotification('Requesting access...', 'info');
-            
-            const receipt = await tx.wait();
-            console.log('✅ Access request confirmed:', receipt);
-            showNotification('Access request sent!', 'success');
-            
-            setShowRequestModal(false);
-            setRequestTokenId('');
-        } catch (error) {
-            console.error('❌ Error requesting access:', error);
-            console.error('Error details:', {
-                message: error.message,
-                code: error.code,
-                data: error.data,
-                reason: error.reason
-            });
-            
-            // Check for specific error messages from the contract
-            let errorMessage = 'Failed to request access';
-            if (error.message.includes('RequestAlreadyExists')) {
-                errorMessage = 'You already have a pending request for this token';
-            } else if (error.message.includes('TooManyRequests')) {
-                errorMessage = 'You have reached the maximum requests per day';
-            } else if (error.message.includes('RequestCooldown')) {
-                errorMessage = 'Please wait before requesting access again';
-            } else if (error.message.includes('OnlyTokenOwner')) {
-                errorMessage = 'You cannot request access to your own token';
-            } else if (error.message.includes('OwnerHasAccess')) {
-                errorMessage = 'Token owner already has full access';
-            } else if (error.reason) {
-                errorMessage = error.reason;
-            } else if (error.message) {
-                errorMessage = error.message;
-            }
-            
-            showNotification(errorMessage, 'error');
-        }
-    };
-
-    const handleApproveAccess = async (requester) => {
-        try {
-            // Grant access for 30 days
-            const duration = 30 * 24 * 60 * 60;
-            const tx = await contracts.soulbound.approveAccess(selectedToken, requester, duration);
-            showNotification('Approving access...', 'info');
-            await tx.wait();
-
-            // Track granted address in localStorage
-            const storedGranted = JSON.parse(
-                localStorage.getItem(`grantedAccess_${selectedToken}`) || '[]'
-            );
-            if (!storedGranted.includes(requester)) {
-                storedGranted.push(requester);
-                localStorage.setItem(`grantedAccess_${selectedToken}`, JSON.stringify(storedGranted));
-            }
-
-            showNotification('Access approved!', 'success');
-            loadAccessData();
-        } catch (error) {
-            console.error('Error approving access:', error);
-            showNotification('Failed to approve access', 'error');
-        }
-    };
-
-    const handleDenyAccess = async (requester) => {
-        try {
-            const tx = await contracts.soulbound.denyAccess(selectedToken, requester);
-            showNotification('Denying access...', 'info');
-            await tx.wait();
-            showNotification('Access denied', 'success');
-            loadAccessData();
-        } catch (error) {
-            console.error('Error denying access:', error);
-            showNotification('Failed to deny access', 'error');
-        }
-    };
-
-    const handleRevokeAccess = async (requester) => {
-        try {
-            const reason = "Access revoked by token owner";
-            const tx = await contracts.soulbound.revokeAccess(selectedToken, requester, reason);
-            showNotification('Revoking access...', 'info');
-            await tx.wait();
-
-            // Remove from localStorage
-            const storedGranted = JSON.parse(
-                localStorage.getItem(`grantedAccess_${selectedToken}`) || '[]'
-            );
-            const updated = storedGranted.filter(addr => addr.toLowerCase() !== requester.toLowerCase());
-            localStorage.setItem(`grantedAccess_${selectedToken}`, JSON.stringify(updated));
-
-            showNotification('Access revoked!', 'success');
-            loadAccessData();
-        } catch (error) {
-            console.error('Error revoking access:', error);
-            showNotification('Failed to revoke access', 'error');
-        }
-    };
-
-    if (!selectedToken) {
-        return (
-            <Card>
-                <div className="empty-state">
-                    <div className="empty-icon">🔐</div>
-                    <h3>Select an Identity Token</h3>
-                    <p>Choose a token from the Identity tab to manage access</p>
-                </div>
-            </Card>
-        );
-    }
-
-    return (
-        <div className="access-tab">
-            <div className="tab-header">
-                <div>
-                    <h2>Access Control</h2>
-                    <p className="tab-description">Manage who can view your identity and credentials</p>
-                </div>
-                <Button onClick={() => setShowRequestModal(true)}>
-                    Request Access to Token
-                </Button>
-            </div>
-
-            <div className="access-sections">
-                <Card>
-                    <div className="section-header">
-                        <h3>Pending Access Requests</h3>
-                        <span className="badge">{pendingRequests.length}</span>
-                    </div>
-
-                    {loading ? (
-                        <LoadingSpinner />
-                    ) : pendingRequests.length === 0 ? (
-                        <div className="empty-message">
-                            <p>No pending access requests</p>
-                        </div>
-                    ) : (
-                        <div className="requests-list">
-                            {pendingRequests.map((requester, idx) => {
-                                const statusInfo = getAccessStatusLabel(requester.status || 1);
-                                return (
-                                    <div key={idx} className="request-item">
-                                        <div className="requester-info">
-                                            <div className="requester-avatar">👤</div>
-                                            <div style={{ flex: 1 }}>
-                                                <div className="requester-address">
-                                                    {shortenAddress(requester.address || requester)}
-                                                </div>
-                                                <div className="requester-label">Wallet Address</div>
-                                                <div style={{ 
-                                                    marginTop: '8px', 
-                                                    display: 'inline-flex',
-                                                    alignItems: 'center',
-                                                    gap: '6px',
-                                                    padding: '4px 10px',
-                                                    background: 'rgba(245, 158, 11, 0.1)',
-                                                    borderRadius: '12px',
-                                                    fontSize: '0.85rem',
-                                                    fontWeight: '600',
-                                                    color: statusInfo.color
-                                                }}>
-                                                    {statusInfo.icon} {statusInfo.label}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="request-actions">
-                                            <Button
-                                                onClick={() => handleApproveAccess(requester.address || requester)}
-                                                style={{ padding: '8px 16px', fontSize: '13px' }}
-                                            >
-                                                Approve
-                                            </Button>
-                                            <Button
-                                                variant="danger"
-                                                onClick={() => handleDenyAccess(requester.address || requester)}
-                                                style={{ padding: '8px 16px', fontSize: '13px' }}
-                                            >
-                                                Deny
-                                            </Button>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </Card>
-
-                <Card>
-                    <div className="section-header">
-                        <h3>Granted Access</h3>
-                        <span className="badge">{grantedAccess.length}</span>
-                    </div>
-
-                    {loading ? (
-                        <LoadingSpinner />
-                    ) : grantedAccess.length === 0 ? (
-                        <div className="empty-message">
-                            <p>You haven't granted access to anyone yet</p>
-                        </div>
-                    ) : (
-                        <div className="requests-list">
-                            {grantedAccess.map((item, idx) => (
-                                <div key={idx} className="request-item">
-                                    <div className="requester-info">
-                                        <div className="requester-avatar">✓</div>
-                                        <div style={{ flex: 1 }}>
-                                            <div className="requester-address">{shortenAddress(item.address)}</div>
-                                            <div className="requester-label" style={{ marginTop: '8px' }}>
-                                                📅 Granted: {formatDate(item.expiresAt - (30 * 24 * 60 * 60))}
-                                            </div>
-                                            <div style={{ 
-                                                marginTop: '8px', 
-                                                padding: '6px 12px', 
-                                                background: 'rgba(6, 182, 212, 0.1)',
-                                                borderRadius: '6px',
-                                                display: 'inline-block'
-                                            }}>
-                                                <span style={{ 
-                                                    fontSize: '0.9rem', 
-                                                    fontWeight: '600',
-                                                    color: item.expiresAt > Math.floor(Date.now() / 1000) ? 'var(--success)' : 'var(--error)'
-                                                }}>
-                                                    {getExpiryCountdown(item.expiresAt)}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="request-actions">
-                                        <Button
-                                            variant="danger"
-                                            onClick={() => handleRevokeAccess(item.address)}
-                                            style={{ padding: '8px 16px', fontSize: '13px' }}
-                                        >
-                                            Revoke Access
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </Card>
-
-                <Card>
-                    <div className="section-header">
-                        <h3>Tokens I Can Access</h3>
-                        <span className="badge">{tokensICanAccess.length}</span>
-                    </div>
-
-                    {tokensICanAccess.length === 0 ? (
-                        <div className="empty-message">
-                            <p>No access granted yet. Request access to view other identities.</p>
-                        </div>
-                    ) : (
-                        <div className="requests-list">
-                            {tokensICanAccess.map((item, idx) => (
-                                <div key={idx} className="request-item">
-                                    <div className="requester-info">
-                                        <div className="requester-avatar">🪪</div>
-                                        <div>
-                                            <div className="requester-address">Token #{item.tokenId}</div>
-                                            <div className="requester-label">
-                                                Owner: {shortenAddress(item.owner)}
-                                            </div>
-                                            <div className="requester-label" style={{ color: 'var(--teal-light)', marginTop: '4px' }}>
-                                                {item.expiresAt > 0 && item.expiresAt < Date.now() / 1000
-                                                    ? '⚠️ Access Expired'
-                                                    : `✓ Access until ${formatDate(item.expiresAt)}`
-                                                }
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="request-actions">
-                                        <Button
-                                            onClick={async () => {
-                                                try {
-                                                    const summary = await contracts.credentials.getCredentialSummary(item.tokenId);
-                                                    setViewingToken({
-                                                        ...item,
-                                                        summary: {
-                                                            degrees: summary.degrees.toNumber(),
-                                                            certifications: summary.certifications.toNumber(),
-                                                            workExperience: summary.workExperience.toNumber(),
-                                                            identityProofs: summary.identityProofs.toNumber(),
-                                                            skills: summary.skills.toNumber()
-                                                        }
-                                                    });
-                                                    setShowViewModal(true);
-                                                } catch (error) {
-                                                    showNotification('Failed to load token details', 'error');
-                                                }
-                                            }}
-                                            style={{ padding: '8px 16px', fontSize: '13px' }}
-                                        >
-                                            👁️ View Details
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </Card>
-
-                <Card>
-                    <div className="section-header">
-                        <h3>Privacy Settings</h3>
-                    </div>
-                    <div className="privacy-info">
-                        <div className="info-item">
-                            <div className="info-icon">🔒</div>
-                            <div>
-                                <h4>Default Privacy</h4>
-                                <p>Your identity and credentials are private by default. Only you can view them unless you grant access.</p>
-                            </div>
-                        </div>
-                        <div className="info-item">
-                            <div className="info-icon">⏱️</div>
-                            <div>
-                                <h4>Time-Limited Access</h4>
-                                <p>When you approve access, it's granted for 30 days by default. You can revoke access at any time.</p>
-                            </div>
-                        </div>
-                        <div className="info-item">
-                            <div className="info-icon">🛡️</div>
-                            <div>
-                                <h4>Request Tracking</h4>
-                                <p>All access requests are tracked on-chain for transparency and security.</p>
-                            </div>
-                        </div>
-                        <div className="info-item">
-                            <div className="info-icon">ℹ️</div>
-                            <div>
-                                <h4>Full Access Grant</h4>
-                                <p>Currently, approving access grants view permission to all credentials (degrees, certifications, work experience, skills, and identity proofs). Granular per-type access control is planned for future versions.</p>
-                            </div>
-                        </div>
-                    </div>
-                </Card>
-            </div>
-
-            <Modal isOpen={showRequestModal} onClose={() => setShowRequestModal(false)} title="Request Access">
-                <div className="request-form">
                     <Input
-                        label="Token ID"
-                        value={requestTokenId}
-                        onChange={setRequestTokenId}
-                        placeholder="Enter token ID"
+                        label="Target Token ID"
                         type="number"
-                        required
+                        value={issueData.targetTokenId}
+                        onChange={(val) => setIssueData({ ...issueData, targetTokenId: val })}
+                        placeholder="Token ID to issue credential to"
                     />
 
-                    <div className="info-box">
-                        <strong>Note:</strong> You're requesting access to view another user's identity and credentials. The owner will need to approve your request.
-                    </div>
+                    <Select
+                        label="Credential Type"
+                        value={issueData.credType}
+                        onChange={(val) => setIssueData({ ...issueData, credType: val })}
+                        options={credentialTypes.map((t, i) => ({ value: i.toString(), label: t }))}
+                    />
 
-                    <div className="modal-actions">
-                        <Button variant="secondary" onClick={() => setShowRequestModal(false)}>
+                    <Input
+                        label="Institution/Organization"
+                        value={issueData.institution}
+                        onChange={(val) => setIssueData({ ...issueData, institution: val })}
+                        placeholder="Your institution name"
+                    />
+
+                    <Input
+                        label="Title/Name"
+                        value={issueData.title}
+                        onChange={(val) => setIssueData({ ...issueData, title: val })}
+                        placeholder="Credential title"
+                    />
+
+                    <TextArea
+                        label="Description"
+                        value={issueData.description}
+                        onChange={(val) => setIssueData({ ...issueData, description: val })}
+                        placeholder="Credential description"
+                    />
+
+                    <Input
+                        label="Issue Date"
+                        type="date"
+                        value={issueData.issueDate}
+                        onChange={(val) => setIssueData({ ...issueData, issueDate: val })}
+                    />
+
+                    <Input
+                        label="Expiry Date (optional)"
+                        type="date"
+                        value={issueData.expiryDate}
+                        onChange={(val) => setIssueData({ ...issueData, expiryDate: val })}
+                    />
+
+                    {parseInt(issueData.credType) === 4 && (
+                        <Select
+                            label="Skill Category"
+                            value={issueData.category}
+                            onChange={(val) => setIssueData({ ...issueData, category: val })}
+                            options={skillCategories.map((c, i) => ({ value: i.toString(), label: c }))}
+                        />
+                    )}
+
+                    <div style={{
+                        display: 'flex',
+                        gap: '12px',
+                        justifyContent: 'flex-end',
+                        marginTop: '24px'
+                    }}>
+                        <Button
+                            variant="secondary"
+                            onClick={() => setShowIssueModal(false)}
+                            disabled={loading}
+                        >
                             Cancel
                         </Button>
-                        <Button onClick={handleRequestAccess} disabled={!requestTokenId}>
-                            Send Request
+                        <Button
+                            onClick={handleIssueCredential}
+                            disabled={loading}
+                        >
+                            {loading ? 'Issuing...' : '✅ Issue Credential'}
                         </Button>
                     </div>
                 </div>
             </Modal>
-
-            <Modal isOpen={showViewModal} onClose={() => setShowViewModal(false)} title={viewingToken ? `Token #${viewingToken.tokenId} Details` : 'Token Details'}>
-                {viewingToken && (
-                    <div className="token-view-details">
-                        <div className="detail-section">
-                            <h4>Token Information</h4>
-                            <div className="detail-row">
-                                <span className="detail-label">Token ID:</span>
-                                <span className="detail-value">{viewingToken.tokenId}</span>
-                            </div>
-                            <div className="detail-row">
-                                <span className="detail-label">Owner:</span>
-                                <code className="detail-value">{viewingToken.owner}</code>
-                            </div>
-                            <div className="detail-row">
-                                <span className="detail-label">Access Expires:</span>
-                                <span className="detail-value">
-                                    {viewingToken.expiresAt > 0 ? formatDate(viewingToken.expiresAt) : 'Never'}
-                                </span>
-                            </div>
-                        </div>
-
-                        {viewingToken.cid && (
-                            <div className="detail-section">
-                                <h4>IPFS Metadata</h4>
-                                <div className="cid-display">
-                                    <code className="full-cid">{viewingToken.cid}</code>
-                                    <button
-                                        className="copy-btn"
-                                        onClick={() => {
-                                            navigator.clipboard.writeText(viewingToken.cid);
-                                            alert('CID copied to clipboard!');
-                                        }}
-                                    >
-                                        📋 Copy
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        {viewingToken.summary && (
-                            <div className="detail-section">
-                                <h4>Credentials Summary</h4>
-                                <div className="credentials-grid">
-                                    <div className="cred-item">
-                                        <span className="cred-icon">🎓</span>
-                                        <span className="cred-count">{viewingToken.summary.degrees}</span>
-                                        <span className="cred-label">{viewingToken.summary.degrees === 1 ? 'Degree' : 'Degrees'}</span>
-                                    </div>
-                                    <div className="cred-item">
-                                        <span className="cred-icon">📜</span>
-                                        <span className="cred-count">{viewingToken.summary.certifications}</span>
-                                        <span className="cred-label">{viewingToken.summary.certifications === 1 ? 'Certification' : 'Certifications'}</span>
-                                    </div>
-                                    <div className="cred-item">
-                                        <span className="cred-icon">💼</span>
-                                        <span className="cred-count">{viewingToken.summary.workExperience}</span>
-                                        <span className="cred-label">Work Experience</span>
-                                    </div>
-                                    <div className="cred-item">
-                                        <span className="cred-icon">🆔</span>
-                                        <span className="cred-count">{viewingToken.summary.identityProofs}</span>
-                                        <span className="cred-label">{viewingToken.summary.identityProofs === 1 ? 'Identity Proof' : 'Identity Proofs'}</span>
-                                    </div>
-                                    <div className="cred-item">
-                                        <span className="cred-icon">⚡</span>
-                                        <span className="cred-count">{viewingToken.summary.skills}</span>
-                                        <span className="cred-label">{viewingToken.summary.skills === 1 ? 'Skill' : 'Skills'}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )}
-            </Modal>
-
-            <style>{`
-                .access-tab {
-                    animation: fadeIn 0.5s ease-out;
-                }
-
-                .tab-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: flex-start;
-                    margin-bottom: 30px;
-                }
-
-                .tab-header h2 {
-                    font-size: 32px;
-                    color: var(--teal-light);
-                    margin-bottom: 8px;
-                }
-
-                .tab-description {
-                    color: var(--gray-light);
-                    font-size: 14px;
-                }
-
-                .access-sections {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 20px;
-                }
-
-                .section-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 20px;
-                    padding-bottom: 16px;
-                    border-bottom: 1px solid rgba(14, 116, 144, 0.3);
-                }
-
-                .section-header h3 {
-                    font-size: 20px;
-                    color: var(--beige);
-                }
-
-                .badge {
-                    background: var(--teal);
-                    color: white;
-                    padding: 4px 12px;
-                    border-radius: 12px;
-                    font-size: 13px;
-                    font-weight: 600;
-                }
-
-                .empty-message {
-                    text-align: center;
-                    padding: 40px 20px;
-                    color: var(--gray-light);
-                }
-
-                .requests-list {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 12px;
-                }
-
-                .request-item {
-                    background: rgba(26, 35, 50, 0.5);
-                    border-radius: 8px;
-                    padding: 16px;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    gap: 16px;
-                }
-
-                .requester-info {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                }
-
-                .requester-avatar {
-                    width: 40px;
-                    height: 40px;
-                    background: rgba(14, 116, 144, 0.2);
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 20px;
-                }
-
-                .requester-address {
-                    font-family: monospace;
-                    color: var(--teal-light);
-                    font-size: 14px;
-                }
-
-                .requester-label {
-                    font-size: 12px;
-                    color: var(--gray);
-                    margin-top: 2px;
-                }
-
-                .request-actions {
-                    display: flex;
-                    gap: 8px;
-                }
-
-                .privacy-info {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 20px;
-                }
-
-                .info-item {
-                    display: flex;
-                    gap: 16px;
-                    align-items: flex-start;
-                }
-
-                .info-icon {
-                    font-size: 32px;
-                    flex-shrink: 0;
-                }
-
-                .info-item h4 {
-                    font-size: 16px;
-                    color: var(--beige);
-                    margin-bottom: 8px;
-                }
-
-                .info-item p {
-                    font-size: 14px;
-                    color: var(--gray-light);
-                    line-height: 1.6;
-                }
-
-                .request-form {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 20px;
-                }
-
-                .info-box {
-                    background: rgba(56, 189, 248, 0.1);
-                    border: 1px solid var(--sky);
-                    border-radius: 8px;
-                    padding: 16px;
-                    color: var(--beige);
-                    font-size: 13px;
-                    line-height: 1.5;
-                }
-
-                .modal-actions {
-                    display: flex;
-                    gap: 12px;
-                    justify-content: flex-end;
-                    margin-top: 24px;
-                }
-
-                .empty-state {
-                    text-align: center;
-                    padding: 60px 20px;
-                }
-
-                .empty-icon {
-                    font-size: 64px;
-                    margin-bottom: 20px;
-                }
-
-                .empty-state h3 {
-                    font-size: 24px;
-                    color: var(--beige);
-                    margin-bottom: 12px;
-                }
-
-                .empty-state p {
-                    color: var(--gray-light);
-                    font-size: 16px;
-                }
-
-                @media (max-width: 768px) {
-                    .tab-header {
-                        flex-direction: column;
-                        gap: 16px;
-                    }
-
-                    .request-item {
-                        flex-direction: column;
-                        align-items: flex-start;
-                    }
-
-                    .request-actions {
-                        width: 100%;
-                    }
-
-                    .request-actions button {
-                        flex: 1;
-                    }
-                }
-            `}</style>
         </div>
     );
-}
+};
 
 // Social Tab Component
-SocialTab = function({ contracts, selectedToken, userTokens, account, showNotification }) {
+SocialTab = function ({ contracts, selectedToken, userTokens, account, showNotification }) {
     const [activeSection, setActiveSection] = useState('reputation');
     const [reputation, setReputation] = useState(null);
     const [reviews, setReviews] = useState([]);
@@ -4361,7 +3558,7 @@ SocialTab = function({ contracts, selectedToken, userTokens, account, showNotifi
 }
 
 // Reputation Section Component
-ReputationSection = function({ reputation, reviews, reviewsWritten, loading, contracts, selectedToken, userTokens, showNotification, onReload }) {
+ReputationSection = function ({ reputation, reviews, reviewsWritten, loading, contracts, selectedToken, userTokens, showNotification, onReload }) {
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [reviewData, setReviewData] = useState({
         targetTokenId: '',
@@ -4771,7 +3968,7 @@ ReputationSection = function({ reputation, reviews, reviewsWritten, loading, con
 }
 
 // Projects Section - Simplified placeholder
-ProjectsSection = function({ projects, collaboratingOn, loading, contracts, selectedToken, showNotification, onReload }) {
+ProjectsSection = function ({ projects, collaboratingOn, loading, contracts, selectedToken, showNotification, onReload }) {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showCollabModal, setShowCollabModal] = useState(false);
     const [selectedProject, setSelectedProject] = useState(null);
@@ -5191,7 +4388,7 @@ ProjectsSection = function({ projects, collaboratingOn, loading, contracts, sele
 }
 
 // Endorsements Section - Simplified placeholder
-EndorsementsSection = function({ endorsements, loading, contracts, selectedToken, userTokens, showNotification, onReload }) {
+EndorsementsSection = function ({ endorsements, loading, contracts, selectedToken, userTokens, showNotification, onReload }) {
     const [showEndorseModal, setShowEndorseModal] = useState(false);
     const [endorseData, setEndorseData] = useState({
         targetTokenId: '',
@@ -5458,7 +4655,7 @@ EndorsementsSection = function({ endorsements, loading, contracts, selectedToken
 // ============================================
 // ANALYTICS TAB COMPONENT
 // ============================================
-AnalyticsTab = function({ contracts, selectedToken, showNotification }) {
+AnalyticsTab = function ({ contracts, selectedToken, showNotification }) {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -5615,7 +4812,7 @@ AnalyticsTab = function({ contracts, selectedToken, showNotification }) {
 // ============================================
 // VIEW IDENTITIES TAB - View tokens you have access to
 // ============================================
-ViewIdentitiesTab = function({ contracts, account, showNotification }) {
+ViewIdentitiesTab = function ({ contracts, account, showNotification }) {
     const [viewTokenId, setViewTokenId] = useState('');
     const [viewingToken, setViewingToken] = useState(null);
     const [tokenData, setTokenData] = useState(null);
@@ -5631,9 +4828,9 @@ ViewIdentitiesTab = function({ contracts, account, showNotification }) {
         setLoading(true);
         try {
             const tokenIdNumber = parseInt(viewTokenId);
-            
+
             console.log('🔍 Checking access to token:', tokenIdNumber);
-            
+
             // Check if token exists
             let owner;
             try {
@@ -5646,7 +4843,7 @@ ViewIdentitiesTab = function({ contracts, account, showNotification }) {
 
             // Check if we have access
             const canView = await contracts.soulbound.canView(tokenIdNumber, account);
-            
+
             if (!canView) {
                 showNotification('You do not have access to this token', 'error');
                 setHasAccess(false);
@@ -5673,8 +4870,8 @@ ViewIdentitiesTab = function({ contracts, account, showNotification }) {
             for (let type = 0; type < 5; type++) {
                 try {
                     const creds = await contracts.credentials.getCredentialsByType(tokenIdNumber, type);
-                    allCredentials.push(...creds.map(c => ({ 
-                        ...c, 
+                    allCredentials.push(...creds.map(c => ({
+                        ...c,
                         credType: type,
                         typeName: credentialTypes[type]
                     })));
@@ -5757,7 +4954,7 @@ ViewIdentitiesTab = function({ contracts, account, showNotification }) {
     return (
         <div className="view-identities-container">
             <h2 style={{ marginBottom: '24px', color: 'var(--beige, #e8dfca)' }}>View Identities</h2>
-            
+
             <Card>
                 <div style={{ marginBottom: '24px' }}>
                     <h3 style={{ marginBottom: '16px' }}>Enter Token ID</h3>
@@ -5772,7 +4969,7 @@ ViewIdentitiesTab = function({ contracts, account, showNotification }) {
                             type="number"
                             placeholder="Enter token ID (e.g., 1, 2, 3...)"
                         />
-                        <Button 
+                        <Button
                             onClick={handleViewToken}
                             disabled={loading || !viewTokenId}
                             style={{ minWidth: '120px', height: '48px' }}
@@ -5787,10 +4984,10 @@ ViewIdentitiesTab = function({ contracts, account, showNotification }) {
                 {!loading && tokenData && (
                     <div className="token-data-display" style={{ marginTop: '32px' }}>
                         {/* Token Info Section */}
-                        <div style={{ 
-                            background: 'var(--bg-tertiary)', 
-                            padding: '20px', 
-                            borderRadius: '12px', 
+                        <div style={{
+                            background: 'var(--bg-tertiary)',
+                            padding: '20px',
+                            borderRadius: '12px',
                             marginBottom: '24px',
                             borderLeft: '4px solid var(--teal)'
                         }}>
@@ -5854,11 +5051,11 @@ ViewIdentitiesTab = function({ contracts, account, showNotification }) {
                                 <h3 style={{ marginBottom: '16px' }}>📋 Credentials ({tokenData.credentials.length})</h3>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                     {tokenData.credentials.map((cred, idx) => (
-                                        <div 
+                                        <div
                                             key={idx}
-                                            style={{ 
-                                                background: 'var(--bg-tertiary)', 
-                                                padding: '16px', 
+                                            style={{
+                                                background: 'var(--bg-tertiary)',
+                                                padding: '16px',
                                                 borderRadius: '8px',
                                                 borderLeft: '4px solid var(--teal)'
                                             }}
@@ -5869,18 +5066,18 @@ ViewIdentitiesTab = function({ contracts, account, showNotification }) {
                                             <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>
                                                 Credential ID: {cred.credentialId.toString()}
                                             </div>
-                                            <div style={{ 
-                                                fontSize: '0.85rem', 
-                                                color: 'var(--text-muted)', 
+                                            <div style={{
+                                                fontSize: '0.85rem',
+                                                color: 'var(--text-muted)',
                                                 marginBottom: '8px',
                                                 wordBreak: 'break-all'
                                             }}>
                                                 <div style={{ marginBottom: '4px', color: 'var(--text-secondary)' }}>
                                                     🔐 Metadata Hash:
                                                 </div>
-                                                <code style={{ 
-                                                    background: 'var(--bg-secondary)', 
-                                                    padding: '4px 8px', 
+                                                <code style={{
+                                                    background: 'var(--bg-secondary)',
+                                                    padding: '4px 8px',
                                                     borderRadius: '4px',
                                                     fontSize: '0.8rem',
                                                     color: 'var(--teal-light)'
@@ -5889,7 +5086,7 @@ ViewIdentitiesTab = function({ contracts, account, showNotification }) {
                                                 </code>
                                             </div>
                                             <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                                                📅 Issued: {formatDate(cred.issueDate)} • 
+                                                📅 Issued: {formatDate(cred.issueDate)} •
                                                 Expires: {cred.expiryDate.toNumber() === 0 ? 'Never' : formatDate(cred.expiryDate)}
                                             </div>
                                             <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>
@@ -5943,11 +5140,11 @@ ViewIdentitiesTab = function({ contracts, account, showNotification }) {
                                 <h3 style={{ marginBottom: '16px' }}>🚀 Projects ({tokenData.projects.length})</h3>
                                 <div style={{ display: 'grid', gap: '12px' }}>
                                     {tokenData.projects.map((proj, idx) => (
-                                        <div 
+                                        <div
                                             key={idx}
-                                            style={{ 
-                                                background: 'var(--bg-tertiary)', 
-                                                padding: '16px', 
+                                            style={{
+                                                background: 'var(--bg-tertiary)',
+                                                padding: '16px',
                                                 borderRadius: '8px'
                                             }}
                                         >
@@ -5955,9 +5152,9 @@ ViewIdentitiesTab = function({ contracts, account, showNotification }) {
                                                 <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                                                     Project #{proj.projectId.toString()}
                                                 </div>
-                                                <div style={{ 
-                                                    padding: '4px 12px', 
-                                                    borderRadius: '12px', 
+                                                <div style={{
+                                                    padding: '4px 12px',
+                                                    borderRadius: '12px',
                                                     background: proj.status === 2 ? 'var(--success)' : 'var(--info)',
                                                     color: 'white',
                                                     fontSize: '0.85rem',
@@ -5981,11 +5178,11 @@ ViewIdentitiesTab = function({ contracts, account, showNotification }) {
                                 <h3 style={{ marginBottom: '16px' }}>👍 Skill Endorsements ({tokenData.endorsements.length})</h3>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
                                     {tokenData.endorsements.map((end, idx) => (
-                                        <div 
+                                        <div
                                             key={idx}
-                                            style={{ 
-                                                background: 'var(--bg-tertiary)', 
-                                                padding: '12px 16px', 
+                                            style={{
+                                                background: 'var(--bg-tertiary)',
+                                                padding: '12px 16px',
                                                 borderRadius: '20px',
                                                 fontSize: '0.9rem',
                                                 color: 'var(--teal-light)',
