@@ -98,12 +98,21 @@ TokenCard = function ({ token, isSelected, onSelect, contracts }) {
                         className="view-details-btn"
                         onClick={(e) => {
                             e.stopPropagation();
-                            console.log('👁️ View Details clicked for token', token.id);
                             setShowDetails(true);
                         }}
                         style={{ position: 'relative', zIndex: 100 }}
                     >
                         👁️ View Full Details
+                    </button>
+                    <button
+                        className="invalidate-btn"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setShowBurnConfirm(true);
+                        }}
+                        style={{ position: 'relative', zIndex: 100 }}
+                    >
+                        Invalidate Token
                     </button>
                 </div>
 
@@ -204,14 +213,14 @@ TokenCard = function ({ token, isSelected, onSelect, contracts }) {
                             ⚠️ Danger Zone
                         </h4>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '16px' }}>
-                            Permanently delete this identity token and all associated access data. This action cannot be undone.
+                            Permanently invalidate this identity token and all associated access data. This action cannot be undone.
                         </p>
                         <Button
                             variant="danger"
                             onClick={() => setShowBurnConfirm(true)}
                             disabled={burning}
                         >
-                            🔥 Delete Identity Token
+                            Invalidate Token
                         </Button>
                     </div>
                 </div>
@@ -411,10 +420,12 @@ TokenCard = function ({ token, isSelected, onSelect, contracts }) {
                     margin-top: 16px;
                     padding-top: 16px;
                     border-top: 1px solid rgba(14, 116, 144, 0.2);
+                    display: flex;
+                    gap: 8px;
                 }
 
                 .view-details-btn {
-                    width: 100%;
+                    flex: 1;
                     padding: 12px;
                     background: var(--teal);
                     border: none;
@@ -436,6 +447,25 @@ TokenCard = function ({ token, isSelected, onSelect, contracts }) {
                     box-shadow: 0 4px 12px rgba(14, 116, 144, 0.4);
                 }
 
+                .invalidate-btn {
+                    padding: 12px 16px;
+                    background: transparent;
+                    border: 1px solid rgba(239, 68, 68, 0.5);
+                    color: var(--error, #ef4444);
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 600;
+                    transition: all 0.3s ease;
+                    white-space: nowrap;
+                }
+
+                .invalidate-btn:hover {
+                    background: rgba(239, 68, 68, 0.1);
+                    border-color: var(--error, #ef4444);
+                    transform: translateY(-2px);
+                }
+
                 .selected-badge {
                     position: absolute;
                     top: 12px;
@@ -453,7 +483,7 @@ TokenCard = function ({ token, isSelected, onSelect, contracts }) {
             <Modal
                 isOpen={showBurnConfirm}
                 onClose={() => setShowBurnConfirm(false)}
-                title="⚠️ Confirm Identity Deletion"
+                title="⚠️ Confirm Token Invalidation"
             >
                 <div style={{ padding: '20px 0' }}>
                     <div style={{
@@ -467,7 +497,7 @@ TokenCard = function ({ token, isSelected, onSelect, contracts }) {
                             ⚠️ WARNING: This action is PERMANENT and IRREVERSIBLE
                         </p>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                            You are about to permanently delete Token #{token.id}. This will:
+                            You are about to permanently invalidate Token #{token.id}. This will:
                         </p>
                     </div>
 
@@ -477,7 +507,7 @@ TokenCard = function ({ token, isSelected, onSelect, contracts }) {
                         marginBottom: '24px',
                         lineHeight: '1.8'
                     }}>
-                        <li>Delete the identity token from the blockchain</li>
+                        <li>Invalidate the identity token on the blockchain</li>
                         <li>Remove all associated access permissions</li>
                         <li>Clear all pending access requests</li>
                         <li>Remove the token from your wallet permanently</li>
@@ -489,7 +519,7 @@ TokenCard = function ({ token, isSelected, onSelect, contracts }) {
                         marginBottom: '24px',
                         fontSize: '1.1rem'
                     }}>
-                        Are you absolutely sure you want to delete this identity?
+                        Are you absolutely sure you want to invalidate this identity?
                     </p>
 
                     <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
@@ -505,7 +535,7 @@ TokenCard = function ({ token, isSelected, onSelect, contracts }) {
                             onClick={handleBurnToken}
                             disabled={burning}
                         >
-                            {burning ? '🔥 Deleting...' : '🔥 Yes, Delete Forever'}
+                            {burning ? 'Invalidating...' : 'Yes, Invalidate Token'}
                         </Button>
                     </div>
                 </div>
