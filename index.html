@@ -4,23 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SoulBound Identity - Modular Version</title>
-    
+
     <!-- React 18 - PRODUCTION -->
     <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
-    
+
     <!-- Babel Standalone -->
     <script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
-    
+
     <!-- Ethers.js v5 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
-    
+
     <!-- Styles -->
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div id="root"></div>
-    
+
     <script>
         console.log('🚀 Starting modular app load...');
         console.log('✅ React available:', typeof React !== 'undefined');
@@ -28,83 +28,39 @@
         console.log('✅ Babel available:', typeof Babel !== 'undefined');
         console.log('✅ ethers available:', typeof ethers !== 'undefined');
 
-        
-        // Expose React hooks globally for dynamically-evaluated modules
+        // Expose React hooks globally for dynamically evaluated modules
         window.useState = React.useState;
         window.useEffect = React.useEffect;
         window.useCallback = React.useCallback;
         window.useMemo = React.useMemo;
         window.useRef = React.useRef;
         window.useContext = React.useContext;
-
-        
-        // Load modules in sequence
-        const modules = [
-            'contracts.js',
-            'utils.js',
-            'components/theme.js',
-            'components/toast.js',
-            'components/ui.js',
-            'components/app-component.js',
-            'components/header.js',
-            'components/welcome.js',
-            'components/navigation.js',
-            'components/notification.js',
-            'components/identity-tab.js',
-            'components/token-card.js',
-            'components/credentials-tab.js',
-            'components/access-control-tab.js',
-            'components/social-tab.js',
-            'components/reputation-section.js',
-            'components/projects-section.js',
-            'components/endorsements-section.js',
-            'components/analytics-tab.js',
-            'components/view-identities-tab.js',
-            'app.js'
-        ];
-        let loadedCount = 0;
-        
-        function loadModule(index) {
-            if (index >= modules.length) {
-                console.log('🎉 All modules loaded successfully!');
-                return;
-            }
-            
-            const module = modules[index];
-            console.log(`📦 Loading ${index + 1}/${modules.length}: ${module}...`);
-            
-            fetch(module)
-                .then(response => response.text())
-                .then(code => {
-                    console.log(`✨ Transforming ${module} with Babel...`);
-                    
-                    const transformed = Babel.transform(code, { 
-                        presets: ['react'],
-                        filename: module
-                    }).code;
-                    
-                    console.log(`✅ ${module} transformed (${transformed.length} chars)`);
-                    
-                    eval(transformed);
-                    loadedCount++;
-                    console.log(`✔️ ${module} executed successfully (${loadedCount}/${modules.length})`);
-                    
-                    // Load next module
-                    loadModule(index + 1);
-                })
-                .catch(error => {
-                    console.error(`❌ Error loading ${module}:`, error);
-                    document.body.innerHTML = `
-                        <div style="color: white; background: #1a2332; padding: 50px; font-family: Arial;">
-                            <h1 style="color: #ef4444;">Error loading ${module}</h1>
-                            <pre style="color: #a8b2c1; background: #0a0e1a; padding: 20px; border-radius: 8px; overflow-x: auto;">${error.message}\n\n${error.stack}</pre>
-                        </div>
-                    `;
-                });
-        }
-        
-        // Start loading from first module
-        loadModule(0);
     </script>
+
+    <!--
+      Use Babel script tags instead of fetch/eval so the app can be opened directly
+      without requiring a local HTTP server.
+    -->
+    <script type="text/babel" data-presets="react" src="contracts.js"></script>
+    <script type="text/babel" data-presets="react" src="utils.js"></script>
+    <script type="text/babel" data-presets="react" src="components/theme.js"></script>
+    <script type="text/babel" data-presets="react" src="components/toast.js"></script>
+    <script type="text/babel" data-presets="react" src="components/ui.js"></script>
+    <script type="text/babel" data-presets="react" src="components/app-component.js"></script>
+    <script type="text/babel" data-presets="react" src="components/header.js"></script>
+    <script type="text/babel" data-presets="react" src="components/welcome.js"></script>
+    <script type="text/babel" data-presets="react" src="components/navigation.js"></script>
+    <script type="text/babel" data-presets="react" src="components/notification.js"></script>
+    <script type="text/babel" data-presets="react" src="components/identity-tab.js"></script>
+    <script type="text/babel" data-presets="react" src="components/token-card.js"></script>
+    <script type="text/babel" data-presets="react" src="components/credentials-tab.js"></script>
+    <script type="text/babel" data-presets="react" src="components/access-control-tab.js"></script>
+    <script type="text/babel" data-presets="react" src="components/social-tab.js"></script>
+    <script type="text/babel" data-presets="react" src="components/reputation-section.js"></script>
+    <script type="text/babel" data-presets="react" src="components/projects-section.js"></script>
+    <script type="text/babel" data-presets="react" src="components/endorsements-section.js"></script>
+    <script type="text/babel" data-presets="react" src="components/analytics-tab.js"></script>
+    <script type="text/babel" data-presets="react" src="components/view-identities-tab.js"></script>
+    <script type="text/babel" data-presets="react" src="app.js"></script>
 </body>
 </html>
