@@ -2,7 +2,8 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
     // State management
     const [credentials, setCredentials] = useState([]);
     const [summary, setSummary] = useState(null);
-    const [loading, setLoading] = useState(false);
+    const [isFetching, setIsFetching] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
     const [showIssueModal, setShowIssueModal] = useState(false);
     const [selectedType, setSelectedType] = useState(0);
@@ -127,7 +128,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
     const loadCredentials = async () => {
         if (!selectedToken || !contracts) return;
 
-        setLoading(true);
+        setIsFetching(true);
         try {
             let creds;
 
@@ -162,7 +163,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
             console.error('Error loading credentials:', error);
             setCredentials([]);
         } finally {
-            setLoading(false);
+            setIsFetching(false);
         }
     };
 
@@ -200,7 +201,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 return;
             }
 
-            setLoading(true);
+             setIsSubmitting(true);
 
             const metadata = {
                 institution: credentialData.institution,
@@ -218,7 +219,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
 
             if (expiryDate !== 0 && expiryDate <= issueDate) {
                 showNotification('Expiry date must be after issue date!', 'error');
-                setLoading(false);
+                setIsSubmitting(false);
                 return;
             }
 
@@ -258,7 +259,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 showNotification(error.message || 'Failed to add credential', 'error');
             }
         } finally {
-            setLoading(false);
+            setIsSubmitting(false);
         }
     };
 
@@ -279,7 +280,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 return;
             }
 
-            setLoading(true);
+              setIsSubmitting(true);
 
             const metadata = {
                 institution: issueData.institution,
@@ -297,7 +298,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
 
             if (expiryDate !== 0 && expiryDate <= issueDate) {
                 showNotification('Expiry date must be after issue date!', 'error');
-                setLoading(false);
+                 setIsSubmitting(false);
                 return;
             }
 
@@ -338,7 +339,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 showNotification(error.message || 'Failed to issue credential', 'error');
             }
         } finally {
-            setLoading(false);
+             setIsSubmitting(false);
         }
     };
 
@@ -734,7 +735,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 )}
 
                 {/* Credentials list */}
-                {loading ? (
+                     {isFetching ? (
                     <LoadingSpinner />
                 ) : credentials.length === 0 ? (
                     <div className="empty-message" style={{ textAlign: 'center', padding: '40px' }}>
@@ -1090,15 +1091,15 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                         <Button
                             variant="secondary"
                             onClick={() => setShowAddModal(false)}
-                            disabled={loading}
+                              disabled={isSubmitting}
                         >
                             Cancel
                         </Button>
                         <Button
                             onClick={handleAddCredential}
-                            disabled={loading || (credentialCounts[parseInt(credentialData.credType)] || 0) >= MAX_CREDENTIALS_PER_TYPE}
+                                    disabled={isSubmitting || (credentialCounts[parseInt(credentialData.credType)] || 0) >= MAX_CREDENTIALS_PER_TYPE}
                         >
-                            {loading ? 'Adding...' : '➕ Add Credential'}
+                             {isSubmitting ? 'Adding...' : '➕ Add Credential'}
                         </Button>
                     </div>
                 </div>
@@ -1109,6 +1110,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 isOpen={showIssueModal}
                 onClose={() => setShowIssueModal(false)}
                 title="✅ Verify Credentials"
+                    >
                 <div>
                     {/* Show authorization status */}
                     {Object.values(issuerAuthStatus).some(v => v) ? (
@@ -1249,15 +1251,15 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                         <Button
                             variant="secondary"
                             onClick={() => setShowIssueModal(false)}
-                            disabled={loading}
+                            disabled={isSubmitting}
                         >
                             Cancel
                         </Button>
                         <Button
                             onClick={handleIssueCredential}
-                            disabled={loading || !issuerAuthStatus[parseInt(issueData.credType)]}
+                            disabled={isSubmitting || !issuerAuthStatus[parseInt(issueData.credType)]}
                         >
-                            {loading ? 'Issuing...' : '✅ Issue Credential'}
+                           {isSubmitting ? 'Issuing...' : '✅ Issue Credential'}
                         </Button>
                     </div>
                 </div>
