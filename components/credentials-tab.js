@@ -9,7 +9,14 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
     const [credentialCounts, setCredentialCounts] = useState({});
     const [validationStatus, setValidationStatus] = useState({});
     const [selectedSkillCategory, setSelectedSkillCategory] = useState(null);
-    const [validatingIds, setValidatingIds] = useState({}); // Track per-credential validate loading
+    const [validatingIds, setValidatingIds] = useState({});
+    const [showValidateModal, setShowValidateModal] = useState(false);
+
+    const getValidatedKey = () => `sbi_validated_${selectedToken}`;
+    const loadValidatedFromStorage = () => {
+        try { return new Set(JSON.parse(localStorage.getItem(getValidatedKey()) || '[]')); }
+        catch { return new Set(); }
+    };
 
     const [credentialData, setCredentialData] = useState({
         credType: '0',
@@ -97,19 +104,11 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 creds = creds.filter(c => c.category === selectedSkillCategory);
             }
 
-            // Check validation status — credentials start as invalid until validated on-chain
+            // Credentials start as invalid until explicitly validated by the user
+            const validated = loadValidatedFromStorage();
             const validationStatuses = {};
             for (const cred of creds) {
-                try {
-                    const isValid = await contracts.credentials.isCredentialValid(
-                        selectedToken,
-                        cred.credentialId
-                    );
-                    // Explicitly cast to boolean; unvalidated credentials return false by default
-                    validationStatuses[cred.credentialId.toString()] = Boolean(isValid);
-                } catch (err) {
-                    validationStatuses[cred.credentialId.toString()] = false;
-                }
+                validationStatuses[cred.credentialId.toString()] = validated.has(cred.credentialId.toString());
             }
 
             setValidationStatus(validationStatuses);
@@ -144,11 +143,13 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
         const idKey = credentialId.toString();
         try {
             setValidatingIds(prev => ({ ...prev, [idKey]: true }));
-            const tx = await contracts.credentials.validateCredential(selectedToken, credentialId);
-            showNotification('Submitting validation to network...', 'info');
+            const tx = await contracts.credentials.updateCredentialStatus(selectedToken, credentialId);
+            showNotification('Validating credential on network...', 'info');
             await tx.wait();
             showNotification('✅ Credential validated successfully!', 'success');
-            // Update local validation status immediately
+            const validated = loadValidatedFromStorage();
+            validated.add(idKey);
+            localStorage.setItem(getValidatedKey(), JSON.stringify([...validated]));
             setValidationStatus(prev => ({ ...prev, [idKey]: true }));
         } catch (error) {
             console.error('Error validating credential:', error);
@@ -290,12 +291,24 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                     <Button onClick={() => setShowAddModal(true)} variant="secondary">
                         ➕ Add Credential
                     </Button>
+                    {(() => {
+                        const invalidCount = Object.values(validationStatus).filter(v => v === false).length;
+                        return invalidCount > 0 ? (
+                            <Button
+                                onClick={() => setShowValidateModal(true)}
+                                variant="secondary"
+                                style={{ background: 'rgba(239, 68, 68, 0.1)', borderColor: 'var(--error)', color: 'var(--error)' }}
+                            >
+                                🔍 Validate Credentials ({invalidCount})
+                            </Button>
+                        ) : null;
+                    })()}
                 </div>
             </div>
 
             {/* Credential Counts Dashboard */}
             {summary && (
-                <Card style={{ marginBottom: '24px' }}>
+                <Card style={{ marginBottom: '24px', marginTop: '32px' }}>
                     <h3 style={{ marginBottom: '16px', color: 'var(--teal-light)' }}>
                         📊 Credential Summary
                     </h3>
@@ -342,13 +355,6 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                                         color: isNearLimit ? 'var(--warning)' : 'var(--teal-light)'
                                     }}>
                                         {count}
-                                        <span style={{
-                                            fontSize: '0.8rem',
-                                            color: 'var(--text-muted)',
-                                            marginLeft: '4px'
-                                        }}>
-                                            /{MAX_CREDENTIALS_PER_TYPE}
-                                        </span>
                                     </div>
                                     <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
                                         {credentialTypes[type]}
@@ -825,6 +831,61 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                     </div>
                 )}
             </Card>
+
+            {/* Validate Credentials Modal */}
+            <Modal
+                isOpen={showValidateModal}
+                onClose={() => setShowValidateModal(false)}
+                title="🔍 Validate Credentials"
+            >
+                <div>
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '0.95rem' }}>
+                        Newly added credentials start as invalid. Select one below to validate it on-chain.
+                    </p>
+                    {credentials.filter(c => validationStatus[c.credentialId.toString()] === false).length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-secondary)' }}>
+                            <p>No invalid credentials in the current view.</p>
+                            <p style={{ fontSize: '0.85rem', marginTop: '8px' }}>Switch credential type using the filters to find others.</p>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            {credentials.filter(c => validationStatus[c.credentialId.toString()] === false).map((cred, idx) => (
+                                <div key={idx} style={{
+                                    background: 'var(--bg-tertiary)',
+                                    padding: '16px',
+                                    borderRadius: '10px',
+                                    borderLeft: '4px solid var(--error)',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    gap: '12px'
+                                }}>
+                                    <div>
+                                        <div style={{ fontWeight: '600', color: 'var(--teal-light)', marginBottom: '4px' }}>
+                                            {credentialTypes[cred.credType]}
+                                        </div>
+                                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                            ID: {cred.credentialId.toString()} &bull; {cred.verified ? '✅ Verified' : '⚠️ Self-Reported'}
+                                        </div>
+                                    </div>
+                                    <Button
+                                        onClick={() => handleValidateCredential(cred.credentialId)}
+                                        disabled={validatingIds[cred.credentialId.toString()]}
+                                        style={{ fontSize: '0.85rem', padding: '8px 16px', minWidth: '110px' }}
+                                    >
+                                        {validatingIds[cred.credentialId.toString()] ? '⏳ Validating...' : '🔍 Validate'}
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
+                        <Button variant="secondary" onClick={() => setShowValidateModal(false)}>
+                            Close
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
 
             {/* Add Self-Reported Modal */}
             <Modal
