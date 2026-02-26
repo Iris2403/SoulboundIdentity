@@ -4,17 +4,57 @@ ViewIdentitiesTab = function ({ contracts, account, showNotification }) {
     const [tokenData, setTokenData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [hasAccess, setHasAccess] = useState(false);
+    const [addressTokens, setAddressTokens] = useState([]); // multiple tokens found by address
+
+    const isEthAddress = (input) => /^0x[0-9a-fA-F]{40}$/.test(input.trim());
 
     const handleViewToken = async () => {
         if (!viewTokenId || !contracts) {
-            showNotification('Please enter a token ID', 'warning');
+            showNotification('Please enter a token ID or wallet address', 'warning');
             return;
         }
 
+        const trimmed = viewTokenId.trim();
+
+        // Address search: find all tokens owned by that address
+        if (isEthAddress(trimmed)) {
+            setLoading(true);
+            setAddressTokens([]);
+            setTokenData(null);
+            try {
+                const tokens = await contracts.soulbound.tokensOfOwner(trimmed);
+                if (tokens.length === 0) {
+                    showNotification('No tokens found for this address', 'warning');
+                    return;
+                }
+                if (tokens.length === 1) {
+                    await loadTokenById(tokens[0].toNumber());
+                    return;
+                }
+                // Multiple tokens — let user pick
+                setAddressTokens(tokens.map(t => t.toNumber()));
+                showNotification(`Found ${tokens.length} tokens for this address. Select one below.`, 'info');
+            } catch (error) {
+                console.error('Error fetching tokens by address:', error);
+                showNotification(error.message || 'Failed to fetch tokens for address', 'error');
+            } finally {
+                setLoading(false);
+            }
+            return;
+        }
+
+        // Token ID search
+        const tokenIdNumber = parseInt(trimmed);
+        if (isNaN(tokenIdNumber)) {
+            showNotification('Please enter a valid token number or Ethereum address (0x...)', 'warning');
+            return;
+        }
+        await loadTokenById(tokenIdNumber);
+    };
+
+    const loadTokenById = async (tokenIdNumber) => {
         setLoading(true);
         try {
-            const tokenIdNumber = parseInt(viewTokenId);
-
             console.log('🔍 Checking access to token:', tokenIdNumber);
 
             // Check if token exists
@@ -143,17 +183,17 @@ ViewIdentitiesTab = function ({ contracts, account, showNotification }) {
 
             <Card>
                 <div style={{ marginBottom: '24px' }}>
-                    <h3 style={{ marginBottom: '16px' }}>Enter Token ID</h3>
+                    <h3 style={{ marginBottom: '16px' }}>Search Identity</h3>
                     <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.95rem' }}>
-                        View the identity and credentials of tokens you have access to
+                        Search by token number or wallet address to view an identity you have access to
                     </p>
                     <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
                         <Input
-                            label="Token ID"
+                            label="Token Number or Wallet Address"
                             value={viewTokenId}
-                            onChange={setViewTokenId}
-                            type="number"
-                            placeholder="Enter token ID (e.g., 1, 2, 3...)"
+                            onChange={(val) => { setViewTokenId(val); setAddressTokens([]); setTokenData(null); }}
+                            type="text"
+                            placeholder="Token number (e.g. 1) or address (0x...)"
                         />
                         <Button
                             onClick={handleViewToken}
@@ -163,6 +203,27 @@ ViewIdentitiesTab = function ({ contracts, account, showNotification }) {
                             {loading ? 'Loading...' : '🔍 View'}
                         </Button>
                     </div>
+
+                    {/* Token picker when address resolves to multiple tokens */}
+                    {addressTokens.length > 1 && (
+                        <div style={{ marginTop: '20px' }}>
+                            <p style={{ color: 'var(--text-secondary)', marginBottom: '12px', fontSize: '0.9rem' }}>
+                                Multiple tokens found for this address. Select one to view:
+                            </p>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                                {addressTokens.map(tid => (
+                                    <Button
+                                        key={tid}
+                                        variant="secondary"
+                                        onClick={() => { setAddressTokens([]); loadTokenById(tid); }}
+                                        style={{ padding: '8px 20px' }}
+                                    >
+                                        Token #{tid}
+                                    </Button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {loading && <LoadingSpinner />}
@@ -384,10 +445,10 @@ ViewIdentitiesTab = function ({ contracts, account, showNotification }) {
                     </div>
                 )}
 
-                {!loading && !tokenData && (
+                {!loading && !tokenData && addressTokens.length === 0 && (
                     <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
                         <div style={{ fontSize: '4rem', marginBottom: '16px' }}>🔍</div>
-                        <p>Enter a token ID above to view its identity and credentials</p>
+                        <p>Enter a token number or wallet address above to view its identity and credentials</p>
                     </div>
                 )}
             </Card>
