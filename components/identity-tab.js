@@ -5,10 +5,14 @@ IdentityTab = function ({ contracts, account, userTokens, selectedToken, setSele
         name: '',
         bio: '',
         profileImage: '',
-        burnAuth: '0'
+        burnAuth: '1'
     });
 
     const handleMint = async () => {
+        if (userTokens.length > 0) {
+            showNotification('You already have an identity token. Only one token per address is allowed.', 'error');
+            return;
+        }
         try {
             setMinting(true);
 
@@ -37,7 +41,7 @@ IdentityTab = function ({ contracts, account, userTokens, selectedToken, setSele
             showNotification('Identity token minted successfully!', 'success');
 
             setShowMintModal(false);
-            setMintData({ name: '', bio: '', profileImage: '', burnAuth: '0' });
+            setMintData({ name: '', bio: '', profileImage: '', burnAuth: '1' });
             onTokenCreated();
         } catch (error) {
             console.error('Error minting token:', error);
@@ -69,10 +73,12 @@ IdentityTab = function ({ contracts, account, userTokens, selectedToken, setSele
                         )}
                     </p>
                 </div>
-                <Button onClick={() => setShowMintModal(true)}>
-                    <span style={{ marginRight: '8px' }}>+</span>
-                    Mint New Token
-                </Button>
+                {userTokens.length === 0 && (
+                    <Button onClick={() => setShowMintModal(true)}>
+                        <span style={{ marginRight: '8px' }}>+</span>
+                        Mint Identity Token
+                    </Button>
+                )}
             </div>
 
             {userTokens.length === 0 ? (
@@ -126,14 +132,12 @@ IdentityTab = function ({ contracts, account, userTokens, selectedToken, setSele
                     />
 
                     <Select
-                        label="Burn Authorization"
+                        label="Token Invalidation"
                         value={mintData.burnAuth}
                         onChange={(val) => setMintData({ ...mintData, burnAuth: val })}
                         options={[
-                            { value: '0', label: 'Neither (Permanent)' },
-                            { value: '1', label: 'Owner Only' },
-                            { value: '2', label: 'Issuer Only' },
-                            { value: '3', label: 'Both' }
+                            { value: '1', label: 'Owner can invalidate' },
+                            { value: '0', label: 'Permanent (cannot be invalidated)' }
                         ]}
                         required
                     />
