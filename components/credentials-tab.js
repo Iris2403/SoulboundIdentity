@@ -9,8 +9,14 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
     const [credentialCounts, setCredentialCounts] = useState({});
     const [validationStatus, setValidationStatus] = useState({});
     const [selectedSkillCategory, setSelectedSkillCategory] = useState(null);
-    const [validatingIds, setValidatingIds] = useState({}); // Track per-credential validate loading
+    const [validatingIds, setValidatingIds] = useState({});
     const [showValidateModal, setShowValidateModal] = useState(false);
+
+    const getValidatedKey = () => `sbi_validated_${selectedToken}`;
+    const loadValidatedFromStorage = () => {
+        try { return new Set(JSON.parse(localStorage.getItem(getValidatedKey()) || '[]')); }
+        catch { return new Set(); }
+    };
 
     const [credentialData, setCredentialData] = useState({
         credType: '0',
@@ -98,19 +104,11 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 creds = creds.filter(c => c.category === selectedSkillCategory);
             }
 
-            // Check validation status — credentials start as invalid until validated on-chain
+            // Credentials start as invalid until explicitly validated by the user
+            const validated = loadValidatedFromStorage();
             const validationStatuses = {};
             for (const cred of creds) {
-                try {
-                    const isValid = await contracts.credentials.isCredentialValid(
-                        selectedToken,
-                        cred.credentialId
-                    );
-                    // Explicitly cast to boolean; unvalidated credentials return false by default
-                    validationStatuses[cred.credentialId.toString()] = Boolean(isValid);
-                } catch (err) {
-                    validationStatuses[cred.credentialId.toString()] = false;
-                }
+                validationStatuses[cred.credentialId.toString()] = validated.has(cred.credentialId.toString());
             }
 
             setValidationStatus(validationStatuses);
@@ -146,10 +144,12 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
         try {
             setValidatingIds(prev => ({ ...prev, [idKey]: true }));
             const tx = await contracts.credentials.updateCredentialStatus(selectedToken, credentialId);
-            showNotification('Submitting validation to network...', 'info');
+            showNotification('Validating credential on network...', 'info');
             await tx.wait();
             showNotification('✅ Credential validated successfully!', 'success');
-            // Update local validation status immediately
+            const validated = loadValidatedFromStorage();
+            validated.add(idKey);
+            localStorage.setItem(getValidatedKey(), JSON.stringify([...validated]));
             setValidationStatus(prev => ({ ...prev, [idKey]: true }));
         } catch (error) {
             console.error('Error validating credential:', error);
@@ -308,7 +308,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
 
             {/* Credential Counts Dashboard */}
             {summary && (
-                <Card style={{ marginBottom: '24px' }}>
+                <Card style={{ marginBottom: '24px', marginTop: '32px' }}>
                     <h3 style={{ marginBottom: '16px', color: 'var(--teal-light)' }}>
                         📊 Credential Summary
                     </h3>
@@ -355,13 +355,6 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                                         color: isNearLimit ? 'var(--warning)' : 'var(--teal-light)'
                                     }}>
                                         {count}
-                                        <span style={{
-                                            fontSize: '0.8rem',
-                                            color: 'var(--text-muted)',
-                                            marginLeft: '4px'
-                                        }}>
-                                            /{MAX_CREDENTIALS_PER_TYPE}
-                                        </span>
                                     </div>
                                     <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
                                         {credentialTypes[type]}
@@ -847,12 +840,12 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
             >
                 <div>
                     <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '0.95rem' }}>
-                        Select an invalid credential to validate its status on-chain. Newly added credentials start as invalid until validated.
+                        Newly added credentials start as invalid. Select one below to validate it on-chain.
                     </p>
                     {credentials.filter(c => validationStatus[c.credentialId.toString()] === false).length === 0 ? (
                         <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-secondary)' }}>
-                            <p>No invalid credentials found in the current view.</p>
-                            <p style={{ fontSize: '0.85rem', marginTop: '8px' }}>Switch credential types using the filters above to find others.</p>
+                            <p>No invalid credentials in the current view.</p>
+                            <p style={{ fontSize: '0.85rem', marginTop: '8px' }}>Switch credential type using the filters to find others.</p>
                         </div>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
