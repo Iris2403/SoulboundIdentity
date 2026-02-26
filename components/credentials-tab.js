@@ -2,8 +2,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
     // State management
     const [credentials, setCredentials] = useState([]);
     const [summary, setSummary] = useState(null);
-    const [isFetching, setIsFetching] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [loading, setLoading] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
     const [showIssueModal, setShowIssueModal] = useState(false);
     const [selectedType, setSelectedType] = useState(0);
@@ -128,7 +127,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
     const loadCredentials = async () => {
         if (!selectedToken || !contracts) return;
 
-        setIsFetching(true);
+        setLoading(true);
         try {
             let creds;
 
@@ -163,7 +162,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
             console.error('Error loading credentials:', error);
             setCredentials([]);
         } finally {
-            setIsFetching(false);
+            setLoading(false);
         }
     };
 
@@ -201,7 +200,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 return;
             }
 
-             setIsSubmitting(true);
+            setLoading(true);
 
             const metadata = {
                 institution: credentialData.institution,
@@ -219,7 +218,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
 
             if (expiryDate !== 0 && expiryDate <= issueDate) {
                 showNotification('Expiry date must be after issue date!', 'error');
-                setIsSubmitting(false);
+                setLoading(false);
                 return;
             }
 
@@ -259,7 +258,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 showNotification(error.message || 'Failed to add credential', 'error');
             }
         } finally {
-            setIsSubmitting(false);
+            setLoading(false);
         }
     };
 
@@ -280,7 +279,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 return;
             }
 
-              setIsSubmitting(true);
+            setLoading(true);
 
             const metadata = {
                 institution: issueData.institution,
@@ -298,7 +297,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
 
             if (expiryDate !== 0 && expiryDate <= issueDate) {
                 showNotification('Expiry date must be after issue date!', 'error');
-                 setIsSubmitting(false);
+                setLoading(false);
                 return;
             }
 
@@ -339,7 +338,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 showNotification(error.message || 'Failed to issue credential', 'error');
             }
         } finally {
-             setIsSubmitting(false);
+            setLoading(false);
         }
     };
 
@@ -394,7 +393,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 </div>
                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                     <Button onClick={() => setShowAddModal(true)} variant="secondary">
-                                    ➕ Add Credential
+                        ➕ Add Self-Reported
                     </Button>
                     <Button
                         onClick={() => setShowIssueModal(true)}
@@ -406,7 +405,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                             'You are authorized to issue credentials' :
                             'You are not an authorized issuer'}
                     >
-                                ✅ Verify Credentials
+                        ✅ Issue Verified
                         {Object.values(issuerAuthStatus).some(v => v) && (
                             <span style={{
                                 position: 'absolute',
@@ -735,7 +734,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 )}
 
                 {/* Credentials list */}
-                     {isFetching ? (
+                {loading ? (
                     <LoadingSpinner />
                 ) : credentials.length === 0 ? (
                     <div className="empty-message" style={{ textAlign: 'center', padding: '40px' }}>
@@ -802,7 +801,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                                             gap: '8px',
                                             flexWrap: 'wrap'
                                         }}>
-                                                          {/* Verification badge */}
+                                            {/* Verified badge with issuer authorization status */}
                                             <span style={{
                                                 padding: '4px 12px',
                                                 borderRadius: '12px',
@@ -818,10 +817,9 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                                             }}
                                                 title={cred.verified && issuerIsAuth ?
                                                     'Issued by authorized institution' :
-                                                        (cred.verified ? 'Verified credential' : 'Added credential awaiting network verification')}
+                                                    (cred.verified ? 'Verified credential' : 'Self-reported, unverified')}
                                             >
-                                                {cred.verified ? '✅ Verified' : '⏳ Verification Pending'}
-                             
+                                                {cred.verified ? '✅ Verified' : '⚠️ Self-Reported'}
                                                 {cred.verified && issuerIsAuth && (
                                                     <span style={{ fontSize: '0.7rem' }}>🏛️</span>
                                                 )}
@@ -980,11 +978,11 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 )}
             </Card>
 
-                       {/* Add Credential Modal */}
+            {/* Add Self-Reported Modal */}
             <Modal
                 isOpen={showAddModal}
                 onClose={() => setShowAddModal(false)}
-                title="➕ Add Credential"
+                title="➕ Add Self-Reported Credential"
             >
                 <div>
                     <div style={{
@@ -999,7 +997,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                             color: 'var(--warning)',
                             margin: 0
                         }}>
-                            ⚠️ Added credentials are marked as unverified. Request verification from authorized issuers.
+                            ⚠️ Self-reported credentials are marked as unverified. Request verification from authorized issuers.
                         </p>
                     </div>
 
@@ -1091,26 +1089,26 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                         <Button
                             variant="secondary"
                             onClick={() => setShowAddModal(false)}
-                              disabled={isSubmitting}
+                            disabled={loading}
                         >
                             Cancel
                         </Button>
                         <Button
                             onClick={handleAddCredential}
-                                    disabled={isSubmitting || (credentialCounts[parseInt(credentialData.credType)] || 0) >= MAX_CREDENTIALS_PER_TYPE}
+                            disabled={loading || (credentialCounts[parseInt(credentialData.credType)] || 0) >= MAX_CREDENTIALS_PER_TYPE}
                         >
-                             {isSubmitting ? 'Adding...' : '➕ Add Credential'}
+                            {loading ? 'Adding...' : '➕ Add Credential'}
                         </Button>
                     </div>
                 </div>
             </Modal>
 
-             {/* Verify Credentials Modal */}
+            {/* Issue Verified Credential Modal */}
             <Modal
                 isOpen={showIssueModal}
                 onClose={() => setShowIssueModal(false)}
-                title="✅ Verify Credentials"
-                    >
+                title="✅ Issue Verified Credential"
+            >
                 <div>
                     {/* Show authorization status */}
                     {Object.values(issuerAuthStatus).some(v => v) ? (
@@ -1251,15 +1249,15 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                         <Button
                             variant="secondary"
                             onClick={() => setShowIssueModal(false)}
-                            disabled={isSubmitting}
+                            disabled={loading}
                         >
                             Cancel
                         </Button>
                         <Button
                             onClick={handleIssueCredential}
-                            disabled={isSubmitting || !issuerAuthStatus[parseInt(issueData.credType)]}
+                            disabled={loading || !issuerAuthStatus[parseInt(issueData.credType)]}
                         >
-                           {isSubmitting ? 'Issuing...' : '✅ Issue Credential'}
+                            {loading ? 'Issuing...' : '✅ Issue Credential'}
                         </Button>
                     </div>
                 </div>
