@@ -27,6 +27,16 @@
         console.log('✅ ReactDOM available:', typeof ReactDOM !== 'undefined');
         console.log('✅ Babel available:', typeof Babel !== 'undefined');
         console.log('✅ ethers available:', typeof ethers !== 'undefined');
+
+        
+        // Expose React hooks globally for dynamically-evaluated modules
+        window.useState = React.useState;
+        window.useEffect = React.useEffect;
+        window.useCallback = React.useCallback;
+        window.useMemo = React.useMemo;
+        window.useRef = React.useRef;
+        window.useContext = React.useContext;
+
         
         // Load modules in sequence
         const modules = [
