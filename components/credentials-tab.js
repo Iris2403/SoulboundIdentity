@@ -233,7 +233,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
 
             showNotification('Transaction submitted...', 'info');
             await tx.wait();
-            showNotification('Self-reported credential added! (Unverified)', 'success');
+            showNotification('Credential added successfully!', 'success');
 
             setShowAddModal(false);
             setCredentialData({
@@ -393,7 +393,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 </div>
                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                     <Button onClick={() => setShowAddModal(true)} variant="secondary">
-                        ➕ Add Self-Reported
+                        ➕ Add Credential
                     </Button>
                     <Button
                         onClick={() => setShowIssueModal(true)}
@@ -807,10 +807,13 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                                                 borderRadius: '12px',
                                                 fontSize: '0.8rem',
                                                 fontWeight: '600',
-                                                background: cred.verified ?
-                                                    'rgba(16, 185, 129, 0.2)' :
-                                                    'rgba(245, 158, 11, 0.2)',
-                                                color: cred.verified ? 'var(--success)' : 'var(--warning)',
+                                                background: cred.verified
+                                                    ? 'rgba(16, 185, 129, 0.2)'
+                                                    : 'rgba(59, 130, 246, 0.15)',
+
+                                                color: cred.verified
+                                                    ? 'var(--success)'
+                                                    : '#3b82f6',
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 gap: '4px'
@@ -982,7 +985,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
             <Modal
                 isOpen={showAddModal}
                 onClose={() => setShowAddModal(false)}
-                title="➕ Add Self-Reported Credential"
+                title="➕ Add Credential"
             >
                 <div>
                     <div style={{
@@ -997,7 +1000,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                             color: 'var(--warning)',
                             margin: 0
                         }}>
-                            ⚠️ Self-reported credentials are marked as unverified. Request verification from authorized issuers.
+
                         </p>
                     </div>
 
