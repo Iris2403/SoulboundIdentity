@@ -393,7 +393,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 </div>
                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                     <Button onClick={() => setShowAddModal(true)} variant="secondary">
-                        ➕ Add Self-Reported
+                                    ➕ Add Credential
                     </Button>
                     <Button
                         onClick={() => setShowIssueModal(true)}
@@ -405,7 +405,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                             'You are authorized to issue credentials' :
                             'You are not an authorized issuer'}
                     >
-                        ✅ Issue Verified
+                                ✅ Verify Credentials
                         {Object.values(issuerAuthStatus).some(v => v) && (
                             <span style={{
                                 position: 'absolute',
@@ -801,7 +801,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                                             gap: '8px',
                                             flexWrap: 'wrap'
                                         }}>
-                                            {/* Verified badge with issuer authorization status */}
+                                                          {/* Verification badge */}
                                             <span style={{
                                                 padding: '4px 12px',
                                                 borderRadius: '12px',
@@ -817,9 +817,10 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                                             }}
                                                 title={cred.verified && issuerIsAuth ?
                                                     'Issued by authorized institution' :
-                                                    (cred.verified ? 'Verified credential' : 'Self-reported, unverified')}
+                                                        (cred.verified ? 'Verified credential' : 'Added credential awaiting network verification')}
                                             >
-                                                {cred.verified ? '✅ Verified' : '⚠️ Self-Reported'}
+                                                {cred.verified ? '✅ Verified' : '⏳ Verification Pending'}
+                             
                                                 {cred.verified && issuerIsAuth && (
                                                     <span style={{ fontSize: '0.7rem' }}>🏛️</span>
                                                 )}
@@ -978,11 +979,11 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 )}
             </Card>
 
-            {/* Add Self-Reported Modal */}
+                       {/* Add Credential Modal */}
             <Modal
                 isOpen={showAddModal}
                 onClose={() => setShowAddModal(false)}
-                title="➕ Add Self-Reported Credential"
+                title="➕ Add Credential"
             >
                 <div>
                     <div style={{
@@ -997,7 +998,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                             color: 'var(--warning)',
                             margin: 0
                         }}>
-                            ⚠️ Self-reported credentials are marked as unverified. Request verification from authorized issuers.
+                            ⚠️ Added credentials are marked as unverified. Request verification from authorized issuers.
                         </p>
                     </div>
 
@@ -1103,12 +1104,11 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 </div>
             </Modal>
 
-            {/* Issue Verified Credential Modal */}
+             {/* Verify Credentials Modal */}
             <Modal
                 isOpen={showIssueModal}
                 onClose={() => setShowIssueModal(false)}
-                title="✅ Issue Verified Credential"
-            >
+                title="✅ Verify Credentials"
                 <div>
                     {/* Show authorization status */}
                     {Object.values(issuerAuthStatus).some(v => v) ? (
