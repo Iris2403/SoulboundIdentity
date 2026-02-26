@@ -1,16 +1,29 @@
-CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotification }) {
+CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotification, account }) {
     // State management
     const [credentials, setCredentials] = useState([]);
     const [summary, setSummary] = useState(null);
     const [loading, setLoading] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
+    const [showIssueModal, setShowIssueModal] = useState(false);
     const [selectedType, setSelectedType] = useState(0);
     const [showActiveOnly, setShowActiveOnly] = useState(false);
     const [credentialCounts, setCredentialCounts] = useState({});
     const [validationStatus, setValidationStatus] = useState({});
     const [selectedSkillCategory, setSelectedSkillCategory] = useState(null); // For skill filtering
+    const [issuerAuthStatus, setIssuerAuthStatus] = useState({}); // Track authorized issuers
 
     const [credentialData, setCredentialData] = useState({
+        credType: '0',
+        institution: '',
+        title: '',
+        description: '',
+        issueDate: '',
+        expiryDate: '',
+        category: '0'
+    });
+
+    const [issueData, setIssueData] = useState({
+        targetTokenId: selectedToken || '',
         credType: '0',
         institution: '',
         title: '',
@@ -31,6 +44,13 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
             loadCredentialCounts();
         }
     }, [selectedToken, contracts, selectedType, showActiveOnly, selectedSkillCategory]);
+
+    // Check if current account is authorized issuer
+    useEffect(() => {
+        if (contracts && account) {
+            checkIssuerAuthorization();
+        }
+    }, [contracts, account]);
 
     // Helper function to get credential status info
     const getCredentialStatusInfo = (status) => {
@@ -55,6 +75,31 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
         return categoryMap[category] || categoryMap[5];
     };
 
+    // Check issuer authorization for all credential types
+    const checkIssuerAuthorization = async () => {
+        if (!contracts || !account) return;
+
+        try {
+            const authStatus = {};
+            for (let i = 0; i < credentialTypes.length; i++) {
+                const isAuthorized = await contracts.credentials.authorizedIssuers(i, account);
+                authStatus[i] = isAuthorized;
+            }
+            setIssuerAuthStatus(authStatus);
+        } catch (error) {
+            console.error('Error checking issuer authorization:', error);
+        }
+    };
+
+    // Check if specific credential's issuer is authorized
+    const checkCredentialIssuerAuth = async (credType, issuer) => {
+        try {
+            const isAuth = await contracts.credentials.authorizedIssuers(credType, issuer);
+            return isAuth;
+        } catch (error) {
+            return false;
+        }
+    };
 
     // Load credential counts per type
     const loadCredentialCounts = async () => {
@@ -97,7 +142,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 creds = creds.filter(c => c.category === selectedSkillCategory);
             }
 
-            // Validate each credential
+            // Validate each credential and check issuer authorization
             const validationStatuses = {};
             for (const cred of creds) {
                 try {
@@ -217,6 +262,86 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
         }
     };
 
+    // Issue verified credential with authorization check
+    const handleIssueCredential = async () => {
+        try {
+            console.log('✅ Issuing verified credential...', issueData);
+
+            if (!issueData.institution || !issueData.title || !issueData.targetTokenId) {
+                showNotification('Please fill in all required fields', 'error');
+                return;
+            }
+
+            // Check if authorized
+            const isAuthorized = issuerAuthStatus[parseInt(issueData.credType)];
+            if (!isAuthorized) {
+                showNotification(`❌ You are not authorized to issue ${credentialTypes[parseInt(issueData.credType)]} credentials`, 'error');
+                return;
+            }
+
+            setLoading(true);
+
+            const metadata = {
+                institution: issueData.institution,
+                title: issueData.title,
+                description: issueData.description,
+                issuedBy: 'Authorized Issuer'
+            };
+
+            const metadataHash = ethers.utils.id(JSON.stringify(metadata));
+            const issueDate = issueData.issueDate ?
+                Math.floor(new Date(issueData.issueDate).getTime() / 1000) :
+                Math.floor(Date.now() / 1000);
+            const expiryDate = issueData.expiryDate ?
+                Math.floor(new Date(issueData.expiryDate).getTime() / 1000) : 0;
+
+            if (expiryDate !== 0 && expiryDate <= issueDate) {
+                showNotification('Expiry date must be after issue date!', 'error');
+                setLoading(false);
+                return;
+            }
+
+            const tx = await contracts.credentials.issueCredential(
+                parseInt(issueData.targetTokenId),
+                parseInt(issueData.credType),
+                metadataHash,
+                issueDate,
+                expiryDate,
+                parseInt(issueData.category)
+            );
+
+            showNotification('Issuing verified credential...', 'info');
+            await tx.wait();
+            showNotification('✅ Verified credential issued successfully!', 'success');
+
+            setShowIssueModal(false);
+            setIssueData({
+                targetTokenId: selectedToken || '',
+                credType: '0',
+                institution: '',
+                title: '',
+                description: '',
+                issueDate: '',
+                expiryDate: '',
+                category: '0'
+            });
+
+            loadCredentials();
+            loadSummary();
+            loadCredentialCounts();
+        } catch (error) {
+            console.error('❌ Error issuing credential:', error);
+
+            if (error.message.includes('NotAuthorizedIssuer')) {
+                showNotification('❌ You are not authorized to issue this credential type', 'error');
+            } else {
+                showNotification(error.message || 'Failed to issue credential', 'error');
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleUpdateStatus = async (credentialId) => {
         try {
             const tx = await contracts.credentials.updateCredentialStatus(selectedToken, credentialId);
@@ -270,8 +395,62 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                     <Button onClick={() => setShowAddModal(true)} variant="secondary">
                         ➕ Add Credential
                     </Button>
+                    <Button
+                        onClick={() => setShowIssueModal(true)}
+                        style={{
+                            opacity: Object.values(issuerAuthStatus).some(v => v) ? 1 : 0.6,
+                            position: 'relative'
+                        }}
+                        title={Object.values(issuerAuthStatus).some(v => v) ?
+                            'You are authorized to issue credentials' :
+                            'You are not an authorized issuer'}
+                    >
+                        ✅ Issue Verified
+                        {Object.values(issuerAuthStatus).some(v => v) && (
+                            <span style={{
+                                position: 'absolute',
+                                top: '-8px',
+                                right: '-8px',
+                                width: '12px',
+                                height: '12px',
+                                background: 'var(--success)',
+                                borderRadius: '50%',
+                                border: '2px solid var(--bg-primary)',
+                                animation: 'pulse 2s infinite'
+                            }}></span>
+                        )}
+                    </Button>
                 </div>
             </div>
+
+            {/* Authorization Status Banner */}
+            {Object.keys(issuerAuthStatus).length > 0 && Object.values(issuerAuthStatus).some(v => v) && (
+                <div style={{
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    marginBottom: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
+                }}>
+                    <span style={{ fontSize: '1.5rem' }}>✅</span>
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: '600', color: 'var(--success)', marginBottom: '4px' }}>
+                            You are an Authorized Issuer
+                        </div>
+                        <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                            You can issue verified credentials for: {
+                                Object.entries(issuerAuthStatus)
+                                    .filter(([_, isAuth]) => isAuth)
+                                    .map(([type, _]) => credentialTypes[type])
+                                    .join(', ')
+                            }
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Credential Counts Dashboard */}
             {summary && (
@@ -574,6 +753,10 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                             const isExpired = cred.expiryDate > 0 &&
                                 Math.floor(Date.now() / 1000) >= cred.expiryDate.toNumber();
 
+                            // NOTE: Issuer auth checking is done during checkIssuerAuthorization
+                            // We can check from issuerAuthStatus if current account is authorized for this type
+                            const issuerIsAuth = cred.verified && issuerAuthStatus[cred.credType];
+
                             const catInfo = selectedType === 4 ? getSkillCategoryInfo(cred.category) : null;
 
                             return (
@@ -618,7 +801,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                                             gap: '8px',
                                             flexWrap: 'wrap'
                                         }}>
-                                            {/* Verification badge */}
+                                            {/* Verified badge with issuer authorization status */}
                                             <span style={{
                                                 padding: '4px 12px',
                                                 borderRadius: '12px',
@@ -635,9 +818,14 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                                                 alignItems: 'center',
                                                 gap: '4px'
                                             }}
-                                                title={cred.verified ? 'Verified credential' : 'Self-reported, unverified'}
+                                                title={cred.verified && issuerIsAuth ?
+                                                    'Issued by authorized institution' :
+                                                    (cred.verified ? 'Verified credential' : 'Self-reported, unverified')}
                                             >
                                                 {cred.verified ? '✅ Verified' : '⚠️ Self-Reported'}
+                                                {cred.verified && issuerIsAuth && (
+                                                    <span style={{ fontSize: '0.7rem' }}>🏛️</span>
+                                                )}
                                             </span>
 
                                             {/* Status badge */}
@@ -702,11 +890,11 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                                                 color: 'var(--text-muted)',
                                                 marginBottom: '4px'
                                             }}>
-                                                Issuer
+                                                Issuer {cred.verified && issuerIsAuth ? '(Authorized)' : ''}
                                             </div>
                                             <code style={{
                                                 fontSize: '0.85rem',
-                                                color: 'var(--teal-light)'
+                                                color: cred.verified && issuerIsAuth ? 'var(--success)' : 'var(--teal-light)'
                                             }}>
                                                 {shortenAddress(cred.issuer)}
                                             </code>
@@ -800,6 +988,22 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 title="➕ Add Credential"
             >
                 <div>
+                    <div style={{
+                        background: 'rgba(245, 158, 11, 0.1)',
+                        padding: '12px',
+                        borderRadius: '8px',
+                        marginBottom: '20px',
+                        border: '1px solid rgba(245, 158, 11, 0.3)'
+                    }}>
+                        <p style={{
+                            fontSize: '0.9rem',
+                            color: 'var(--warning)',
+                            margin: 0
+                        }}>
+
+                        </p>
+                    </div>
+
                     {/* Limit warning in modal */}
                     {isApproachingLimit(parseInt(credentialData.credType)) && (
                         <div style={{
@@ -902,6 +1106,165 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 </div>
             </Modal>
 
+            {/* Issue Verified Credential Modal */}
+            <Modal
+                isOpen={showIssueModal}
+                onClose={() => setShowIssueModal(false)}
+                title="✅ Issue Verified Credential"
+            >
+                <div>
+                    {/* Show authorization status */}
+                    {Object.values(issuerAuthStatus).some(v => v) ? (
+                        <div style={{
+                            background: 'rgba(16, 185, 129, 0.1)',
+                            padding: '12px',
+                            borderRadius: '8px',
+                            marginBottom: '20px',
+                            border: '1px solid rgba(16, 185, 129, 0.3)'
+                        }}>
+                            <p style={{
+                                fontSize: '0.9rem',
+                                color: 'var(--success)',
+                                margin: 0,
+                                marginBottom: '8px'
+                            }}>
+                                ✅ You are authorized to issue credentials for:
+                            </p>
+                            <div style={{
+                                display: 'flex',
+                                gap: '8px',
+                                flexWrap: 'wrap',
+                                marginTop: '8px'
+                            }}>
+                                {Object.entries(issuerAuthStatus)
+                                    .filter(([_, isAuth]) => isAuth)
+                                    .map(([type, _]) => (
+                                        <span key={type} style={{
+                                            padding: '4px 10px',
+                                            background: 'rgba(16, 185, 129, 0.2)',
+                                            color: 'var(--success)',
+                                            borderRadius: '12px',
+                                            fontSize: '0.85rem',
+                                            fontWeight: '600'
+                                        }}>
+                                            {credentialTypes[type]}
+                                        </span>
+                                    ))
+                                }
+                            </div>
+                        </div>
+                    ) : (
+                        <div style={{
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            padding: '12px',
+                            borderRadius: '8px',
+                            marginBottom: '20px',
+                            border: '1px solid rgba(239, 68, 68, 0.3)'
+                        }}>
+                            <p style={{
+                                fontSize: '0.9rem',
+                                color: 'var(--error)',
+                                margin: 0
+                            }}>
+                                ❌ You are not currently authorized to issue any credential types. Contact the contract owner for authorization.
+                            </p>
+                        </div>
+                    )}
+
+                    <Input
+                        label="Target Token ID"
+                        type="number"
+                        value={issueData.targetTokenId}
+                        onChange={(val) => setIssueData({ ...issueData, targetTokenId: val })}
+                        placeholder="Token ID to issue credential to"
+                    />
+
+                    <Select
+                        label="Credential Type"
+                        value={issueData.credType}
+                        onChange={(val) => setIssueData({ ...issueData, credType: val })}
+                        options={credentialTypes.map((t, i) => {
+                            const isAuth = issuerAuthStatus[i];
+                            return {
+                                value: i.toString(),
+                                label: `${t}${isAuth ? ' ✅' : ' 🔒'}`,
+                                disabled: !isAuth
+                            };
+                        })}
+                    />
+
+                    <Input
+                        label="Institution/Organization"
+                        value={issueData.institution}
+                        onChange={(val) => setIssueData({ ...issueData, institution: val })}
+                        placeholder="Your institution name"
+                    />
+
+                    <Input
+                        label="Title/Name"
+                        value={issueData.title}
+                        onChange={(val) => setIssueData({ ...issueData, title: val })}
+                        placeholder="Credential title"
+                    />
+
+                    <TextArea
+                        label="Description"
+                        value={issueData.description}
+                        onChange={(val) => setIssueData({ ...issueData, description: val })}
+                        placeholder="Credential description"
+                    />
+
+                    <Input
+                        label="Issue Date"
+                        type="date"
+                        value={issueData.issueDate}
+                        onChange={(val) => setIssueData({ ...issueData, issueDate: val })}
+                    />
+
+                    <Input
+                        label="Expiry Date (optional)"
+                        type="date"
+                        value={issueData.expiryDate}
+                        onChange={(val) => setIssueData({ ...issueData, expiryDate: val })}
+                    />
+
+                    {parseInt(issueData.credType) === 4 && (
+                        <Select
+                            label="Skill Category"
+                            value={issueData.category}
+                            onChange={(val) => setIssueData({ ...issueData, category: val })}
+                            options={skillCategories.map((c, i) => {
+                                const catInfo = getSkillCategoryInfo(i);
+                                return {
+                                    value: i.toString(),
+                                    label: `${catInfo.icon} ${c}`
+                                };
+                            })}
+                        />
+                    )}
+
+                    <div style={{
+                        display: 'flex',
+                        gap: '12px',
+                        justifyContent: 'flex-end',
+                        marginTop: '24px'
+                    }}>
+                        <Button
+                            variant="secondary"
+                            onClick={() => setShowIssueModal(false)}
+                            disabled={loading}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleIssueCredential}
+                            disabled={loading || !issuerAuthStatus[parseInt(issueData.credType)]}
+                        >
+                            {loading ? 'Issuing...' : '✅ Issue Credential'}
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 };
