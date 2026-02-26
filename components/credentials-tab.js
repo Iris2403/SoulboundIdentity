@@ -9,6 +9,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
     const [credentialCounts, setCredentialCounts] = useState({});
     const [validationStatus, setValidationStatus] = useState({});
     const [selectedSkillCategory, setSelectedSkillCategory] = useState(null);
+    const [validatingIds, setValidatingIds] = useState({}); // Track per-credential validate loading
 
     const [credentialData, setCredentialData] = useState({
         credType: '0',
@@ -96,7 +97,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 creds = creds.filter(c => c.category === selectedSkillCategory);
             }
 
-            // Validate each credential
+            // Check validation status — credentials start as invalid until validated on-chain
             const validationStatuses = {};
             for (const cred of creds) {
                 try {
@@ -104,7 +105,8 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                         selectedToken,
                         cred.credentialId
                     );
-                    validationStatuses[cred.credentialId.toString()] = isValid;
+                    // Explicitly cast to boolean; unvalidated credentials return false by default
+                    validationStatuses[cred.credentialId.toString()] = Boolean(isValid);
                 } catch (err) {
                     validationStatuses[cred.credentialId.toString()] = false;
                 }
@@ -134,6 +136,25 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
             });
         } catch (error) {
             console.error('Error loading summary:', error);
+        }
+    };
+
+    // Validate a credential on the network
+    const handleValidateCredential = async (credentialId) => {
+        const idKey = credentialId.toString();
+        try {
+            setValidatingIds(prev => ({ ...prev, [idKey]: true }));
+            const tx = await contracts.credentials.validateCredential(selectedToken, credentialId);
+            showNotification('Submitting validation to network...', 'info');
+            await tx.wait();
+            showNotification('✅ Credential validated successfully!', 'success');
+            // Update local validation status immediately
+            setValidationStatus(prev => ({ ...prev, [idKey]: true }));
+        } catch (error) {
+            console.error('Error validating credential:', error);
+            showNotification(error.message || 'Failed to validate credential', 'error');
+        } finally {
+            setValidatingIds(prev => ({ ...prev, [idKey]: false }));
         }
     };
 
@@ -572,6 +593,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                             const isValid = validationStatus[cred.credentialId.toString()];
                             const isExpired = cred.expiryDate > 0 &&
                                 Math.floor(Date.now() / 1000) >= cred.expiryDate.toNumber();
+                            const isValidating = validatingIds[cred.credentialId.toString()];
 
                             const catInfo = selectedType === 4 ? getSkillCategoryInfo(cred.category) : null;
 
@@ -759,6 +781,24 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                                         marginTop: '16px',
                                         flexWrap: 'wrap'
                                     }}>
+                                        {/* Validate button — shown when credential is not yet valid and is active */}
+                                        {!isValid && cred.status === 0 && (
+                                            <Button
+                                                onClick={() => handleValidateCredential(cred.credentialId)}
+                                                disabled={validatingIds[cred.credentialId.toString()]}
+                                                style={{
+                                                    fontSize: '0.85rem',
+                                                    padding: '6px 12px',
+                                                    background: 'linear-gradient(135deg, #667eea, #4facfe)',
+                                                    border: 'none',
+                                                    color: 'white',
+                                                    opacity: validatingIds[cred.credentialId.toString()] ? 0.7 : 1
+                                                }}
+                                            >
+                                                {validatingIds[cred.credentialId.toString()] ? '⏳ Validating...' : '🔍 Validate'}
+                                            </Button>
+                                        )}
+
                                         {isExpired && cred.status === 0 && (
                                             <Button
                                                 variant="secondary"
@@ -805,7 +845,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                             color: 'var(--warning)',
                             margin: 0
                         }}>
-
+                            ⚠️ Newly added credentials are <strong>invalid by default</strong> and must be validated through the network before they are recognised. Use the <strong>Validate</strong> button on each credential card after adding.
                         </p>
                     </div>
 
