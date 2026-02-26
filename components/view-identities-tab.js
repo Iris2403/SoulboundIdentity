@@ -8,6 +8,16 @@ ViewIdentitiesTab = function ({ contracts, account, showNotification }) {
     const handleLookup = async () => {
         if (!contracts) return;
 
+        // Token ID search
+        const tokenIdNumber = parseInt(trimmed);
+        if (isNaN(tokenIdNumber)) {
+            showNotification('Please enter a valid token number or Ethereum address (0x...)', 'warning');
+            return;
+        }
+        await loadTokenById(tokenIdNumber);
+    };
+
+    const loadTokenById = async (tokenIdNumber) => {
         setLoading(true);
         setResult(null);
         try {
@@ -52,7 +62,7 @@ ViewIdentitiesTab = function ({ contracts, account, showNotification }) {
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
                     {mode === 'token' ? (
                         <Input
-                            label="Token ID"
+                            label="Token Number or Wallet Address"
                             value={viewTokenId}
                             onChange={setViewTokenId}
                             type="number"
