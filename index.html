@@ -29,7 +29,29 @@
         console.log('✅ ethers available:', typeof ethers !== 'undefined');
         
         // Load modules in sequence
-        const modules = ['contracts.js', 'utils.js', 'components.js', 'app.js'];
+        const modules = [
+            'contracts.js',
+            'utils.js',
+            'components/theme.js',
+            'components/toast.js',
+            'components/ui.js',
+            'components/app-component.js',
+            'components/header.js',
+            'components/welcome.js',
+            'components/navigation.js',
+            'components/notification.js',
+            'components/identity-tab.js',
+            'components/token-card.js',
+            'components/credentials-tab.js',
+            'components/access-control-tab.js',
+            'components/social-tab.js',
+            'components/reputation-section.js',
+            'components/projects-section.js',
+            'components/endorsements-section.js',
+            'components/analytics-tab.js',
+            'components/view-identities-tab.js',
+            'app.js'
+        ];
         let loadedCount = 0;
         
         function loadModule(index) {
