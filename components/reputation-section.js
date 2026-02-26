@@ -9,18 +9,15 @@ ReputationSection = function ({
         reviewerTokenId: '',
         score: '75',
         verified: false,
-        isAnonymous: false,
         comment: ''
     });
 
-    // NEW: Check if already reviewed when target changes
     useEffect(() => {
         if (reviewData.targetTokenId && reviewData.reviewerTokenId && contracts) {
             checkHasReviewed(reviewData.reviewerTokenId, reviewData.targetTokenId);
         }
     }, [reviewData.targetTokenId, reviewData.reviewerTokenId]);
 
-    // NEW: Check if reviewer has already reviewed target
     const checkHasReviewed = async (reviewerId, targetId) => {
         const cacheKey = `${reviewerId}-${targetId}`;
         if (hasReviewedCache[cacheKey] !== undefined) return;
@@ -51,14 +48,12 @@ ReputationSection = function ({
                 return;
             }
 
-            // NEW: Check if already reviewed
             const cacheKey = `${reviewerId}-${targetId}`;
             if (hasReviewedCache[cacheKey]) {
                 showNotification('You have already reviewed this token!', 'error');
                 return;
             }
 
-            // Validate tokens exist
             try {
                 await contracts.soulbound.ownerOf(targetId);
             } catch (err) {
@@ -78,7 +73,6 @@ ReputationSection = function ({
                 return;
             }
 
-            // NEW: Validate score range
             const score = parseInt(reviewData.score);
             if (score < 0 || score > MAX_SCORE) {
                 showNotification(`Score must be between 0 and ${MAX_SCORE}!`, 'error');
@@ -90,13 +84,12 @@ ReputationSection = function ({
                 reviewerId,
                 score,
                 reviewData.verified,
-                reviewData.isAnonymous,
+                false, // isAnonymous always false
                 reviewData.comment
             );
             showNotification('Submitting review...', 'info');
             await tx.wait();
 
-            // Track this review
             const storedReviews = JSON.parse(localStorage.getItem(`reviews_written_${reviewerId}`) || '[]');
             storedReviews.push({
                 targetTokenId: targetId,
@@ -104,12 +97,11 @@ ReputationSection = function ({
             });
             localStorage.setItem(`reviews_written_${reviewerId}`, JSON.stringify(storedReviews));
 
-            // Update cache
             setHasReviewedCache(prev => ({ ...prev, [cacheKey]: true }));
 
             showNotification('Review submitted successfully!', 'success');
             setShowReviewModal(false);
-            setReviewData({ targetTokenId: '', reviewerTokenId: '', score: '75', verified: false, isAnonymous: false, comment: '' });
+            setReviewData({ targetTokenId: '', reviewerTokenId: '', score: '75', verified: false, comment: '' });
             onReload();
         } catch (error) {
             console.error('Error submitting review:', error);
@@ -122,13 +114,11 @@ ReputationSection = function ({
         }
     };
 
-    // NEW: Check if current inputs show already reviewed
     const cacheKey = `${reviewData.reviewerTokenId}-${reviewData.targetTokenId}`;
     const alreadyReviewed = hasReviewedCache[cacheKey];
 
-    // NEW: Calculate character count for comment
     const commentLength = reviewData.comment.length;
-    const commentLimit = 500; // Recommended limit for gas costs
+    const commentLimit = 500;
 
     return (
         <div className="reputation-section">
@@ -175,16 +165,11 @@ ReputationSection = function ({
                             <div key={idx} className="review-item">
                                 <div className="review-header">
                                     <div className="reviewer-info">
-                                        {review.isAnonymous ? (
-                                            <span>👤 Anonymous</span>
-                                        ) : (
-                                            <span>Token #{review.reviewerTokenId.toString()}</span>
-                                        )}
+                                        <span>Token #{review.reviewerTokenId.toString()}</span>
                                         {review.verified && <span className="verified-badge">✓ Verified</span>}
                                     </div>
                                     <div className="review-score">{review.score}/{MAX_SCORE}</div>
                                 </div>
-                                {/* NEW: Display comment */}
                                 {review.comment && review.comment.trim() !== '' && (
                                     <div style={{
                                         background: 'rgba(6, 182, 212, 0.05)',
@@ -235,7 +220,6 @@ ReputationSection = function ({
                                     </div>
                                     <div className="review-score">{review.score}/{MAX_SCORE}</div>
                                 </div>
-                                {/* NEW: Display comment */}
                                 {review.comment && review.comment.trim() !== '' && (
                                     <div style={{
                                         background: 'rgba(6, 182, 212, 0.05)',
@@ -265,7 +249,6 @@ ReputationSection = function ({
 
             <Modal isOpen={showReviewModal} onClose={() => setShowReviewModal(false)} title="Write Review">
                 <div className="review-form">
-                    {/* NEW: Already reviewed warning */}
                     {alreadyReviewed && reviewData.targetTokenId && reviewData.reviewerTokenId && (
                         <div style={{
                             background: 'rgba(239, 68, 68, 0.1)',
@@ -335,7 +318,6 @@ ReputationSection = function ({
                         </div>
                     </div>
 
-                    {/* NEW: Comment with character counter */}
                     <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                             <label className="input-label">Comment (Optional)</label>
@@ -372,14 +354,6 @@ ReputationSection = function ({
                                 onChange={(e) => setReviewData({ ...reviewData, verified: e.target.checked })}
                             />
                             <span>✓ We worked together (Verified)</span>
-                        </label>
-                        <label>
-                            <input
-                                type="checkbox"
-                                checked={reviewData.isAnonymous}
-                                onChange={(e) => setReviewData({ ...reviewData, isAnonymous: e.target.checked })}
-                            />
-                            <span>👤 Submit anonymously</span>
                         </label>
                     </div>
 
