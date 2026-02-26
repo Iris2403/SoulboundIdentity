@@ -131,17 +131,6 @@ IdentityTab = function ({ contracts, account, userTokens, selectedToken, setSele
                         placeholder="https://..."
                     />
 
-                    <Select
-                        label="Token Invalidation"
-                        value={mintData.burnAuth}
-                        onChange={(val) => setMintData({ ...mintData, burnAuth: val })}
-                        options={[
-                            { value: '1', label: 'Owner can invalidate' },
-                            { value: '0', label: 'Permanent (cannot be invalidated)' }
-                        ]}
-                        required
-                    />
-
                     <div className="info-box">
                         <strong>Note:</strong> This metadata will be stored on IPFS. Your identity token is soulbound (non-transferable).
                     </div>
