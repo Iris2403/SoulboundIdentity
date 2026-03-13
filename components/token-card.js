@@ -11,15 +11,13 @@ TokenCard = function ({ token, isSelected, onSelect, contracts }) {
 
     const loadMetadata = async () => {
         try {
-            // In production, fetch from IPFS
-            // For demo, using mock data
-            setMetadata({
-                name: `Token #${token.id}`,
-                bio: 'This is a soulbound identity token representing a unique professional identity.',
-                profileImage: ''
-            });
+            const response = await fetch(`${CONFIG.IPFS_GATEWAY}${token.cid}`);
+            if (!response.ok) throw new Error('Failed to fetch metadata from IPFS');
+            const data = await response.json();
+            setMetadata(data);
         } catch (error) {
             console.error('Error loading metadata:', error);
+            setMetadata({ name: `Token #${token.id}`, bio: '', profileImage: '' });
         } finally {
             setLoading(false);
         }
