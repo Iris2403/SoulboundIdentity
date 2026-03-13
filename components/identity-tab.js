@@ -24,17 +24,29 @@ IdentityTab = function ({ contracts, account, userTokens, selectedToken, setSele
                 createdAt: Date.now()
             };
 
-            // In production, upload to IPFS via Pinata
-            // For demo, using a valid mock CID (CIDv0 format: Qm + 44 base58 chars)
-            // Generate a valid base58 string (using valid characters: 1-9, A-H, J-N, P-Z, a-k, m-z)
-            const base58Chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-            let mockCID = 'Qm';
-            for (let i = 0; i < 44; i++) {
-                mockCID += base58Chars.charAt(Math.floor(Math.random() * base58Chars.length));
+            // Upload metadata to IPFS via Pinata
+            const pinataResponse = await fetch('https://api.pinata.cloud/pinning/pinJSONToIPFS', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${CONFIG.PINATA.JWT}`
+                },
+                body: JSON.stringify({
+                    pinataContent: metadata,
+                    pinataMetadata: { name: `identity-${mintData.name}-${Date.now()}` }
+                })
+            });
+
+            if (!pinataResponse.ok) {
+                const err = await pinataResponse.json();
+                throw new Error('Failed to upload to IPFS: ' + (err.error?.details || pinataResponse.statusText));
             }
 
+            const pinataData = await pinataResponse.json();
+            const ipfsCID = pinataData.IpfsHash;
+
             // Mint token
-            const tx = await contracts.soulbound.mint(mockCID, parseInt(mintData.burnAuth));
+            const tx = await contracts.soulbound.mint(ipfsCID, parseInt(mintData.burnAuth));
             showNotification('Transaction submitted. Waiting for confirmation...', 'info');
 
             await tx.wait();
