@@ -7,6 +7,7 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
     const [requestTokenId, setRequestTokenId] = useState('');
     const [showViewModal, setShowViewModal] = useState(false);
     const [viewingToken, setViewingToken] = useState(null);
+    const [loadingDetails, setLoadingDetails] = useState(false);
 
     // Helper function to get countdown string
     const getExpiryCountdown = (expiresAt) => {
@@ -458,27 +459,66 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
                                     </div>
                                     <div className="request-actions">
                                         <Button
-                                            onClick={async () => {
+                                            disabled={loadingDetails}
+                                        onClick={async () => {
                                                 try {
-                                                    const summary = await contracts.credentials.getCredentialSummary(item.tokenId);
-                                                    setViewingToken({
-                                                        ...item,
-                                                        summary: {
-                                                            degrees: summary.degrees.toNumber(),
-                                                            certifications: summary.certifications.toNumber(),
-                                                            workExperience: summary.workExperience.toNumber(),
-                                                            identityProofs: summary.identityProofs.toNumber(),
-                                                            skills: summary.skills.toNumber()
+                                                    setLoadingDetails(true);
+                                                    showNotification('Loading identity details...', 'info');
+
+                                                    // Fetch IPFS metadata (name, bio, photo)
+                                                    let ipfsMetadata = null;
+                                                    if (item.cid && item.cid !== 'N/A') {
+                                                        try {
+                                                            const res = await fetch(`${CONFIG.IPFS_GATEWAY}${item.cid}`);
+                                                            if (res.ok) ipfsMetadata = await res.json();
+                                                        } catch (e) {
+                                                            console.log('Could not fetch IPFS metadata:', e);
                                                         }
-                                                    });
+                                                    }
+
+                                                    // Fetch credentials for each type (0=degrees,1=certs,2=work,3=identity,4=skills)
+                                                    const credentials = {};
+                                                    for (let type = 0; type <= 4; type++) {
+                                                        try {
+                                                            const creds = await contracts.credentials.getCredentialsByType(item.tokenId, type);
+                                                            credentials[type] = creds.map(c => ({
+                                                                id: c.credentialId.toString(),
+                                                                issuer: c.issuer,
+                                                                issueDate: c.issueDate.toNumber(),
+                                                                expiryDate: c.expiryDate.toNumber(),
+                                                                status: c.status,
+                                                                category: c.category,
+                                                                verified: c.verified
+                                                            }));
+                                                        } catch (e) {
+                                                            credentials[type] = [];
+                                                        }
+                                                    }
+
+                                                    // Fetch reputation summary
+                                                    let reputation = null;
+                                                    try {
+                                                        const rep = await contracts.social.getReputationSummary(item.tokenId);
+                                                        reputation = {
+                                                            averageScore: rep.averageScore.toNumber(),
+                                                            totalReviews: rep.totalReviews.toNumber(),
+                                                            verifiedReviews: rep.verifiedReviews.toNumber()
+                                                        };
+                                                    } catch (e) {
+                                                        console.log('Could not fetch reputation:', e);
+                                                    }
+
+                                                    setViewingToken({ ...item, ipfsMetadata, credentials, reputation });
                                                     setShowViewModal(true);
                                                 } catch (error) {
                                                     showNotification('Failed to load token details', 'error');
+                                                } finally {
+                                                    setLoadingDetails(false);
                                                 }
                                             }}
                                             style={{ padding: '8px 16px', fontSize: '13px' }}
                                         >
-                                            👁️ View Details
+                                            {loadingDetails ? 'Loading...' : '👁️ View Details'}
                                         </Button>
                                     </div>
                                 </div>
@@ -550,77 +590,181 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
                 </div>
             </Modal>
 
-            <Modal isOpen={showViewModal} onClose={() => setShowViewModal(false)} title={viewingToken ? `Token #${viewingToken.tokenId} Details` : 'Token Details'}>
+            <Modal isOpen={showViewModal} onClose={() => setShowViewModal(false)} title={viewingToken ? `Token #${viewingToken.tokenId} — Identity` : 'Identity Details'}>
                 {viewingToken && (
                     <div className="token-view-details">
+
+                        {/* Access context banner */}
+                        <div style={{
+                            background: 'rgba(16,185,129,0.08)',
+                            border: '1px solid rgba(16,185,129,0.3)',
+                            borderRadius: '8px',
+                            padding: '10px 16px',
+                            marginBottom: '20px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            fontSize: '0.85rem',
+                            color: '#10b981'
+                        }}>
+                            <span>🔓</span>
+                            <span>
+                                <strong>Read access granted</strong>
+                                {viewingToken.expiresAt > 0 && ` · Expires ${formatDate(viewingToken.expiresAt)}`}
+                                {' · '}<span style={{ color: 'var(--gray)' }}>Owner: </span>
+                                <code style={{ color: 'var(--teal-light)', fontSize: '0.82rem' }}>{viewingToken.owner}</code>
+                            </span>
+                        </div>
+
+                        {/* Profile */}
                         <div className="detail-section">
-                            <h4>Token Information</h4>
-                            <div className="detail-row">
-                                <span className="detail-label">Token ID:</span>
-                                <span className="detail-value">{viewingToken.tokenId}</span>
-                            </div>
-                            <div className="detail-row">
-                                <span className="detail-label">Owner:</span>
-                                <code className="detail-value">{viewingToken.owner}</code>
-                            </div>
-                            <div className="detail-row">
-                                <span className="detail-label">Access Expires:</span>
-                                <span className="detail-value">
-                                    {viewingToken.expiresAt > 0 ? formatDate(viewingToken.expiresAt) : 'Never'}
-                                </span>
+                            <h4>Profile</h4>
+                            <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+                                {viewingToken.ipfsMetadata?.profileImage ? (
+                                    <img
+                                        src={viewingToken.ipfsMetadata.profileImage}
+                                        alt="Profile"
+                                        style={{ width: '64px', height: '64px', borderRadius: '12px', objectFit: 'cover', flexShrink: 0 }}
+                                    />
+                                ) : (
+                                    <div style={{
+                                        width: '64px', height: '64px', borderRadius: '12px', flexShrink: 0,
+                                        background: 'rgba(14,116,144,0.2)',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px'
+                                    }}>👤</div>
+                                )}
+                                <div>
+                                    <div style={{ fontSize: '1.15rem', fontWeight: '700', color: 'var(--beige)', marginBottom: '6px' }}>
+                                        {viewingToken.ipfsMetadata?.name || `Token #${viewingToken.tokenId}`}
+                                    </div>
+                                    {viewingToken.ipfsMetadata?.bio && (
+                                        <div style={{ color: 'var(--gray-light)', fontSize: '0.9rem', lineHeight: '1.5' }}>
+                                            {viewingToken.ipfsMetadata.bio}
+                                        </div>
+                                    )}
+                                    {!viewingToken.ipfsMetadata && (
+                                        <div style={{ color: 'var(--gray)', fontSize: '0.85rem' }}>No profile metadata found on IPFS</div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
-                        {viewingToken.cid && (
+                        {/* Credentials */}
+                        {viewingToken.credentials && (
                             <div className="detail-section">
-                                <h4>IPFS Metadata</h4>
-                                <div className="cid-display">
-                                    <code className="full-cid">{viewingToken.cid}</code>
-                                    <button
-                                        className="copy-btn"
-                                        onClick={() => {
-                                            navigator.clipboard.writeText(viewingToken.cid);
-                                            alert('CID copied to clipboard!');
-                                        }}
-                                    >
-                                        📋 Copy
-                                    </button>
+                                <h4>Credentials</h4>
+                                {[
+                                    { type: 0, icon: '🎓', label: 'Degrees' },
+                                    { type: 1, icon: '📜', label: 'Certifications' },
+                                    { type: 2, icon: '💼', label: 'Work Experience' },
+                                    { type: 3, icon: '🆔', label: 'Identity Proofs' },
+                                    { type: 4, icon: '⚡', label: 'Skills' }
+                                ].map(({ type, icon, label }) => {
+                                    const creds = viewingToken.credentials[type] || [];
+                                    return (
+                                        <div key={type} style={{ marginBottom: '16px' }}>
+                                            <div style={{
+                                                display: 'flex', alignItems: 'center', gap: '8px',
+                                                marginBottom: '8px', fontSize: '0.95rem',
+                                                color: 'var(--beige)', fontWeight: '600'
+                                            }}>
+                                                <span>{icon}</span>
+                                                <span>{label}</span>
+                                                <span style={{
+                                                    background: creds.length > 0 ? 'rgba(14,116,144,0.2)' : 'rgba(156,163,175,0.1)',
+                                                    color: creds.length > 0 ? 'var(--teal-light)' : 'var(--gray)',
+                                                    borderRadius: '10px', padding: '1px 8px', fontSize: '0.78rem', fontWeight: '700'
+                                                }}>{creds.length}</span>
+                                            </div>
+                                            {creds.length === 0 ? (
+                                                <div style={{ color: 'var(--gray)', fontSize: '0.82rem', paddingLeft: '8px' }}>
+                                                    No {label.toLowerCase()} on record
+                                                </div>
+                                            ) : (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingLeft: '4px' }}>
+                                                    {creds.map((cred, i) => (
+                                                        <div key={i} style={{
+                                                            background: 'rgba(26,35,50,0.6)',
+                                                            borderRadius: '8px', padding: '12px',
+                                                            borderLeft: `3px solid ${cred.status === 0 ? 'var(--teal)' : cred.status === 1 ? 'var(--error, #ef4444)' : 'var(--gray)'}`
+                                                        }}>
+                                                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap' }}>
+                                                                {cred.verified && (
+                                                                    <span style={{
+                                                                        background: 'rgba(16,185,129,0.15)', color: '#10b981',
+                                                                        borderRadius: '4px', padding: '2px 8px',
+                                                                        fontSize: '0.72rem', fontWeight: '700'
+                                                                    }}>✓ Verified</span>
+                                                                )}
+                                                                {!cred.verified && (
+                                                                    <span style={{
+                                                                        background: 'rgba(245,158,11,0.12)', color: '#f59e0b',
+                                                                        borderRadius: '4px', padding: '2px 8px',
+                                                                        fontSize: '0.72rem', fontWeight: '600'
+                                                                    }}>Self-reported</span>
+                                                                )}
+                                                                <span style={{
+                                                                    background: cred.status === 0 ? 'rgba(14,116,144,0.15)' : cred.status === 1 ? 'rgba(239,68,68,0.15)' : 'rgba(156,163,175,0.15)',
+                                                                    color: cred.status === 0 ? 'var(--teal-light)' : cred.status === 1 ? 'var(--error, #ef4444)' : 'var(--gray)',
+                                                                    borderRadius: '4px', padding: '2px 8px', fontSize: '0.72rem'
+                                                                }}>
+                                                                    {cred.status === 0 ? 'Active' : cred.status === 1 ? 'Revoked' : 'Expired'}
+                                                                </span>
+                                                            </div>
+                                                            <div style={{ fontSize: '0.82rem', color: 'var(--gray-light)' }}>
+                                                                Issuer: <code style={{ color: 'var(--teal-light)', fontSize: '0.8rem' }}>{shortenAddress(cred.issuer)}</code>
+                                                            </div>
+                                                            <div style={{ fontSize: '0.8rem', color: 'var(--gray)', marginTop: '4px', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                                                                <span>Issued: {cred.issueDate > 0 ? formatDate(cred.issueDate) : '—'}</span>
+                                                                <span>Expires: {cred.expiryDate > 0 ? formatDate(cred.expiryDate) : 'No expiry'}</span>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {/* Reputation */}
+                        {viewingToken.reputation !== null && viewingToken.reputation !== undefined && (
+                            <div className="detail-section" style={{ paddingBottom: 0, borderBottom: 'none' }}>
+                                <h4>Reputation</h4>
+                                <div style={{
+                                    background: 'rgba(26,35,50,0.6)', borderRadius: '10px',
+                                    padding: '16px', display: 'flex', gap: '0', alignItems: 'center'
+                                }}>
+                                    <div style={{ textAlign: 'center', minWidth: '90px' }}>
+                                        <div style={{ fontSize: '1.8rem', fontWeight: '800', color: 'var(--teal-light)', lineHeight: 1 }}>
+                                            {viewingToken.reputation.totalReviews > 0
+                                                ? `${viewingToken.reputation.averageScore}`
+                                                : '—'}
+                                        </div>
+                                        {viewingToken.reputation.totalReviews > 0 && (
+                                            <div style={{ fontSize: '0.72rem', color: 'var(--gray)', marginTop: '2px' }}>out of 100</div>
+                                        )}
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--gray)', marginTop: '4px' }}>Score</div>
+                                    </div>
+                                    <div style={{ borderLeft: '1px solid rgba(14,116,144,0.2)', paddingLeft: '20px', marginLeft: '8px' }}>
+                                        {viewingToken.reputation.totalReviews === 0 ? (
+                                            <div style={{ color: 'var(--gray)', fontSize: '0.88rem' }}>No reviews yet</div>
+                                        ) : (
+                                            <>
+                                                <div style={{ color: 'var(--beige)', fontSize: '0.9rem', marginBottom: '4px' }}>
+                                                    {viewingToken.reputation.totalReviews} review{viewingToken.reputation.totalReviews !== 1 ? 's' : ''}
+                                                </div>
+                                                <div style={{ color: '#10b981', fontSize: '0.85rem' }}>
+                                                    ✓ {viewingToken.reputation.verifiedReviews} verified
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         )}
 
-                        {viewingToken.summary && (
-                            <div className="detail-section">
-                                <h4>Credentials Summary</h4>
-                                <div className="credentials-grid">
-                                    <div className="cred-item">
-                                        <span className="cred-icon">🎓</span>
-                                        <span className="cred-count">{viewingToken.summary.degrees}</span>
-                                        <span className="cred-label">{viewingToken.summary.degrees === 1 ? 'Degree' : 'Degrees'}</span>
-                                    </div>
-                                    <div className="cred-item">
-                                        <span className="cred-icon">📜</span>
-                                        <span className="cred-count">{viewingToken.summary.certifications}</span>
-                                        <span className="cred-label">{viewingToken.summary.certifications === 1 ? 'Certification' : 'Certifications'}</span>
-                                    </div>
-                                    <div className="cred-item">
-                                        <span className="cred-icon">💼</span>
-                                        <span className="cred-count">{viewingToken.summary.workExperience}</span>
-                                        <span className="cred-label">Work Experience</span>
-                                    </div>
-                                    <div className="cred-item">
-                                        <span className="cred-icon">🆔</span>
-                                        <span className="cred-count">{viewingToken.summary.identityProofs}</span>
-                                        <span className="cred-label">{viewingToken.summary.identityProofs === 1 ? 'Identity Proof' : 'Identity Proofs'}</span>
-                                    </div>
-                                    <div className="cred-item">
-                                        <span className="cred-icon">⚡</span>
-                                        <span className="cred-count">{viewingToken.summary.skills}</span>
-                                        <span className="cred-label">{viewingToken.summary.skills === 1 ? 'Skill' : 'Skills'}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
                     </div>
                 )}
             </Modal>
