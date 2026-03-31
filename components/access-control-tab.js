@@ -8,6 +8,10 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
     const [showViewModal, setShowViewModal] = useState(false);
     const [viewingToken, setViewingToken] = useState(null);
     const [loadingDetails, setLoadingDetails] = useState(false);
+    const [showApproveModal, setShowApproveModal] = useState(false);
+    const [approvingRequester, setApprovingRequester] = useState(null);
+    const [selectedCredTypes, setSelectedCredTypes] = useState({0: true, 1: true, 2: true, 3: true, 4: true});
+    const [selectedSocialSections, setSelectedSocialSections] = useState({0: true, 1: true, 2: true});
 
     // Helper function to get countdown string
     const getExpiryCountdown = (expiresAt) => {
@@ -225,24 +229,49 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
         }
     };
 
-    const handleApproveAccess = async (requester) => {
+    const openApproveModal = (requester) => {
+        setApprovingRequester(requester);
+        setSelectedCredTypes({0: true, 1: true, 2: true, 3: true, 4: true});
+        setSelectedSocialSections({0: true, 1: true, 2: true});
+        setShowApproveModal(true);
+    };
+
+    const handleApproveAccess = async () => {
+        if (!approvingRequester) return;
         try {
-            // Grant access for 30 days
             const duration = 30 * 24 * 60 * 60;
-            const tx = await contracts.soulbound.approveAccess(selectedToken, requester, duration);
-            showNotification('Approving access...', 'info');
-            await tx.wait();
+
+            // Step 1: Approve profile access
+            showNotification('Approving profile access...', 'info');
+            const tx1 = await contracts.soulbound.approveAccess(selectedToken, approvingRequester, duration);
+            await tx1.wait();
+
+            // Step 2: Grant credential types (bitmask: bit0=Degree,bit1=Cert,bit2=Work,bit3=Identity,bit4=Skills)
+            const credBitmask = Object.entries(selectedCredTypes)
+                .reduce((mask, [bit, checked]) => checked ? mask | (1 << parseInt(bit)) : mask, 0);
+            showNotification('Granting credential access...', 'info');
+            const tx2 = await contracts.credentials.grantCredentialAccess(selectedToken, approvingRequester, credBitmask);
+            await tx2.wait();
+
+            // Step 3: Grant social sections (bitmask: bit0=Reviews,bit1=Projects,bit2=Endorsements)
+            const socialBitmask = Object.entries(selectedSocialSections)
+                .reduce((mask, [bit, checked]) => checked ? mask | (1 << parseInt(bit)) : mask, 0);
+            showNotification('Granting social access...', 'info');
+            const tx3 = await contracts.social.grantSocialAccess(selectedToken, approvingRequester, socialBitmask);
+            await tx3.wait();
 
             // Track granted address in localStorage
             const storedGranted = JSON.parse(
                 localStorage.getItem(`grantedAccess_${selectedToken}`) || '[]'
             );
-            if (!storedGranted.includes(requester)) {
-                storedGranted.push(requester);
+            if (!storedGranted.includes(approvingRequester)) {
+                storedGranted.push(approvingRequester);
                 localStorage.setItem(`grantedAccess_${selectedToken}`, JSON.stringify(storedGranted));
             }
 
             showNotification('Access approved!', 'success');
+            setShowApproveModal(false);
+            setApprovingRequester(null);
             loadAccessData();
         } catch (error) {
             console.error('Error approving access:', error);
@@ -353,7 +382,7 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
                                         </div>
                                         <div className="request-actions">
                                             <Button
-                                                onClick={() => handleApproveAccess(requester.address || requester)}
+                                                onClick={() => openApproveModal(requester.address || requester)}
                                                 style={{ padding: '8px 16px', fontSize: '13px' }}
                                             >
                                                 Approve
@@ -554,15 +583,71 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
                             </div>
                         </div>
                         <div className="info-item">
-                            <div className="info-icon">ℹ️</div>
+                            <div className="info-icon">🎯</div>
                             <div>
-                                <h4>Full Access Grant</h4>
-                                <p>Currently, approving access grants view permission to all credentials (degrees, certifications, work experience, skills, and identity proofs). Granular per-type access control is planned for future versions.</p>
+                                <h4>Selective Disclosure</h4>
+                                <p>When approving access, you choose exactly which credential types and social sections the requester can see. You can grant access to degrees only, work experience only, or any combination.</p>
                             </div>
                         </div>
                     </div>
                 </Card>
             </div>
+
+            <Modal isOpen={showApproveModal} onClose={() => setShowApproveModal(false)} title="Approve Access Request">
+                <div className="request-form">
+                    <p style={{ color: 'var(--gray-light)', marginBottom: '20px' }}>
+                        Approving access for <code style={{ color: 'var(--teal-light)' }}>{approvingRequester && shortenAddress(approvingRequester)}</code> for <strong>30 days</strong>.
+                        Choose what they can see:
+                    </p>
+
+                    <div style={{ marginBottom: '20px' }}>
+                        <h4 style={{ color: 'var(--beige)', marginBottom: '12px' }}>📋 Credentials</h4>
+                        {[
+                            { bit: 0, icon: '🎓', label: 'Degrees' },
+                            { bit: 1, icon: '📜', label: 'Certifications' },
+                            { bit: 2, icon: '💼', label: 'Work Experience' },
+                            { bit: 3, icon: '🆔', label: 'Identity Proofs' },
+                            { bit: 4, icon: '⚡', label: 'Skills' }
+                        ].map(({ bit, icon, label }) => (
+                            <label key={bit} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', cursor: 'pointer' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={selectedCredTypes[bit]}
+                                    onChange={(e) => setSelectedCredTypes(prev => ({ ...prev, [bit]: e.target.checked }))}
+                                />
+                                <span>{icon} {label}</span>
+                            </label>
+                        ))}
+                    </div>
+
+                    <div style={{ marginBottom: '20px' }}>
+                        <h4 style={{ color: 'var(--beige)', marginBottom: '12px' }}>🌐 Social</h4>
+                        {[
+                            { bit: 0, icon: '⭐', label: 'Reviews & Reputation' },
+                            { bit: 1, icon: '🚀', label: 'Projects' },
+                            { bit: 2, icon: '👍', label: 'Endorsements' }
+                        ].map(({ bit, icon, label }) => (
+                            <label key={bit} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', cursor: 'pointer' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={selectedSocialSections[bit]}
+                                    onChange={(e) => setSelectedSocialSections(prev => ({ ...prev, [bit]: e.target.checked }))}
+                                />
+                                <span>{icon} {label}</span>
+                            </label>
+                        ))}
+                    </div>
+
+                    <div className="modal-actions">
+                        <Button variant="secondary" onClick={() => setShowApproveModal(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleApproveAccess}>
+                            Approve Access
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
 
             <Modal isOpen={showRequestModal} onClose={() => setShowRequestModal(false)} title="Request Access">
                 <div className="request-form">
