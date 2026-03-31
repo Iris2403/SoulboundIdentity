@@ -57,7 +57,11 @@ IdentityTab = function ({ contracts, account, userTokens, selectedToken, setSele
             onTokenCreated();
         } catch (error) {
             console.error('Error minting token:', error);
-            showNotification(error.message || 'Failed to mint token', 'error');
+            let mintError = error.message || 'Failed to mint token';
+            if (error.message?.includes('AlreadyHasToken')) {
+                mintError = 'You already have a soulbound identity token. Only one token is allowed per address.';
+            }
+            showNotification(mintError, 'error');
         } finally {
             setMinting(false);
         }

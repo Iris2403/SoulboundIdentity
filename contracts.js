@@ -26,6 +26,7 @@ SOULBOUND_IDENTITY_ABI = [
     "error NoAccessRequest()",
     "error RequestAlreadyExists()",
     "error InvalidDuration()",
+    "error AlreadyHasToken()",
     "event Minted(address indexed to, uint256 indexed tokenId, string ipfsCID, uint8 burnAuth)",
     "event AccessRequested(uint256 indexed tokenId, address indexed requester)",
     "event AccessApproved(uint256 indexed tokenId, address indexed requester, uint64 duration)",
@@ -47,6 +48,8 @@ CREDENTIALS_HUB_ABI = [
     "function getCredentialCount(uint256 tokenId, uint8 credType) external view returns (uint256)",
     "function isCredentialValid(uint256 tokenId, uint256 credentialId) external view returns (bool)",
     "function authorizedIssuers(uint8 credType, address issuer) external view returns (bool)",
+    "function grantCredentialAccess(uint256 tokenId, address viewer, uint8 types) external",
+    "function grantedTypes(uint256 tokenId, address viewer) external view returns (uint8)",
     "error NotTokenOwner()",
     "error NotAuthorizedIssuer()",
     "error CredentialNotFound()",
@@ -71,6 +74,8 @@ SOCIAL_HUB_ABI = [
     "function getEndorsements(uint256 tokenId) external view returns (tuple(uint256 endorserId, bytes32 skillHash, uint64 endorsedAt, string comment)[] memory)",
     "function hasReviewed(uint256 reviewerTokenId, uint256 subjectTokenId) external view returns (bool)",
     "function getProjectCountByStatus(uint256 tokenId, uint8 status) external view returns (uint256)",
+    "function grantSocialAccess(uint256 tokenId, address viewer, uint8 sections) external",
+    "function grantedSections(uint256 tokenId, address viewer) external view returns (uint8)",
     "error CannotReviewSelf()",
     "error AlreadyReviewed()",
     "error ProjectNotFound()",
@@ -89,9 +94,9 @@ CONFIG = {
     CHAIN_ID_HEX: '0x67932',
     NETWORK_NAME: 'QBFT_Besu_EduNet',
     CONTRACTS: {
-        SOULBOUND_IDENTITY: '0xf1FB393025ef07673CcFBD5E83E07f6cF503F8ee',
-        CREDENTIALS_HUB: '0x25154346a75204f80108E73739f0A4AaD4754c8B',
-        SOCIAL_HUB: '0xbe78D2f3c24Abdd91AD8263D7cF10290F94045a7'
+        SOULBOUND_IDENTITY: '0x8FDcE9E57DA2881970C47e689392aBf8179E5Ecc',
+        CREDENTIALS_HUB: '0x5ba2807643F30345928098674FE8f2Ff20780f5B',
+        SOCIAL_HUB: '0x2E783bfBAB3f6a1FdD26A3aa871906c441e20e34'
     },
     IPFS_GATEWAY: 'https://gateway.pinata.cloud/ipfs/',
     BLOCK_EXPLORER: 'https://explorer.dimikog.org',
