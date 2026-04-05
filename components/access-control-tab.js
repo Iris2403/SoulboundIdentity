@@ -57,23 +57,18 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
             // Load pending requests with status
             const requests = await contracts.soulbound.getPendingRequests(selectedToken, 0, 50);
 
-            // Enhance pending requests with status info
-            const enhancedRequests = [];
-            for (const requester of requests.requesters) {
-                try {
-                    const status = await contracts.soulbound.getAccessStatus(selectedToken, requester);
-                    enhancedRequests.push({
-                        address: requester,
-                        status: status
-                    });
-                } catch (err) {
-                    console.log('Could not fetch status for:', requester);
-                    enhancedRequests.push({
-                        address: requester,
-                        status: 1 // Default to Pending
-                    });
-                }
-            }
+            // Enhance pending requests with status info — all in parallel
+            const enhancedRequests = await Promise.all(
+                requests.requesters.map(async (requester) => {
+                    try {
+                        const status = await contracts.soulbound.getAccessStatus(selectedToken, requester);
+                        return { address: requester, status };
+                    } catch (err) {
+                        console.log('Could not fetch status for:', requester);
+                        return { address: requester, status: 1 };
+                    }
+                })
+            );
 
             setPendingRequests(enhancedRequests);
 
@@ -84,22 +79,18 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
                 localStorage.getItem(`grantedAccess_${selectedToken}`) || '[]'
             );
 
-            // Verify each address still has access
-            const stillActive = [];
-            for (const address of storedGrantedAddresses) {
-                try {
-                    const [hasAccess, expiresAt] = await contracts.soulbound.checkAccess(selectedToken, address);
-                    if (hasAccess) {
-                        stillActive.push({
-                            address,
-                            expiresAt: expiresAt.toNumber()
-                        });
+            // Verify each address still has access — all in parallel
+            const accessResults = await Promise.all(
+                storedGrantedAddresses.map(async (address) => {
+                    try {
+                        const [hasAccess, expiresAt] = await contracts.soulbound.checkAccess(selectedToken, address);
+                        return hasAccess ? { address, expiresAt: expiresAt.toNumber() } : null;
+                    } catch {
+                        return null;
                     }
-                } catch (err) {
-                    // Address no longer has access, skip it
-                    continue;
-                }
-            }
+                })
+            );
+            const stillActive = accessResults.filter(Boolean);
 
             // Update localStorage with only active addresses
             localStorage.setItem(
@@ -119,51 +110,31 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
         if (!contracts) return;
 
         try {
-            const accessibleTokens = [];
-            // Check a range of token IDs
-            // For demo purposes, checking first 10 tokens (adjust based on your needs)
             const maxTokenId = 10;
+            const myAddress = await contracts.soulbound.signer.getAddress();
 
-            for (let tokenId = 1; tokenId <= maxTokenId; tokenId++) {
-                try {
-                    // First check if token exists
-                    const owner = await contracts.soulbound.ownerOf(tokenId);
-                    const myAddress = await contracts.soulbound.signer.getAddress();
+            const results = await Promise.all(
+                Array.from({ length: maxTokenId }, (_, i) => i + 1).map(async (tokenId) => {
+                    try {
+                        const owner = await contracts.soulbound.ownerOf(tokenId);
+                        if (owner.toLowerCase() === myAddress.toLowerCase()) return null;
 
-                    // Skip if I'm the owner
-                    if (owner.toLowerCase() === myAddress.toLowerCase()) {
-                        continue;
-                    }
+                        const hasAccess = await contracts.soulbound.canView(tokenId, myAddress);
+                        if (!hasAccess) return null;
 
-                    // Check if I have access
-                    const hasAccess = await contracts.soulbound.canView(tokenId, myAddress);
-
-                    // Only include if I have access
-                    if (hasAccess) {
                         const [, expiresAt] = await contracts.soulbound.checkAccess(tokenId, myAddress);
-
-                        // Try to get metadata, but don't fail if we can't
                         let metadataCID = '';
                         try {
                             metadataCID = await contracts.soulbound.getMetadata(tokenId);
-                        } catch (metadataError) {
-                            console.log(`Could not fetch metadata for token ${tokenId}:`, metadataError.message);
-                            // Continue without CID
-                        }
+                        } catch {}
 
-                        accessibleTokens.push({
-                            tokenId,
-                            owner,
-                            expiresAt: expiresAt.toNumber(),
-                            cid: metadataCID || 'N/A'
-                        });
+                        return { tokenId, owner, expiresAt: expiresAt.toNumber(), cid: metadataCID || 'N/A' };
+                    } catch {
+                        return null;
                     }
-                } catch (err) {
-                    // Token doesn't exist or other error, skip it
-                    continue;
-                }
-            }
-            setTokensICanAccess(accessibleTokens);
+                })
+            );
+            setTokensICanAccess(results.filter(Boolean));
         } catch (error) {
             console.error('Error loading accessible tokens:', error);
         }

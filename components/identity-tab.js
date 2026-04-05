@@ -117,6 +117,7 @@ IdentityTab = function ({ contracts, account, userTokens, selectedToken, setSele
                             isSelected={selectedToken === token.id}
                             onSelect={() => setSelectedToken(token.id)}
                             contracts={contracts}
+                            onBurned={onTokenCreated}
                         />
                     ))}
                 </div>

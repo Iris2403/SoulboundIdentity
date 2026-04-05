@@ -30,12 +30,13 @@ SocialTab = function ({ contracts, selectedToken, userTokens, account, showNotif
         if (!selectedToken || !contracts) return;
 
         try {
-            const stats = {};
-            for (let status = 0; status < 4; status++) {
-                const count = await contracts.social.getProjectCountByStatus(selectedToken, status);
-                stats[status] = count.toNumber();
-            }
-            setProjectStats(stats);
+            const entries = await Promise.all(
+                [0, 1, 2, 3].map(async (status) => {
+                    const count = await contracts.social.getProjectCountByStatus(selectedToken, status);
+                    return [status, count.toNumber()];
+                })
+            );
+            setProjectStats(Object.fromEntries(entries));
         } catch (error) {
             console.error('Error loading project stats:', error);
         }
@@ -67,19 +68,19 @@ SocialTab = function ({ contracts, selectedToken, userTokens, account, showNotif
             const ends = await contracts.social.getEndorsements(selectedToken);
             setEndorsements(ends);
 
-            // NEW: Count endorsements per skill using contract function
+            // Count endorsements per skill — all in parallel
             const skillHashes = [...new Set(ends.map(e => e.skillHash))];
-            const counts = {};
-            for (const skillHash of skillHashes) {
-                try {
-                    const count = await contracts.social.getEndorsementCount(selectedToken, skillHash);
-                    counts[skillHash] = count.toNumber();
-                } catch (error) {
-                    // Fallback to manual count if contract doesn't have this function
-                    counts[skillHash] = ends.filter(e => e.skillHash === skillHash).length;
-                }
-            }
-            setEndorsementCounts(counts);
+            const countEntries = await Promise.all(
+                skillHashes.map(async (skillHash) => {
+                    try {
+                        const count = await contracts.social.getEndorsementCount(selectedToken, skillHash);
+                        return [skillHash, count.toNumber()];
+                    } catch {
+                        return [skillHash, ends.filter(e => e.skillHash === skillHash).length];
+                    }
+                })
+            );
+            setEndorsementCounts(Object.fromEntries(countEntries));
         } catch (error) {
             console.error('Error loading social data:', error);
         } finally {

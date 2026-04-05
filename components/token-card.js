@@ -1,9 +1,10 @@
-TokenCard = function ({ token, isSelected, onSelect, contracts }) {
+TokenCard = function ({ token, isSelected, onSelect, contracts, onBurned }) {
     const [metadata, setMetadata] = useState(null);
     const [loading, setLoading] = useState(true);
     const [showDetails, setShowDetails] = useState(false);
     const [showBurnConfirm, setShowBurnConfirm] = useState(false);
     const [burning, setBurning] = useState(false);
+    const { addToast } = useToast();
 
     useEffect(() => {
         loadMetadata();
@@ -30,7 +31,7 @@ TokenCard = function ({ token, isSelected, onSelect, contracts }) {
 
     const copyToClipboard = (text) => {
         navigator.clipboard.writeText(text);
-        alert('Copied to clipboard!');
+        addToast('Copied to clipboard!', 'success');
     };
 
     const handleBurnToken = async () => {
@@ -47,11 +48,10 @@ TokenCard = function ({ token, isSelected, onSelect, contracts }) {
             setShowBurnConfirm(false);
             setShowDetails(false);
 
-            // Reload page to refresh token list
-            window.location.reload();
+            if (onBurned) onBurned(token.id);
         } catch (error) {
             console.error('❌ Error burning token:', error);
-            alert('Failed to burn token: ' + (error.message || 'Unknown error'));
+            addToast('Failed to burn token: ' + (error.message || 'Unknown error'), 'error');
         } finally {
             setBurning(false);
         }
