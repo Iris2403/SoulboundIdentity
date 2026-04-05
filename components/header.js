@@ -1,9 +1,10 @@
 Header = function ({ account, onConnect, loading }) {
     const [showAccountMenu, setShowAccountMenu] = useState(false);
+    const { addToast } = useToast();
 
     const copyAddress = () => {
         navigator.clipboard.writeText(account);
-        alert('Address copied to clipboard!');
+        addToast('Address copied to clipboard!', 'success');
     };
 
     const switchAccount = async () => {

@@ -9,8 +9,8 @@ Checkbox = ({
     id,
     name
 }) => {
-    // Generate unique ID if not provided (for accessibility)
-    const checkboxId = id || `checkbox-${Math.random().toString(36).substr(2, 9)}`;
+    const generatedId = React.useId();
+    const checkboxId = id || `checkbox-${generatedId}`;
 
     return (
         <label
@@ -225,8 +225,8 @@ Button = ({ children, onClick, disabled = false, variant = 'primary', className 
 );
 
 Input = ({ label, value, onChange, type = 'text', placeholder = '', required = false, id, name }) => {
-    // Generate unique ID if not provided
-    const inputId = id || `input-${label?.toLowerCase().replace(/\s+/g, '-') || Math.random().toString(36).substr(2, 9)}`;
+    const generatedId = React.useId();
+    const inputId = id || `input-${label?.toLowerCase().replace(/\s+/g, '-') || generatedId}`;
     const inputName = name || inputId;
 
     return (
@@ -252,8 +252,8 @@ Input = ({ label, value, onChange, type = 'text', placeholder = '', required = f
 };
 
 Select = ({ label, value, onChange, options, required = false, id, name }) => {
-    // Generate unique ID if not provided
-    const selectId = id || `select-${label?.toLowerCase().replace(/\s+/g, '-') || Math.random().toString(36).substr(2, 9)}`;
+    const generatedId = React.useId();
+    const selectId = id || `select-${label?.toLowerCase().replace(/\s+/g, '-') || generatedId}`;
     const selectName = name || selectId;
 
     return (
@@ -281,8 +281,8 @@ Select = ({ label, value, onChange, options, required = false, id, name }) => {
 };
 
 TextArea = ({ label, value, onChange, placeholder = '', rows = 4, id, name }) => {
-    // Generate unique ID if not provided
-    const textareaId = id || `textarea-${label?.toLowerCase().replace(/\s+/g, '-') || Math.random().toString(36).substr(2, 9)}`;
+    const generatedId = React.useId();
+    const textareaId = id || `textarea-${label?.toLowerCase().replace(/\s+/g, '-') || generatedId}`;
     const textareaName = name || textareaId;
 
     return (

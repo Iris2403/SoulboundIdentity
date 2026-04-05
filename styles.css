@@ -3,8 +3,8 @@
    Montserrat Font + Gradients + Parallax
    ========================================== */
 
-/* Import Montserrat Font */
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap');
+/* Import Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&family=Work+Sans:wght@400;500;600&family=Playfair+Display:wght@700&display=swap');
 
 :root {
     /* Enhanced Dark Theme with Gradients */
@@ -55,6 +55,13 @@
     --sky: #0ea5e9;
     --sky-light: #38bdf8;
     --beige: #e8dfca;
+    --navy: #1a2332;
+}
+
+/* App Container */
+.app-container {
+    min-height: 100vh;
+    padding-bottom: 50px;
 }
 
 * {

@@ -7,7 +7,6 @@ App = function () {
     const [activeTab, setActiveTab] = useState('identity');
     const [userTokens, setUserTokens] = useState([]);
     const [selectedToken, setSelectedToken] = useState(null);
-    const [notification, setNotification] = useState(null);
     const [pendingTxs, setPendingTxs] = useState([]);
     const [gasEstimate, setGasEstimate] = useState(null);
 
@@ -98,10 +97,9 @@ App = function () {
         }
     };
 
-    const showNotification = (message, type = 'info') => {
-        setNotification({ message, type });
-        setTimeout(() => setNotification(null), 5000);
-    };
+    const showNotification = useCallback((message, type = 'info') => {
+        addToast(message, type);
+    }, [addToast]);
 
     // Track transaction with status
     const trackTransaction = useCallback(async (tx, description) => {
@@ -144,7 +142,6 @@ App = function () {
         }
 
         addToast(message, 'error');
-        showNotification(message, 'error');
     }, [addToast]);
 
     // Estimate gas for transaction
@@ -304,14 +301,6 @@ App = function () {
                 loading={loading}
             />
 
-            {notification && (
-                <Notification
-                    message={notification.message}
-                    type={notification.type}
-                    onClose={() => setNotification(null)}
-                />
-            )}
-
             {!account ? (
                 <WelcomeScreen onConnect={connectWallet} loading={loading} />
             ) : (
@@ -382,204 +371,6 @@ App = function () {
                 </>
             )}
 
-            <style>{`
-                .app-container {
-                    min-height: 100vh;
-                    padding-bottom: 50px;
-                }
-
-                .main-content {
-                    max-width: 1400px;
-                    margin: 0 auto;
-                    padding: 30px 20px;
-                }
-
-                .card {
-                    background: rgba(45, 62, 80, 0.7);
-                    backdrop-filter: blur(10px);
-                    border-radius: 16px;
-                    padding: 24px;
-                    margin-bottom: 20px;
-                    border: 1px solid rgba(14, 116, 144, 0.3);
-                    transition: all 0.3s ease;
-                }
-
-                .card:hover {
-                    transform: translateY(-2px);
-                    border-color: var(--teal);
-                    box-shadow: 0 8px 24px rgba(14, 116, 144, 0.2);
-                }
-
-                .btn {
-                    padding: 12px 24px;
-                    border: none;
-                    border-radius: 8px;
-                    font-family: 'Work Sans', sans-serif;
-                    font-size: 14px;
-                    font-weight: 500;
-                    cursor: pointer;
-                    transition: all 0.3s ease;
-                    text-transform: uppercase;
-                    letter-spacing: 0.5px;
-                }
-
-                .btn:disabled {
-                    opacity: 0.5;
-                    cursor: not-allowed;
-                }
-
-                .btn-primary {
-                    background: linear-gradient(135deg, var(--teal) 0%, var(--teal-light) 100%);
-                    color: white;
-                }
-
-                .btn-primary:hover:not(:disabled) {
-                    transform: translateY(-2px);
-                    box-shadow: 0 4px 12px rgba(14, 116, 144, 0.4);
-                }
-
-                .btn-secondary {
-                    background: transparent;
-                    color: var(--teal-light);
-                    border: 2px solid var(--teal);
-                }
-
-                .btn-secondary:hover:not(:disabled) {
-                    background: var(--teal);
-                    color: white;
-                }
-
-                .btn-danger {
-                    background: var(--error);
-                    color: white;
-                }
-
-                .input-group {
-                    margin-bottom: 20px;
-                }
-
-                .input-label {
-                    display: block;
-                    margin-bottom: 8px;
-                    color: var(--beige);
-                    font-size: 14px;
-                    font-weight: 500;
-                }
-
-                .input-field {
-                    width: 100%;
-                    padding: 12px 16px;
-                    background: rgba(26, 35, 50, 0.5);
-                    border: 1px solid rgba(14, 116, 144, 0.3);
-                    border-radius: 8px;
-                    color: var(--beige);
-                    font-family: 'Work Sans', sans-serif;
-                    font-size: 14px;
-                    transition: all 0.3s ease;
-                }
-
-                .input-field:focus {
-                    outline: none;
-                    border-color: var(--teal);
-                    box-shadow: 0 0 0 3px rgba(14, 116, 144, 0.2);
-                }
-
-                .input-field::placeholder {
-                    color: var(--gray);
-                }
-
-                textarea.input-field {
-                    resize: vertical;
-                    min-height: 100px;
-                }
-
-                select.input-field {
-                    cursor: pointer;
-                }
-
-                .modal-overlay {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background: rgba(0, 0, 0, 0.7);
-                    backdrop-filter: blur(5px);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    z-index: 1000;
-                    animation: fadeIn 0.3s ease-out;
-                }
-
-                .modal-content {
-                    background: var(--navy);
-                    border-radius: 16px;
-                    max-width: 600px;
-                    width: 90%;
-                    max-height: 90vh;
-                    overflow-y: auto;
-                    border: 1px solid var(--teal);
-                    animation: slideIn 0.3s ease-out;
-                }
-
-                .modal-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    padding: 24px;
-                    border-bottom: 1px solid rgba(14, 116, 144, 0.3);
-                }
-
-                .modal-header h2 {
-                    color: var(--teal-light);
-                    font-size: 24px;
-                }
-
-                .modal-close {
-                    background: none;
-                    border: none;
-                    color: var(--beige);
-                    font-size: 32px;
-                    cursor: pointer;
-                    line-height: 1;
-                    padding: 0;
-                    width: 32px;
-                    height: 32px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    transition: color 0.3s ease;
-                }
-
-                .modal-close:hover {
-                    color: var(--teal-light);
-                }
-
-                .modal-body {
-                    padding: 24px;
-                }
-
-                .loading-spinner {
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    padding: 40px;
-                }
-
-                .spinner {
-                    width: 40px;
-                    height: 40px;
-                    border: 4px solid rgba(14, 116, 144, 0.3);
-                    border-top-color: var(--teal);
-                    border-radius: 50%;
-                    animation: spin 1s linear infinite;
-                }
-
-                @keyframes spin {
-                    to { transform: rotate(360deg); }
-                }
-            `}</style>
         </div>
     );
 }
