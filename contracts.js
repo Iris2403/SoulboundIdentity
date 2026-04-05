@@ -76,6 +76,9 @@ SOCIAL_HUB_ABI = [
     "function getProjectCountByStatus(uint256 tokenId, uint8 status) external view returns (uint256)",
     "function grantSocialAccess(uint256 tokenId, address viewer, uint8 sections) external",
     "function grantedSections(uint256 tokenId, address viewer) external view returns (uint8)",
+    "function setReputationCommitment(uint256 tokenId, bytes32 commitment) external",
+    "function reputationCommitment(uint256 tokenId) external view returns (bytes32)",
+    "function getAverageScore(uint256 tokenId) external view returns (uint256)",
     "error CannotReviewSelf()",
     "error AlreadyReviewed()",
     "error ProjectNotFound()",
@@ -84,7 +87,13 @@ SOCIAL_HUB_ABI = [
     "error NoAccess()",
     "event ReviewSubmitted(uint256 indexed subjectTokenId, uint256 indexed reviewerTokenId, uint256 indexed reviewId, uint8 score)",
     "event ProjectCreated(uint256 indexed tokenId, uint256 indexed projectId, bytes32 metadataHash)",
-    "event SkillEndorsed(uint256 indexed tokenId, uint256 indexed endorserId, bytes32 indexed skillHash)"
+    "event SkillEndorsed(uint256 indexed tokenId, uint256 indexed endorserId, bytes32 indexed skillHash)",
+    "event ReputationCommitmentSet(uint256 indexed tokenId, bytes32 commitment)"
+];
+
+REPUTATION_VERIFIER_ABI = [
+    "function proveReputation(uint256 tokenId, uint256 threshold, uint256[2] calldata _pA, uint256[2][2] calldata _pB, uint256[2] calldata _pC, uint256[2] calldata pubSignals) external",
+    "event ReputationProved(address indexed prover, uint256 threshold, uint256 commitment)"
 ];
 
 // Configuration
@@ -96,7 +105,8 @@ CONFIG = {
     CONTRACTS: {
         SOULBOUND_IDENTITY: '0x8FDcE9E57DA2881970C47e689392aBf8179E5Ecc',
         CREDENTIALS_HUB: '0x5ba2807643F30345928098674FE8f2Ff20780f5B',
-        SOCIAL_HUB: '0x5bDA71c57b225ea45636573984aAd6FD49740613'
+        SOCIAL_HUB: '0x5bDA71c57b225ea45636573984aAd6FD49740613',
+        REPUTATION_VERIFIER: '0x548E11A0A6E0A2FC618Df456c4415b403fC1De38'
     },
     IPFS_GATEWAY: 'https://gateway.pinata.cloud/ipfs/',
     BLOCK_EXPLORER: 'https://explorer.dimikog.org',
