@@ -11,11 +11,14 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
  * @dev Extends ERC5484 with IPFS metadata and access control
  *
  * SIMPLIFICATIONS IN V2.2:
- * ❌ Removed batch approve access
  * ❌ Removed batch request access
  * ❌ Removed auto-clean stale requests
  * ✅ Kept single request/approve/deny flow
  * ✅ Kept rate limiting for spam prevention
+ *
+ * ADDITIONS IN V2.3:
+ * ✅ batchApproveAccess — approve multiple pending requests in one transaction
+ * ✅ batchDenyAccess    — deny multiple pending requests in one transaction
  */
 contract SoulboundIdentity is ERC5484, Ownable {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -36,6 +39,7 @@ contract SoulboundIdentity is ERC5484, Ownable {
     error TooManyRequests();
     error RequestCooldown(uint256 timeRemaining);
     error AlreadyHasToken();
+    error ArrayLengthMismatch();
 
     /*//////////////////////////////////////////////////////////////
                             CONSTANTS
@@ -296,6 +300,73 @@ contract SoulboundIdentity is ERC5484, Ownable {
         _pendingRequesters[tokenId].remove(requester);
 
         emit AccessDenied(tokenId, requester);
+    }
+
+    /// @notice Approve multiple pending access requests in a single transaction
+    /// @param tokenId The token ID
+    /// @param requesters Array of addresses to approve
+    /// @param durations Array of access durations in seconds, one per requester
+    function batchApproveAccess(
+        uint256 tokenId,
+        address[] calldata requesters,
+        uint64[] calldata durations
+    ) external onlyTokenOwner(tokenId) {
+        if (requesters.length != durations.length) revert ArrayLengthMismatch();
+
+        for (uint256 i = 0; i < requesters.length; ) {
+            address requester = requesters[i];
+            uint64 duration = durations[i];
+
+            if (requester == address(0)) revert InvalidAddress();
+            if (duration == 0) revert InvalidDuration();
+
+            AccessRequest storage request = _access[tokenId][requester];
+            if (request.status != AccessStatus.Pending) revert NoAccessRequest();
+
+            uint64 expiresAt;
+            unchecked {
+                expiresAt = uint64(block.timestamp) + duration;
+            }
+            if (expiresAt < block.timestamp) revert DurationOverflow();
+
+            request.status = AccessStatus.Approved;
+            request.expiresAt = expiresAt;
+
+            _pendingRequesters[tokenId].remove(requester);
+
+            emit AccessApproved(tokenId, requester, expiresAt);
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /// @notice Deny multiple pending access requests in a single transaction
+    /// @param tokenId The token ID
+    /// @param requesters Array of addresses to deny
+    function batchDenyAccess(
+        uint256 tokenId,
+        address[] calldata requesters
+    ) external onlyTokenOwner(tokenId) {
+        for (uint256 i = 0; i < requesters.length; ) {
+            address requester = requesters[i];
+
+            if (requester == address(0)) revert InvalidAddress();
+
+            AccessRequest storage request = _access[tokenId][requester];
+            if (request.status != AccessStatus.Pending) revert NoAccessRequest();
+
+            request.status = AccessStatus.Denied;
+
+            _pendingRequesters[tokenId].remove(requester);
+
+            emit AccessDenied(tokenId, requester);
+
+            unchecked {
+                ++i;
+            }
+        }
     }
 
     /// @notice Revoke approved access
