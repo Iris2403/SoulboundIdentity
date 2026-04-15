@@ -72,16 +72,12 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
 
             setPendingRequests(enhancedRequests);
 
-            // Load granted access by checking stored addresses
-            // Note: Your contract doesn't have a getGrantedAccess function
-            // So we'll track addresses we've approved
-            const storedGrantedAddresses = JSON.parse(
-                localStorage.getItem(`grantedAccess_${selectedToken}`) || '[]'
-            );
+            // Load granted addresses from contract (on-chain — no localStorage needed)
+            const grantedAddrs = await contracts.soulbound.getGrantedAddresses(selectedToken);
 
-            // Verify each address still has access — all in parallel
+            // Verify each address still has active (non-expired) access — all in parallel
             const accessResults = await Promise.all(
-                storedGrantedAddresses.map(async (address) => {
+                grantedAddrs.map(async (address) => {
                     try {
                         const [hasAccess, expiresAt] = await contracts.soulbound.checkAccess(selectedToken, address);
                         return hasAccess ? { address, expiresAt: expiresAt.toNumber() } : null;
@@ -90,15 +86,8 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
                     }
                 })
             );
-            const stillActive = accessResults.filter(Boolean);
 
-            // Update localStorage with only active addresses
-            localStorage.setItem(
-                `grantedAccess_${selectedToken}`,
-                JSON.stringify(stillActive.map(item => item.address))
-            );
-
-            setGrantedAccess(stillActive);
+            setGrantedAccess(accessResults.filter(Boolean));
         } catch (error) {
             console.error('Error loading access data:', error);
         } finally {
@@ -110,7 +99,7 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
         if (!contracts) return;
 
         try {
-            const maxTokenId = 10;
+            const maxTokenId = (await contracts.soulbound.lastTokenId()).toNumber();
             const myAddress = await contracts.soulbound.signer.getAddress();
 
             const results = await Promise.all(
@@ -212,33 +201,16 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
         try {
             const duration = 30 * 24 * 60 * 60;
 
-            // Step 1: Approve profile access
-            showNotification('Approving profile access...', 'info');
-            const tx1 = await contracts.soulbound.approveAccess(selectedToken, approvingRequester, duration);
-            await tx1.wait();
-
-            // Step 2: Grant credential types (bitmask: bit0=Degree,bit1=Cert,bit2=Work,bit3=Identity,bit4=Skills)
             const credBitmask = Object.entries(selectedCredTypes)
                 .reduce((mask, [bit, checked]) => checked ? mask | (1 << parseInt(bit)) : mask, 0);
-            showNotification('Granting credential access...', 'info');
-            const tx2 = await contracts.credentials.grantCredentialAccess(selectedToken, approvingRequester, credBitmask);
-            await tx2.wait();
-
-            // Step 3: Grant social sections (bitmask: bit0=Reviews,bit1=Projects,bit2=Endorsements)
             const socialBitmask = Object.entries(selectedSocialSections)
                 .reduce((mask, [bit, checked]) => checked ? mask | (1 << parseInt(bit)) : mask, 0);
-            showNotification('Granting social access...', 'info');
-            const tx3 = await contracts.social.grantSocialAccess(selectedToken, approvingRequester, socialBitmask);
-            await tx3.wait();
 
-            // Track granted address in localStorage
-            const storedGranted = JSON.parse(
-                localStorage.getItem(`grantedAccess_${selectedToken}`) || '[]'
+            showNotification('Approving access...', 'info');
+            const tx = await contracts.soulbound.approveAccessWithPermissions(
+                selectedToken, approvingRequester, duration, credBitmask, socialBitmask
             );
-            if (!storedGranted.includes(approvingRequester)) {
-                storedGranted.push(approvingRequester);
-                localStorage.setItem(`grantedAccess_${selectedToken}`, JSON.stringify(storedGranted));
-            }
+            await tx.wait();
 
             showNotification('Access approved!', 'success');
             setShowApproveModal(false);
@@ -266,16 +238,9 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
     const handleRevokeAccess = async (requester) => {
         try {
             const reason = "Access revoked by token owner";
-            const tx = await contracts.soulbound.revokeAccess(selectedToken, requester, reason);
             showNotification('Revoking access...', 'info');
+            const tx = await contracts.soulbound.revokeAccessWithPermissions(selectedToken, requester, reason);
             await tx.wait();
-
-            // Remove from localStorage
-            const storedGranted = JSON.parse(
-                localStorage.getItem(`grantedAccess_${selectedToken}`) || '[]'
-            );
-            const updated = storedGranted.filter(addr => addr.toLowerCase() !== requester.toLowerCase());
-            localStorage.setItem(`grantedAccess_${selectedToken}`, JSON.stringify(updated));
 
             showNotification('Access revoked!', 'success');
             loadAccessData();
