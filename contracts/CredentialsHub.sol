@@ -117,7 +117,8 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
     ISoulboundIdentity public immutable identity;
 
     /// @notice Authorized issuers per credential type
-    mapping(CredentialType => mapping(address => bool)) public authorizedIssuers;
+    mapping(CredentialType => mapping(address => bool))
+        public authorizedIssuers;
 
     /// @notice Credential counters
     uint256 private _credentialIdCounter;
@@ -126,10 +127,12 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
     mapping(uint256 => mapping(uint256 => Credential)) public credentials;
 
     /// @notice Token's credentials by type: tokenId => type => credentialId[]
-    mapping(uint256 => mapping(CredentialType => uint256[])) private credentialsByType;
+    mapping(uint256 => mapping(CredentialType => uint256[]))
+        private credentialsByType;
 
     /// @notice Count by type: tokenId => type => count
-    mapping(uint256 => mapping(CredentialType => uint256)) public credentialCount;
+    mapping(uint256 => mapping(CredentialType => uint256))
+        public credentialCount;
 
     /// @notice Per-type access grants: tokenId => viewer => bitmask of allowed CredentialTypes
     mapping(uint256 => mapping(address => uint8)) public grantedTypes;
@@ -177,7 +180,8 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
     }
 
     modifier onlyAuthorizedIssuer(CredentialType credType) {
-        if (!authorizedIssuers[credType][msg.sender]) revert NotAuthorizedIssuer();
+        if (!authorizedIssuers[credType][msg.sender])
+            revert NotAuthorizedIssuer();
         _;
     }
 
@@ -223,14 +227,11 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
     /// @param tokenId The identity token ID
     /// @param viewer The address to grant access to
     /// @param types Bitmask of CredentialTypes to allow (0 = revoke all)
-    /// @dev Also callable by SoulboundIdentity for single-tx batch approve/revoke
     function grantCredentialAccess(
         uint256 tokenId,
         address viewer,
         uint8 types
-    ) external {
-        if (msg.sender != identity.ownerOf(tokenId) && msg.sender != address(identity))
-            revert NotTokenOwner();
+    ) external onlyTokenOwner(tokenId) {
         grantedTypes[tokenId][viewer] = types;
         emit CredentialAccessGranted(tokenId, viewer, types);
     }
@@ -240,6 +241,13 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Issue a credential to a token
+    /// @param tokenId The identity token ID
+    /// @param credType The credential type
+    /// @param metadataHash IPFS CID hash
+    /// @param issueDate Issue date (unix timestamp)
+    /// @param expiryDate Expiry date (0 for non-expiring)
+    /// @param category For skills, the SkillCategory; 0 for others
+    /// @return credentialId The issued credential ID
     function issueCredential(
         uint256 tokenId,
         CredentialType credType,
@@ -250,11 +258,14 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
     ) external onlyAuthorizedIssuer(credType) nonReentrant returns (uint256) {
         if (metadataHash == bytes32(0)) revert InvalidParameter();
         if (expiryDate != 0 && expiryDate <= issueDate) revert InvalidDates();
-        if (credentialCount[tokenId][credType] >= MAX_CREDENTIALS_PER_TYPE)
+        if (credentialCount[tokenId][credType] >= MAX_CREDENTIALS_PER_TYPE) {
             revert TooManyCredentials();
+        }
 
         uint256 credentialId;
-        unchecked { credentialId = ++_credentialIdCounter; }
+        unchecked {
+            credentialId = ++_credentialIdCounter;
+        }
 
         credentials[tokenId][credentialId] = Credential({
             credentialId: credentialId,
@@ -270,11 +281,14 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
 
         credentialsByType[tokenId][credType].push(credentialId);
         credentialCount[tokenId][credType]++;
+
         emit CredentialIssued(tokenId, credentialId, credType, msg.sender);
+
         return credentialId;
     }
 
     /// @notice Self-add a credential (unverified)
+    /// @dev User can add their own credentials, but marked as unverified
     function addCredential(
         uint256 tokenId,
         CredentialType credType,
@@ -285,11 +299,14 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
     ) external onlyTokenOwner(tokenId) nonReentrant returns (uint256) {
         if (metadataHash == bytes32(0)) revert InvalidParameter();
         if (expiryDate != 0 && expiryDate <= issueDate) revert InvalidDates();
-        if (credentialCount[tokenId][credType] >= MAX_CREDENTIALS_PER_TYPE)
+        if (credentialCount[tokenId][credType] >= MAX_CREDENTIALS_PER_TYPE) {
             revert TooManyCredentials();
+        }
 
         uint256 credentialId;
-        unchecked { credentialId = ++_credentialIdCounter; }
+        unchecked {
+            credentialId = ++_credentialIdCounter;
+        }
 
         credentials[tokenId][credentialId] = Credential({
             credentialId: credentialId,
@@ -305,7 +322,9 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
 
         credentialsByType[tokenId][credType].push(credentialId);
         credentialCount[tokenId][credType]++;
+
         emit CredentialIssued(tokenId, credentialId, credType, msg.sender);
+
         return credentialId;
     }
 
@@ -320,20 +339,28 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
 
         bool isIssuer = msg.sender == cred.issuer;
         bool isOwner = msg.sender == identity.ownerOf(tokenId);
+
         if (!isIssuer && !isOwner) revert NotAuthorizedIssuer();
 
         cred.status = CredentialStatus.Revoked;
+
         emit CredentialRevoked(credentialId, msg.sender);
     }
 
     /// @notice Update credential status (mark as expired)
-    function updateCredentialStatus(uint256 tokenId, uint256 credentialId) external {
+    function updateCredentialStatus(
+        uint256 tokenId,
+        uint256 credentialId
+    ) external {
         Credential storage cred = credentials[tokenId][credentialId];
         if (cred.credentialId == 0) revert CredentialNotFound();
 
         if (cred.expiryDate != 0 && block.timestamp >= cred.expiryDate) {
             cred.status = CredentialStatus.Expired;
-            emit CredentialStatusChanged(credentialId, CredentialStatus.Expired);
+            emit CredentialStatusChanged(
+                credentialId,
+                CredentialStatus.Expired
+            );
         }
     }
 
@@ -352,7 +379,7 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
         return cred;
     }
 
-    /// @notice Get all credentials of a specific type
+    /// @notice Get all credentials of a specific type — checks access for that type only
     function getCredentialsByType(
         uint256 tokenId,
         CredentialType credType
@@ -361,13 +388,15 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
 
         uint256[] memory ids = credentialsByType[tokenId][credType];
         Credential[] memory result = new Credential[](ids.length);
+
         for (uint256 i = 0; i < ids.length; i++) {
             result[i] = credentials[tokenId][ids[i]];
         }
+
         return result;
     }
 
-    /// @notice Get all active credentials of a type
+    /// @notice Get all active credentials of a type — checks access for that type only
     function getActiveCredentials(
         uint256 tokenId,
         CredentialType credType
@@ -379,9 +408,10 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
         uint256 activeCount = 0;
         for (uint256 i = 0; i < ids.length; i++) {
             Credential memory cred = credentials[tokenId][ids[i]];
-            if (cred.status == CredentialStatus.Active &&
-                (cred.expiryDate == 0 || block.timestamp < cred.expiryDate)) {
-                activeCount++;
+            if (cred.status == CredentialStatus.Active) {
+                if (cred.expiryDate == 0 || block.timestamp < cred.expiryDate) {
+                    activeCount++;
+                }
             }
         }
 
@@ -389,11 +419,14 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
         uint256 index = 0;
         for (uint256 i = 0; i < ids.length; i++) {
             Credential memory cred = credentials[tokenId][ids[i]];
-            if (cred.status == CredentialStatus.Active &&
-                (cred.expiryDate == 0 || block.timestamp < cred.expiryDate)) {
-                result[index++] = cred;
+            if (cred.status == CredentialStatus.Active) {
+                if (cred.expiryDate == 0 || block.timestamp < cred.expiryDate) {
+                    result[index] = cred;
+                    index++;
+                }
             }
         }
+
         return result;
     }
 
@@ -408,26 +441,44 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
     /// @notice Get summary — returns 0 for types the caller has no access to
     function getCredentialSummary(
         uint256 tokenId
-    ) external view returns (
-        uint256 degrees,
-        uint256 certifications,
-        uint256 workExperience,
-        uint256 identityProofs,
-        uint256 skills
-    ) {
-        degrees        = _canAccessType(tokenId, CredentialType.Degree)        ? credentialCount[tokenId][CredentialType.Degree]        : 0;
-        certifications = _canAccessType(tokenId, CredentialType.Certification) ? credentialCount[tokenId][CredentialType.Certification] : 0;
-        workExperience = _canAccessType(tokenId, CredentialType.WorkExperience) ? credentialCount[tokenId][CredentialType.WorkExperience] : 0;
-        identityProofs = _canAccessType(tokenId, CredentialType.IdentityProof) ? credentialCount[tokenId][CredentialType.IdentityProof] : 0;
-        skills         = _canAccessType(tokenId, CredentialType.Skill)         ? credentialCount[tokenId][CredentialType.Skill]         : 0;
+    )
+        external
+        view
+        returns (
+            uint256 degrees,
+            uint256 certifications,
+            uint256 workExperience,
+            uint256 identityProofs,
+            uint256 skills
+        )
+    {
+        degrees = _canAccessType(tokenId, CredentialType.Degree)
+            ? credentialCount[tokenId][CredentialType.Degree]
+            : 0;
+        certifications = _canAccessType(tokenId, CredentialType.Certification)
+            ? credentialCount[tokenId][CredentialType.Certification]
+            : 0;
+        workExperience = _canAccessType(tokenId, CredentialType.WorkExperience)
+            ? credentialCount[tokenId][CredentialType.WorkExperience]
+            : 0;
+        identityProofs = _canAccessType(tokenId, CredentialType.IdentityProof)
+            ? credentialCount[tokenId][CredentialType.IdentityProof]
+            : 0;
+        skills = _canAccessType(tokenId, CredentialType.Skill)
+            ? credentialCount[tokenId][CredentialType.Skill]
+            : 0;
     }
 
     /// @notice Check if credential is currently valid
-    function isCredentialValid(uint256 tokenId, uint256 credentialId) external view returns (bool) {
+    function isCredentialValid(
+        uint256 tokenId,
+        uint256 credentialId
+    ) external view returns (bool) {
         Credential memory cred = credentials[tokenId][credentialId];
         if (cred.credentialId == 0) return false;
         if (cred.status != CredentialStatus.Active) return false;
-        if (cred.expiryDate != 0 && block.timestamp >= cred.expiryDate) return false;
+        if (cred.expiryDate != 0 && block.timestamp >= cred.expiryDate)
+            return false;
         return true;
     }
 
@@ -435,8 +486,12 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
                         INTERNAL HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Owner always has full access; others need the bit set in grantedTypes
-    function _canAccessType(uint256 tokenId, CredentialType credType) internal view returns (bool) {
+    /// @notice Check if caller can access a specific credential type for a token
+    /// @dev Owner always has full access; others need the corresponding bit set in grantedTypes
+    function _canAccessType(
+        uint256 tokenId,
+        CredentialType credType
+    ) internal view returns (bool) {
         if (msg.sender == identity.ownerOf(tokenId)) return true;
         return (grantedTypes[tokenId][msg.sender] >> uint8(credType)) & 1 == 1;
     }
