@@ -60,12 +60,14 @@ App = function () {
             const credentialsContract = new ethers.Contract(CONFIG.CONTRACTS.CREDENTIALS_HUB, CREDENTIALS_HUB_ABI, web3Signer);
             const socialContract = new ethers.Contract(CONFIG.CONTRACTS.SOCIAL_HUB, SOCIAL_HUB_ABI, web3Signer);
             const verifierContract = new ethers.Contract(CONFIG.CONTRACTS.REPUTATION_VERIFIER, REPUTATION_VERIFIER_ABI, web3Signer);
+            const batchManagerContract = new ethers.Contract(CONFIG.CONTRACTS.BATCH_MANAGER, BATCH_ACCESS_MANAGER_ABI, web3Signer);
 
             setContracts({
                 soulbound: soulboundContract,
                 credentials: credentialsContract,
                 social: socialContract,
-                verifier: verifierContract
+                verifier: verifierContract,
+                batchManager: batchManagerContract
             });
 
             // Load user tokens

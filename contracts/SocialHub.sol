@@ -96,6 +96,9 @@ contract SocialHub is Ownable, ReentrancyGuard {
 
     ISoulboundIdentity public immutable identity;
 
+    /// @notice Registered BatchAccessManager — allowed to call grantSocialAccess
+    address public batchManager;
+
     // Reviews
     uint256 private _reviewIdCounter;
     mapping(uint256 => Review[]) private reviewsBySubject;
@@ -155,19 +158,26 @@ contract SocialHub is Ownable, ReentrancyGuard {
         identity = ISoulboundIdentity(_identityContract);
     }
 
+    /// @notice Register the BatchAccessManager — call once after deploying BatchAccessManager
+    /// @param manager Address of the deployed BatchAccessManager
+    function setBatchManager(address manager) external onlyOwner {
+        if (manager == address(0)) revert InvalidParameter();
+        batchManager = manager;
+    }
+
     /*//////////////////////////////////////////////////////////////
                         ACCESS GRANTS
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Grant a viewer access to specific social sections
     /// @param sections Bitmask: bit0=Reviews, bit1=Projects, bit2=Endorsements (0 = revoke all)
-    /// @dev Also callable by SoulboundIdentity for single-tx batch approve/revoke
+    /// @dev Also callable by the registered BatchAccessManager for single-tx batch operations
     function grantSocialAccess(
         uint256 tokenId,
         address viewer,
         uint8 sections
     ) external {
-        if (msg.sender != identity.ownerOf(tokenId) && msg.sender != address(identity))
+        if (msg.sender != identity.ownerOf(tokenId) && msg.sender != batchManager)
             revert NotTokenOwner();
         grantedSections[tokenId][viewer] = sections;
         emit SocialAccessGranted(tokenId, viewer, sections);

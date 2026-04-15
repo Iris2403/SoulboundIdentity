@@ -6,26 +6,17 @@ import "./ERC5484.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
-interface ICredentialsHub {
-    function grantCredentialAccess(uint256 tokenId, address viewer, uint8 types) external;
-}
-
-interface ISocialHub {
-    function grantSocialAccess(uint256 tokenId, address viewer, uint8 sections) external;
-}
-
 /**
- * @title SoulboundIdentity V3.0
+ * @title SoulboundIdentity V3.1
  * @notice Soulbound identity tokens with privacy-controlled metadata access
  * @dev Extends ERC5484 with IPFS metadata and access control
  *
- * CHANGES IN V3.0:
- * ✅ approveAccessWithPermissions — profile + credentials + social in ONE tx
- * ✅ revokeAccessWithPermissions  — revokes all three in ONE tx
+ * CHANGES IN V3.1:
+ * ✅ Removed cross-contract calls to CredentialsHub / SocialHub (contracts are now fully decoupled)
+ * ✅ batchManager — registered BatchAccessManager can call approveAccess / revokeAccess
  * ✅ getGrantedAddresses          — on-chain grantee list (replaces localStorage)
  * ✅ getMetadata                  — alias for tokenURI (matches frontend ABI)
- * ✅ totalSupply                  — exposes token counter for frontend scanning
- * ✅ setCredentialsHub / setSocialHub — register sibling contracts after deploy
+ * ✅ lastTokenId                  — exposes token counter for frontend scanning
  */
 contract SoulboundIdentity is ERC5484, Ownable {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -46,7 +37,6 @@ contract SoulboundIdentity is ERC5484, Ownable {
     error TooManyRequests();
     error RequestCooldown(uint256 timeRemaining);
     error AlreadyHasToken();
-    error HubsNotConfigured();
 
     /*//////////////////////////////////////////////////////////////
                             CONSTANTS
@@ -62,9 +52,8 @@ contract SoulboundIdentity is ERC5484, Ownable {
                             STORAGE
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Sibling contracts — set once by owner after all three are deployed
-    ICredentialsHub public credentialsHub;
-    ISocialHub public socialHub;
+    /// @notice Registered BatchAccessManager — allowed to call approveAccess / revokeAccess
+    address public batchManager;
 
     uint256 private _tokenIdCounter;
 
@@ -143,21 +132,14 @@ contract SoulboundIdentity is ERC5484, Ownable {
     constructor() ERC5484("Soulbound Identity", "SBTID") Ownable(msg.sender) {}
 
     /*//////////////////////////////////////////////////////////////
-                    HUB REGISTRATION
+                    BATCH MANAGER REGISTRATION
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Register the CredentialsHub address — call once after deploying all three contracts
-    /// @param hub Address of the deployed CredentialsHub
-    function setCredentialsHub(address hub) external onlyOwner {
-        if (hub == address(0)) revert InvalidAddress();
-        credentialsHub = ICredentialsHub(hub);
-    }
-
-    /// @notice Register the SocialHub address — call once after deploying all three contracts
-    /// @param hub Address of the deployed SocialHub
-    function setSocialHub(address hub) external onlyOwner {
-        if (hub == address(0)) revert InvalidAddress();
-        socialHub = ISocialHub(hub);
+    /// @notice Register the BatchAccessManager — call once after deploying BatchAccessManager
+    /// @param manager Address of the deployed BatchAccessManager
+    function setBatchManager(address manager) external onlyOwner {
+        if (manager == address(0)) revert InvalidAddress();
+        batchManager = manager;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -294,6 +276,7 @@ contract SoulboundIdentity is ERC5484, Ownable {
     }
 
     /// @notice Approve an access request — profile access only
+    /// @dev Also callable by the registered BatchAccessManager for single-tx batch operations
     /// @param tokenId The token ID
     /// @param requester The address requesting access
     /// @param duration Duration of access in seconds
@@ -301,29 +284,9 @@ contract SoulboundIdentity is ERC5484, Ownable {
         uint256 tokenId,
         address requester,
         uint64 duration
-    ) external onlyTokenOwner(tokenId) {
+    ) external {
+        if (msg.sender != ownerOf(tokenId) && msg.sender != batchManager) revert OnlyTokenOwner();
         _doApprove(tokenId, requester, duration);
-    }
-
-    /// @notice Approve an access request — profile + credentials + social in ONE transaction
-    /// @param tokenId The token ID
-    /// @param requester The address requesting access
-    /// @param duration Duration of access in seconds
-    /// @param credTypes Bitmask of credential types: bit0=Degree, bit1=Cert, bit2=Work, bit3=Identity, bit4=Skill
-    /// @param socialSections Bitmask of social sections: bit0=Reviews, bit1=Projects, bit2=Endorsements
-    function approveAccessWithPermissions(
-        uint256 tokenId,
-        address requester,
-        uint64 duration,
-        uint8 credTypes,
-        uint8 socialSections
-    ) external onlyTokenOwner(tokenId) {
-        if (address(credentialsHub) == address(0) || address(socialHub) == address(0))
-            revert HubsNotConfigured();
-
-        _doApprove(tokenId, requester, duration);
-        credentialsHub.grantCredentialAccess(tokenId, requester, credTypes);
-        socialHub.grantSocialAccess(tokenId, requester, socialSections);
     }
 
     /// @notice Deny an access request
@@ -347,6 +310,7 @@ contract SoulboundIdentity is ERC5484, Ownable {
     }
 
     /// @notice Revoke approved access — profile access only
+    /// @dev Also callable by the registered BatchAccessManager for single-tx batch operations
     /// @param tokenId The token ID
     /// @param requester The address to revoke access from
     /// @param reason Reason for revocation (for audit trail)
@@ -354,25 +318,9 @@ contract SoulboundIdentity is ERC5484, Ownable {
         uint256 tokenId,
         address requester,
         string calldata reason
-    ) external onlyTokenOwner(tokenId) {
+    ) external {
+        if (msg.sender != ownerOf(tokenId) && msg.sender != batchManager) revert OnlyTokenOwner();
         _doRevoke(tokenId, requester, reason);
-    }
-
-    /// @notice Revoke approved access — profile + clears credential + social grants in ONE transaction
-    /// @param tokenId The token ID
-    /// @param requester The address to revoke access from
-    /// @param reason Reason for revocation (for audit trail)
-    function revokeAccessWithPermissions(
-        uint256 tokenId,
-        address requester,
-        string calldata reason
-    ) external onlyTokenOwner(tokenId) {
-        if (address(credentialsHub) == address(0) || address(socialHub) == address(0))
-            revert HubsNotConfigured();
-
-        _doRevoke(tokenId, requester, reason);
-        credentialsHub.grantCredentialAccess(tokenId, requester, 0);
-        socialHub.grantSocialAccess(tokenId, requester, 0);
     }
 
     /// @notice Clean expired access entries manually
@@ -623,7 +571,7 @@ contract SoulboundIdentity is ERC5484, Ownable {
                         INTERNAL HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Shared approve logic — used by approveAccess and approveAccessWithPermissions
+    /// @notice Shared approve logic — used by approveAccess
     /// @param tokenId The token ID
     /// @param requester The address requesting access
     /// @param duration Duration of access in seconds
@@ -655,7 +603,7 @@ contract SoulboundIdentity is ERC5484, Ownable {
         emit AccessApproved(tokenId, requester, expiresAt);
     }
 
-    /// @notice Shared revoke logic — used by revokeAccess and revokeAccessWithPermissions
+    /// @notice Shared revoke logic — used by revokeAccess
     /// @param tokenId The token ID
     /// @param requester The address to revoke access from
     /// @param reason Reason for revocation

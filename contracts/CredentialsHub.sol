@@ -116,6 +116,9 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
     /// @notice Reference to identity contract
     ISoulboundIdentity public immutable identity;
 
+    /// @notice Registered BatchAccessManager — allowed to call grantCredentialAccess
+    address public batchManager;
+
     /// @notice Authorized issuers per credential type
     mapping(CredentialType => mapping(address => bool)) public authorizedIssuers;
 
@@ -189,6 +192,13 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
         identity = ISoulboundIdentity(_identityContract);
     }
 
+    /// @notice Register the BatchAccessManager — call once after deploying BatchAccessManager
+    /// @param manager Address of the deployed BatchAccessManager
+    function setBatchManager(address manager) external onlyOwner {
+        if (manager == address(0)) revert InvalidParameter();
+        batchManager = manager;
+    }
+
     /*//////////////////////////////////////////////////////////////
                         ISSUER MANAGEMENT
     //////////////////////////////////////////////////////////////*/
@@ -223,13 +233,13 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
     /// @param tokenId The identity token ID
     /// @param viewer The address to grant access to
     /// @param types Bitmask of CredentialTypes to allow (0 = revoke all)
-    /// @dev Also callable by SoulboundIdentity for single-tx batch approve/revoke
+    /// @dev Also callable by the registered BatchAccessManager for single-tx batch operations
     function grantCredentialAccess(
         uint256 tokenId,
         address viewer,
         uint8 types
     ) external {
-        if (msg.sender != identity.ownerOf(tokenId) && msg.sender != address(identity))
+        if (msg.sender != identity.ownerOf(tokenId) && msg.sender != batchManager)
             revert NotTokenOwner();
         grantedTypes[tokenId][viewer] = types;
         emit CredentialAccessGranted(tokenId, viewer, types);

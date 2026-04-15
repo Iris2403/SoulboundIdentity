@@ -6,10 +6,8 @@ SOULBOUND_IDENTITY_ABI = [
     "function getMetadata(uint256 tokenId) external view returns (string memory)",
     "function requestAccess(uint256 tokenId) external",
     "function approveAccess(uint256 tokenId, address requester, uint64 duration) external",
-    "function approveAccessWithPermissions(uint256 tokenId, address requester, uint64 duration, uint8 credentialTypes, uint8 socialSections) external",
     "function denyAccess(uint256 tokenId, address requester) external",
     "function revokeAccess(uint256 tokenId, address requester, string calldata reason) external",
-    "function revokeAccessWithPermissions(uint256 tokenId, address requester, string calldata reason) external",
     "function canView(uint256 tokenId, address viewer) external view returns (bool)",
     "function checkAccess(uint256 tokenId, address requester) external view returns (bool hasAccess, uint64 expiresAt)",
     "function getPendingRequests(uint256 tokenId, uint256 offset, uint256 limit) external view returns (address[] memory requesters, uint256 totalCount)",
@@ -19,8 +17,8 @@ SOULBOUND_IDENTITY_ABI = [
     "function getOwnedTokensPaginated(address owner, uint256 offset, uint256 limit) external view returns (uint256[] memory tokenIds, string[] memory metadataCIDs, uint256 totalCount)",
     "function getGrantedAddresses(uint256 tokenId) external view returns (address[] memory)",
     "function lastTokenId() external view returns (uint256)",
-    "function setCredentialsHub(address hub) external",
-    "function setSocialHub(address hub) external",
+    "function setBatchManager(address manager) external",
+    "function batchManager() external view returns (address)",
     "function MAX_REQUESTS_PER_DAY() external view returns (uint256)",
     "function owner() external view returns (address)",
     "error OnlyTokenOwner()",
@@ -40,6 +38,16 @@ SOULBOUND_IDENTITY_ABI = [
     "event AccessRevoked(uint256 indexed tokenId, address indexed requester, string reason)"
 ];
 
+BATCH_ACCESS_MANAGER_ABI = [
+    "function batchApproveAccess(uint256 tokenId, address requester, uint64 duration, uint8 credTypes, uint8 socialSections) external",
+    "function batchRevokeAccess(uint256 tokenId, address requester, string calldata reason) external",
+    "function soulbound() external view returns (address)",
+    "function credentialsHub() external view returns (address)",
+    "function socialHub() external view returns (address)",
+    "error NotTokenOwner()",
+    "error InvalidAddress()"
+];
+
 CREDENTIALS_HUB_ABI = [
     "function issueCredential(uint256 tokenId, uint8 credType, bytes32 metadataHash, uint64 issueDate, uint64 expiryDate, uint8 category) external returns (uint256)",
     "function addCredential(uint256 tokenId, uint8 credType, bytes32 metadataHash, uint64 issueDate, uint64 expiryDate, uint8 category) external returns (uint256)",
@@ -56,6 +64,8 @@ CREDENTIALS_HUB_ABI = [
     "function authorizedIssuers(uint8 credType, address issuer) external view returns (bool)",
     "function grantCredentialAccess(uint256 tokenId, address viewer, uint8 types) external",
     "function grantedTypes(uint256 tokenId, address viewer) external view returns (uint8)",
+    "function setBatchManager(address manager) external",
+    "function batchManager() external view returns (address)",
     "error NotTokenOwner()",
     "error NotAuthorizedIssuer()",
     "error CredentialNotFound()",
@@ -82,6 +92,8 @@ SOCIAL_HUB_ABI = [
     "function getProjectCountByStatus(uint256 tokenId, uint8 status) external view returns (uint256)",
     "function grantSocialAccess(uint256 tokenId, address viewer, uint8 sections) external",
     "function grantedSections(uint256 tokenId, address viewer) external view returns (uint8)",
+    "function setBatchManager(address manager) external",
+    "function batchManager() external view returns (address)",
     "function setReputationCommitment(uint256 tokenId, bytes32 commitment) external",
     "function reputationCommitment(uint256 tokenId) external view returns (bytes32)",
     "function getAverageScore(uint256 tokenId) external view returns (uint256)",
@@ -112,7 +124,8 @@ CONFIG = {
         SOULBOUND_IDENTITY: '0x5010bC7A80F662Cff6F0D55b9E2f070727143224',
         CREDENTIALS_HUB: '0x65F1Adb772d39d0169891EF7b5FBF2Ad294A4B3a',
         SOCIAL_HUB: '0x8dab9d5cB457f39aCA61b5E54745671277596451',
-        REPUTATION_VERIFIER: '0x548E11A0A6E0A2FC618Df456c4415b403fC1De38'
+        REPUTATION_VERIFIER: '0x548E11A0A6E0A2FC618Df456c4415b403fC1De38',
+        BATCH_MANAGER: '' // Set after deploying BatchAccessManager
     },
     IPFS_GATEWAY: 'https://gateway.pinata.cloud/ipfs/',
     BLOCK_EXPLORER: 'https://explorer.dimikog.org',

@@ -207,7 +207,7 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
                 .reduce((mask, [bit, checked]) => checked ? mask | (1 << parseInt(bit)) : mask, 0);
 
             showNotification('Approving access...', 'info');
-            const tx = await contracts.soulbound.approveAccessWithPermissions(
+            const tx = await contracts.batchManager.batchApproveAccess(
                 selectedToken, approvingRequester, duration, credBitmask, socialBitmask
             );
             await tx.wait();
@@ -239,7 +239,7 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
         try {
             const reason = "Access revoked by token owner";
             showNotification('Revoking access...', 'info');
-            const tx = await contracts.soulbound.revokeAccessWithPermissions(selectedToken, requester, reason);
+            const tx = await contracts.batchManager.batchRevokeAccess(selectedToken, requester, reason);
             await tx.wait();
 
             showNotification('Access revoked!', 'success');
