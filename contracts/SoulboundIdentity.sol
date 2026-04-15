@@ -1,4 +1,3 @@
-
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
@@ -6,26 +5,17 @@ import "./ERC5484.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
-interface ICredentialsHub {
-    function grantCredentialAccess(uint256 tokenId, address viewer, uint8 types) external;
-}
-
-interface ISocialHub {
-    function grantSocialAccess(uint256 tokenId, address viewer, uint8 sections) external;
-}
-
 /**
- * @title SoulboundIdentity V3.0
+ * @title SoulboundIdentity V2.2 - SIMPLIFIED
  * @notice Soulbound identity tokens with privacy-controlled metadata access
  * @dev Extends ERC5484 with IPFS metadata and access control
  *
- * CHANGES IN V3.0:
- * ✅ approveAccessWithPermissions — profile + credentials + social in ONE tx
- * ✅ revokeAccessWithPermissions  — revokes all three in ONE tx
- * ✅ getGrantedAddresses          — on-chain grantee list (replaces localStorage)
- * ✅ getMetadata                  — alias for tokenURI (matches frontend ABI)
- * ✅ totalSupply                  — exposes token counter for frontend scanning
- * ✅ setCredentialsHub / setSocialHub — register sibling contracts after deploy
+ * SIMPLIFICATIONS IN V2.2:
+ * ❌ Removed batch approve access
+ * ❌ Removed batch request access
+ * ❌ Removed auto-clean stale requests
+ * ✅ Kept single request/approve/deny flow
+ * ✅ Kept rate limiting for spam prevention
  */
 contract SoulboundIdentity is ERC5484, Ownable {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -46,7 +36,6 @@ contract SoulboundIdentity is ERC5484, Ownable {
     error TooManyRequests();
     error RequestCooldown(uint256 timeRemaining);
     error AlreadyHasToken();
-    error HubsNotConfigured();
 
     /*//////////////////////////////////////////////////////////////
                             CONSTANTS
@@ -61,10 +50,6 @@ contract SoulboundIdentity is ERC5484, Ownable {
     /*//////////////////////////////////////////////////////////////
                             STORAGE
     //////////////////////////////////////////////////////////////*/
-
-    /// @notice Sibling contracts — set once by owner after all three are deployed
-    ICredentialsHub public credentialsHub;
-    ISocialHub public socialHub;
 
     uint256 private _tokenIdCounter;
 
@@ -82,9 +67,6 @@ contract SoulboundIdentity is ERC5484, Ownable {
 
     /// @notice EnumerableSet for efficient pending requester management
     mapping(uint256 => EnumerableSet.AddressSet) private _pendingRequesters;
-
-    /// @notice On-chain grantee tracking — replaces unreliable localStorage
-    mapping(uint256 => EnumerableSet.AddressSet) private _grantedAddresses;
 
     /*//////////////////////////////////////////////////////////////
                         ACCESS CONTROL
@@ -108,7 +90,7 @@ contract SoulboundIdentity is ERC5484, Ownable {
     mapping(uint256 => mapping(address => AccessRequest)) private _access;
 
     /*//////////////////////////////////////////////////////////////
-                        EVENTS
+                        EVENTS 
     //////////////////////////////////////////////////////////////*/
 
     event AccessRequested(uint256 indexed tokenId, address indexed requester);
@@ -141,24 +123,6 @@ contract SoulboundIdentity is ERC5484, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     constructor() ERC5484("Soulbound Identity", "SBTID") Ownable(msg.sender) {}
-
-    /*//////////////////////////////////////////////////////////////
-                    HUB REGISTRATION
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Register the CredentialsHub address — call once after deploying all three contracts
-    /// @param hub Address of the deployed CredentialsHub
-    function setCredentialsHub(address hub) external onlyOwner {
-        if (hub == address(0)) revert InvalidAddress();
-        credentialsHub = ICredentialsHub(hub);
-    }
-
-    /// @notice Register the SocialHub address — call once after deploying all three contracts
-    /// @param hub Address of the deployed SocialHub
-    function setSocialHub(address hub) external onlyOwner {
-        if (hub == address(0)) revert InvalidAddress();
-        socialHub = ISocialHub(hub);
-    }
 
     /*//////////////////////////////////////////////////////////////
                         PAUSABLE CONTROLS
@@ -237,16 +201,6 @@ contract SoulboundIdentity is ERC5484, Ownable {
             }
             pending.remove(pending.at(i));
         }
-
-        // Clean up granted addresses EnumerableSet
-        EnumerableSet.AddressSet storage granted = _grantedAddresses[tokenId];
-        uint256 grantedLength = granted.length();
-        for (uint256 i = grantedLength; i > 0; ) {
-            unchecked {
-                --i;
-            }
-            granted.remove(granted.at(i));
-        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -293,7 +247,7 @@ contract SoulboundIdentity is ERC5484, Ownable {
         emit AccessRequested(tokenId, msg.sender);
     }
 
-    /// @notice Approve an access request — profile access only
+    /// @notice Approve an access request with expiration
     /// @param tokenId The token ID
     /// @param requester The address requesting access
     /// @param duration Duration of access in seconds
@@ -302,28 +256,26 @@ contract SoulboundIdentity is ERC5484, Ownable {
         address requester,
         uint64 duration
     ) external onlyTokenOwner(tokenId) {
-        _doApprove(tokenId, requester, duration);
-    }
+        if (requester == address(0)) revert InvalidAddress();
+        if (duration == 0) revert InvalidDuration();
 
-    /// @notice Approve an access request — profile + credentials + social in ONE transaction
-    /// @param tokenId The token ID
-    /// @param requester The address requesting access
-    /// @param duration Duration of access in seconds
-    /// @param credTypes Bitmask of credential types: bit0=Degree, bit1=Cert, bit2=Work, bit3=Identity, bit4=Skill
-    /// @param socialSections Bitmask of social sections: bit0=Reviews, bit1=Projects, bit2=Endorsements
-    function approveAccessWithPermissions(
-        uint256 tokenId,
-        address requester,
-        uint64 duration,
-        uint8 credTypes,
-        uint8 socialSections
-    ) external onlyTokenOwner(tokenId) {
-        if (address(credentialsHub) == address(0) || address(socialHub) == address(0))
-            revert HubsNotConfigured();
+        AccessRequest storage request = _access[tokenId][requester];
+        if (request.status != AccessStatus.Pending) revert NoAccessRequest();
 
-        _doApprove(tokenId, requester, duration);
-        credentialsHub.grantCredentialAccess(tokenId, requester, credTypes);
-        socialHub.grantSocialAccess(tokenId, requester, socialSections);
+        // Calculate expiration with overflow protection
+        uint64 expiresAt;
+        unchecked {
+            expiresAt = uint64(block.timestamp) + duration;
+        }
+        if (expiresAt < block.timestamp) revert DurationOverflow();
+
+        request.status = AccessStatus.Approved;
+        request.expiresAt = expiresAt;
+
+        // Remove from pending set
+        _pendingRequesters[tokenId].remove(requester);
+
+        emit AccessApproved(tokenId, requester, expiresAt);
     }
 
     /// @notice Deny an access request
@@ -346,7 +298,7 @@ contract SoulboundIdentity is ERC5484, Ownable {
         emit AccessDenied(tokenId, requester);
     }
 
-    /// @notice Revoke approved access — profile access only
+    /// @notice Revoke approved access
     /// @param tokenId The token ID
     /// @param requester The address to revoke access from
     /// @param reason Reason for revocation (for audit trail)
@@ -355,24 +307,17 @@ contract SoulboundIdentity is ERC5484, Ownable {
         address requester,
         string calldata reason
     ) external onlyTokenOwner(tokenId) {
-        _doRevoke(tokenId, requester, reason);
-    }
+        if (requester == address(0)) revert InvalidAddress();
 
-    /// @notice Revoke approved access — profile + clears credential + social grants in ONE transaction
-    /// @param tokenId The token ID
-    /// @param requester The address to revoke access from
-    /// @param reason Reason for revocation (for audit trail)
-    function revokeAccessWithPermissions(
-        uint256 tokenId,
-        address requester,
-        string calldata reason
-    ) external onlyTokenOwner(tokenId) {
-        if (address(credentialsHub) == address(0) || address(socialHub) == address(0))
-            revert HubsNotConfigured();
+        AccessRequest storage request = _access[tokenId][requester];
+        require(
+            request.status == AccessStatus.Approved,
+            "No approved access to revoke"
+        );
 
-        _doRevoke(tokenId, requester, reason);
-        credentialsHub.grantCredentialAccess(tokenId, requester, 0);
-        socialHub.grantSocialAccess(tokenId, requester, 0);
+        delete _access[tokenId][requester];
+
+        emit AccessRevoked(tokenId, requester, reason);
     }
 
     /// @notice Clean expired access entries manually
@@ -389,7 +334,6 @@ contract SoulboundIdentity is ERC5484, Ownable {
                 request.status == AccessStatus.Approved &&
                 block.timestamp >= request.expiresAt
             ) {
-                _grantedAddresses[tokenId].remove(addresses[i]);
                 delete _access[tokenId][addresses[i]];
                 emit AccessExpired(tokenId, addresses[i]);
                 unchecked {
@@ -411,13 +355,6 @@ contract SoulboundIdentity is ERC5484, Ownable {
                         METADATA & ACCESS VIEWS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Get token's IPFS metadata CID — matches frontend ABI call
-    /// @param tokenId The token ID
-    /// @return The IPFS CID
-    function getMetadata(uint256 tokenId) external view returns (string memory) {
-        return _metadataCID[tokenId];
-    }
-
     /// @notice Get token's IPFS metadata CID
     /// @param tokenId The token ID
     /// @return The IPFS CID
@@ -426,35 +363,6 @@ contract SoulboundIdentity is ERC5484, Ownable {
     ) public view override returns (string memory) {
         require(ownerOf(tokenId) != address(0), "Token does not exist");
         return _metadataCID[tokenId];
-    }
-
-    /// @notice Highest token ID ever minted — lets frontend scan the correct range
-    /// @dev Different from ERC721Enumerable.totalSupply() which decreases on burn;
-    ///      this value never decreases, so IDs 1..lastTokenId() cover all past tokens.
-    /// @return The current token ID counter
-    function lastTokenId() external view returns (uint256) {
-        return _tokenIdCounter;
-    }
-
-    /// @notice Get all addresses that have been granted access to a token
-    /// @dev Replaces the unreliable localStorage workaround in the frontend
-    /// @param tokenId The token ID
-    /// @return Array of addresses with granted (possibly expired) access
-    function getGrantedAddresses(
-        uint256 tokenId
-    ) external view returns (address[] memory) {
-        EnumerableSet.AddressSet storage set = _grantedAddresses[tokenId];
-        uint256 len = set.length();
-        address[] memory result = new address[](len);
-
-        for (uint256 i = 0; i < len; ) {
-            result[i] = set.at(i);
-            unchecked {
-                ++i;
-            }
-        }
-
-        return result;
     }
 
     /// @notice Check if an address can view a token's metadata
@@ -622,63 +530,6 @@ contract SoulboundIdentity is ERC5484, Ownable {
     /*//////////////////////////////////////////////////////////////
                         INTERNAL HELPERS
     //////////////////////////////////////////////////////////////*/
-
-    /// @notice Shared approve logic — used by approveAccess and approveAccessWithPermissions
-    /// @param tokenId The token ID
-    /// @param requester The address requesting access
-    /// @param duration Duration of access in seconds
-    function _doApprove(
-        uint256 tokenId,
-        address requester,
-        uint64 duration
-    ) internal {
-        if (requester == address(0)) revert InvalidAddress();
-        if (duration == 0) revert InvalidDuration();
-
-        AccessRequest storage request = _access[tokenId][requester];
-        if (request.status != AccessStatus.Pending) revert NoAccessRequest();
-
-        // Calculate expiration with overflow protection
-        uint64 expiresAt;
-        unchecked {
-            expiresAt = uint64(block.timestamp) + duration;
-        }
-        if (expiresAt < block.timestamp) revert DurationOverflow();
-
-        request.status = AccessStatus.Approved;
-        request.expiresAt = expiresAt;
-
-        // Remove from pending set, add to granted set
-        _pendingRequesters[tokenId].remove(requester);
-        _grantedAddresses[tokenId].add(requester);
-
-        emit AccessApproved(tokenId, requester, expiresAt);
-    }
-
-    /// @notice Shared revoke logic — used by revokeAccess and revokeAccessWithPermissions
-    /// @param tokenId The token ID
-    /// @param requester The address to revoke access from
-    /// @param reason Reason for revocation
-    function _doRevoke(
-        uint256 tokenId,
-        address requester,
-        string calldata reason
-    ) internal {
-        if (requester == address(0)) revert InvalidAddress();
-
-        AccessRequest storage request = _access[tokenId][requester];
-        require(
-            request.status == AccessStatus.Approved,
-            "No approved access to revoke"
-        );
-
-        delete _access[tokenId][requester];
-
-        // Remove from granted set
-        _grantedAddresses[tokenId].remove(requester);
-
-        emit AccessRevoked(tokenId, requester, reason);
-    }
 
     /// @notice Enhanced IPFS CID validation
     /// @param cid The IPFS CID to validate
