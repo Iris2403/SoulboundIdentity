@@ -6,8 +6,10 @@ SOULBOUND_IDENTITY_ABI = [
     "function getMetadata(uint256 tokenId) external view returns (string memory)",
     "function requestAccess(uint256 tokenId) external",
     "function approveAccess(uint256 tokenId, address requester, uint64 duration) external",
+    "function approveAccessWithPermissions(uint256 tokenId, address requester, uint64 duration, uint8 credentialTypes, uint8 socialSections) external",
     "function denyAccess(uint256 tokenId, address requester) external",
     "function revokeAccess(uint256 tokenId, address requester, string calldata reason) external",
+    "function revokeAccessWithPermissions(uint256 tokenId, address requester, string calldata reason) external",
     "function canView(uint256 tokenId, address viewer) external view returns (bool)",
     "function checkAccess(uint256 tokenId, address requester) external view returns (bool hasAccess, uint64 expiresAt)",
     "function getPendingRequests(uint256 tokenId, uint256 offset, uint256 limit) external view returns (address[] memory requesters, uint256 totalCount)",
@@ -15,6 +17,10 @@ SOULBOUND_IDENTITY_ABI = [
     "function ownerOf(uint256 tokenId) external view returns (address)",
     "function balanceOf(address owner) external view returns (uint256)",
     "function getOwnedTokensPaginated(address owner, uint256 offset, uint256 limit) external view returns (uint256[] memory tokenIds, string[] memory metadataCIDs, uint256 totalCount)",
+    "function getGrantedAddresses(uint256 tokenId) external view returns (address[] memory)",
+    "function lastTokenId() external view returns (uint256)",
+    "function setCredentialsHub(address hub) external",
+    "function setSocialHub(address hub) external",
     "function MAX_REQUESTS_PER_DAY() external view returns (uint256)",
     "function owner() external view returns (address)",
     "error OnlyTokenOwner()",
@@ -29,7 +35,7 @@ SOULBOUND_IDENTITY_ABI = [
     "error AlreadyHasToken()",
     "event Minted(address indexed to, uint256 indexed tokenId, string ipfsCID, uint8 burnAuth)",
     "event AccessRequested(uint256 indexed tokenId, address indexed requester)",
-    "event AccessApproved(uint256 indexed tokenId, address indexed requester, uint64 duration)",
+    "event AccessApproved(uint256 indexed tokenId, address indexed requester, uint64 expiresAt)",
     "event AccessDenied(uint256 indexed tokenId, address indexed requester)",
     "event AccessRevoked(uint256 indexed tokenId, address indexed requester, string reason)"
 ];
@@ -103,9 +109,9 @@ CONFIG = {
     CHAIN_ID_HEX: '0x67932',
     NETWORK_NAME: 'QBFT_Besu_EduNet',
     CONTRACTS: {
-        SOULBOUND_IDENTITY: '0x8FDcE9E57DA2881970C47e689392aBf8179E5Ecc',
-        CREDENTIALS_HUB: '0x5ba2807643F30345928098674FE8f2Ff20780f5B',
-        SOCIAL_HUB: '0x5bDA71c57b225ea45636573984aAd6FD49740613',
+        SOULBOUND_IDENTITY: '0x5010bC7A80F662Cff6F0D55b9E2f070727143224',
+        CREDENTIALS_HUB: '0x65F1Adb772d39d0169891EF7b5FBF2Ad294A4B3a',
+        SOCIAL_HUB: '0x8dab9d5cB457f39aCA61b5E54745671277596451',
         REPUTATION_VERIFIER: '0x548E11A0A6E0A2FC618Df456c4415b403fC1De38'
     },
     IPFS_GATEWAY: 'https://gateway.pinata.cloud/ipfs/',
