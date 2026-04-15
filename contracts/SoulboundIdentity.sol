@@ -427,9 +427,11 @@ contract SoulboundIdentity is ERC5484, Ownable {
         return _metadataCID[tokenId];
     }
 
-    /// @notice Total number of tokens ever minted — lets frontend scan the correct range
-    /// @return The current token counter
-    function totalSupply() external view returns (uint256) {
+    /// @notice Highest token ID ever minted — lets frontend scan the correct range
+    /// @dev Different from ERC721Enumerable.totalSupply() which decreases on burn;
+    ///      this value never decreases, so IDs 1..lastTokenId() cover all past tokens.
+    /// @return The current token ID counter
+    function lastTokenId() external view returns (uint256) {
         return _tokenIdCounter;
     }
 
