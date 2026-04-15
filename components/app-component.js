@@ -203,7 +203,7 @@ App = function () {
             addToast(`New access request from ${shortenAddress(requester)}`, 'info');
         };
 
-        const handleAccessApproved = (tid, requester, duration) => {
+        const handleAccessApproved = (tid, requester, expiresAt) => {
             console.log('✅ Access Approved', { tokenId: tid.toString(), requester });
             addToast(`Access approved for ${shortenAddress(requester)}`, 'success');
         };
