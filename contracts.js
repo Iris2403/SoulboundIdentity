@@ -31,6 +31,7 @@ SOULBOUND_IDENTITY_ABI = [
     "error InvalidDuration()",
     "error AlreadyHasToken()",
     "error ArrayLengthMismatch()",
+    "event Minted(address indexed to, uint256 indexed tokenId, string ipfsCID, uint8 burnAuth)",
     "event AccessRequested(uint256 indexed tokenId, address indexed requester)",
     "event AccessApproved(uint256 indexed tokenId, address indexed requester, uint64 expiresAt)",
     "event AccessDenied(uint256 indexed tokenId, address indexed requester)",
