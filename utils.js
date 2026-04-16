@@ -2,41 +2,62 @@
 
 // Query contract events in RPC-safe chunks.
 //
-// Most providers (MetaMask built-in, Infura, Alchemy) reject eth_getLogs
-// requests that span more than ~2 000–10 000 blocks with error -32005.
-// This helper:
-//   • Splits [fromBlock, toBlock] into chunks of `chunkSize` (default 2 000).
-//   • On -32005 for any chunk, halves the chunk size and retries that window
-//     (down to a minimum of 100 blocks before re-throwing).
-//   • Only uses the caller-supplied filter — never widens scope as a fallback.
+// Handles three failure modes that previously caused a permanent loading state:
+//
+//  1. Block-range limit (-32005): halves chunk size and retries the same
+//     window automatically (down to 100-block minimum, then breaks).
+//  2. Hanging RPC call: each chunk is raced against a 15-second timeout;
+//     on expiry the loop breaks and returns whatever was collected so far.
+//  3. Any other error: logs a warning and breaks — never re-throws, so the
+//     caller's loading state is guaranteed to reset via its finally block.
+//
+// The caller is responsible for passing a capped fromBlock
+// (e.g. Math.max(DEPLOYMENT_BLOCK, latestBlock - MAX_BLOCK_LOOKBACK))
+// so the total number of chunks stays small from the start.
 queryFilterInChunks = async (contract, filter, fromBlock, toBlock, chunkSize = 2000) => {
+    const CHUNK_TIMEOUT_MS = 15000;
     const events = [];
     let start = fromBlock;
     let currentChunkSize = chunkSize;
 
     while (start <= toBlock) {
         const end = Math.min(start + currentChunkSize - 1, toBlock);
+
+        let chunk;
         try {
-            const chunk = await contract.queryFilter(filter, start, end);
-            events.push(...chunk);
-            start = end + 1;
-            // Restore chunk size after a successful fetch so transient
-            // congestion doesn't permanently slow down the whole scan.
-            currentChunkSize = chunkSize;
+            // Race the query against a hard timeout so a non-responding RPC
+            // node never blocks the event loop indefinitely.
+            const queryPromise = contract.queryFilter(filter, start, end);
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject({ code: 'TIMEOUT' }), CHUNK_TIMEOUT_MS)
+            );
+            chunk = await Promise.race([queryPromise, timeoutPromise]);
         } catch (err) {
             // Normalise the error code across ethers v5 error shapes.
             const code = err.code ?? err.error?.code ?? err.data?.code;
             if (code === -32005 && currentChunkSize > 100) {
+                // Range too large — halve and retry the same window.
                 currentChunkSize = Math.floor(currentChunkSize / 2);
                 console.warn(
-                    `[queryFilterInChunks] RPC range limit on blocks ${start}–${end}, ` +
+                    `[queryFilterInChunks] Range limit on blocks ${start}-${end}, ` +
                     `retrying with chunk size ${currentChunkSize}`
                 );
-                // Do NOT advance `start` — retry the same window with a smaller chunk.
-            } else {
-                throw err;
+                continue; // do NOT advance start
             }
+            // Timeout or unrecoverable error: return partial results rather
+            // than throwing so the caller's finally always runs.
+            console.warn(
+                `[queryFilterInChunks] Chunk ${start}-${end} failed ` +
+                `(code=${code ?? err.message}), stopping scan early`
+            );
+            break;
         }
+
+        events.push(...chunk);
+        start = end + 1;
+        // Restore chunk size after a clean fetch so one bad chunk
+        // doesn't permanently slow down the rest of the scan.
+        currentChunkSize = chunkSize;
     }
 
     return events;

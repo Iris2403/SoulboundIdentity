@@ -111,9 +111,14 @@ REPUTATION_VERIFIER_ABI = [
 CONFIG = {
     RPC_URL: 'https://rpc.dimikog.org/rpc/',
     // Block at which the SoulboundIdentity contracts were deployed.
-    // queryFilterInChunks starts scanning from this block so we never
-    // request a range that predates the contracts.  Set to 0 if unknown.
+    // Used as the floor for event scans. Set to the actual deployment
+    // block (visible in the block explorer) to skip all pre-contract blocks.
     DEPLOYMENT_BLOCK: 0,
+    // Maximum number of blocks to look back when scanning events.
+    // Prevents scanning from block 0 on chains with a large block count,
+    // which would generate hundreds of sequential RPC calls and make the
+    // UI appear permanently stuck in a loading state.
+    MAX_BLOCK_LOOKBACK: 100000,
     CHAIN_ID: 424242,
     CHAIN_ID_HEX: '0x67932',
     NETWORK_NAME: 'QBFT_Besu_EduNet',
