@@ -105,27 +105,39 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
         try {
             const myAddress = await contracts.soulbound.signer.getAddress();
 
-            // Find tokens where I was ever approved via AccessApproved events
+            // Find all AccessApproved events where I'm the requester
             const filter = contracts.soulbound.filters.AccessApproved(null, myAddress);
             const events = await contracts.soulbound.queryFilter(filter);
-            const tokenIds = [...new Set(events.map(e => e.args.tokenId.toNumber()))];
+
+            // Track the latest approval event per tokenId (handles re-approvals)
+            const latestEventByToken = {};
+            for (const event of events) {
+                const tokenId = event.args.tokenId.toNumber();
+                if (!latestEventByToken[tokenId] || event.blockNumber > latestEventByToken[tokenId].blockNumber) {
+                    latestEventByToken[tokenId] = event;
+                }
+            }
 
             const results = await Promise.all(
-                tokenIds.map(async (tokenId) => {
+                Object.entries(latestEventByToken).map(async ([tokenIdStr, event]) => {
+                    const tokenId = parseInt(tokenIdStr);
                     try {
                         const owner = await contracts.soulbound.ownerOf(tokenId);
                         if (owner.toLowerCase() === myAddress.toLowerCase()) return null;
 
-                        const hasAccess = await contracts.soulbound.canView(tokenId, myAddress);
-                        if (!hasAccess) return null;
+                        // Use getAccessStatus instead of canView so expired (but not revoked)
+                        // tokens still appear — the UI shows an expiry warning for them
+                        const status = await contracts.soulbound.getAccessStatus(tokenId, myAddress);
+                        if (parseInt(status) !== 2) return null; // 2 = Approved
 
-                        const [, expiresAt] = await contracts.soulbound.checkAccess(tokenId, myAddress);
+                        // Read expiresAt from the event; checkAccess returns 0 for expired access
+                        const expiresAt = event.args.expiresAt.toNumber();
                         let metadataCID = '';
                         try {
                             metadataCID = await contracts.soulbound.tokenURI(tokenId);
                         } catch {}
 
-                        return { tokenId, owner, expiresAt: expiresAt.toNumber(), cid: metadataCID || 'N/A' };
+                        return { tokenId, owner, expiresAt, cid: metadataCID || 'N/A' };
                     } catch {
                         return null;
                     }
