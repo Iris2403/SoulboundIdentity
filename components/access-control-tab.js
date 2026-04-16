@@ -117,38 +117,23 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
         try {
             const myAddress = await contracts.soulbound.signer.getAddress();
 
-            // Find tokens where I was ever approved via AccessApproved events.
-            // Try the indexed requester filter first (requires the deployed contract to
-            // have `address indexed requester`). If the deployed contract is an older
-            // build without that index, the filter call throws — fall back to querying
-            // all AccessApproved events and filtering client-side.
+            // Find tokens where this address was ever approved.
+            // We always use the indexed filter AccessApproved(tokenId, requester)
+            // with requester fixed to myAddress — this lets the node search only
+            // the relevant topic slot and avoids fetching unrelated events.
+            // queryFilterInChunks handles the block-range limit automatically,
+            // including auto-retry with a halved chunk size on -32005.
+            // We never fall back to an unindexed full scan because that would
+            // fetch every AccessApproved event ever emitted and still fail on
+            // large chains with the same range error.
             let tokenIds = [];
-            // Query in chunks to avoid exceeding the RPC provider's block-range limit (-32005).
             const latestBlock = await contracts.soulbound.provider.getBlockNumber();
-            try {
-                const filter = contracts.soulbound.filters.AccessApproved(null, myAddress);
-                const events = await queryFilterInChunks(
-                    contracts.soulbound, filter,
-                    CONFIG.DEPLOYMENT_BLOCK, latestBlock
-                );
-                tokenIds = [...new Set(events.map(e => e.args.tokenId.toNumber()))];
-            } catch (filterErr) {
-                console.warn('Indexed requester filter failed, falling back to full scan:', filterErr.message);
-                try {
-                    const allEvents = await queryFilterInChunks(
-                        contracts.soulbound,
-                        contracts.soulbound.filters.AccessApproved(),
-                        CONFIG.DEPLOYMENT_BLOCK, latestBlock
-                    );
-                    tokenIds = [...new Set(
-                        allEvents
-                            .filter(e => e.args.requester.toLowerCase() === myAddress.toLowerCase())
-                            .map(e => e.args.tokenId.toNumber())
-                    )];
-                } catch (fallbackErr) {
-                    console.error('Full AccessApproved scan failed:', fallbackErr.reason || fallbackErr.data || fallbackErr.message);
-                }
-            }
+            const indexedFilter = contracts.soulbound.filters.AccessApproved(null, myAddress);
+            const events = await queryFilterInChunks(
+                contracts.soulbound, indexedFilter,
+                CONFIG.DEPLOYMENT_BLOCK, latestBlock
+            );
+            tokenIds = [...new Set(events.map(e => e.args.tokenId.toNumber()))];
 
             const results = await Promise.all(
                 tokenIds.map(async (tokenId) => {
