@@ -81,9 +81,14 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
 
             setPendingRequests(enhancedRequests);
 
-            // Reconstruct granted addresses from AccessApproved events (contract has no getter)
+            // Reconstruct granted addresses from AccessApproved events (contract has no getter).
+            // Query in chunks to avoid exceeding the RPC provider's block-range limit (-32005).
             const approvedFilter = contracts.soulbound.filters.AccessApproved(selectedToken);
-            const approvedEvents = await contracts.soulbound.queryFilter(approvedFilter);
+            const latestBlock = await contracts.soulbound.provider.getBlockNumber();
+            const approvedEvents = await queryFilterInChunks(
+                contracts.soulbound, approvedFilter,
+                CONFIG.DEPLOYMENT_BLOCK, latestBlock
+            );
             const uniqueAddresses = [...new Set(approvedEvents.map(e => e.args.requester))];
 
             // Verify each address still has active (non-expired) access — all in parallel
@@ -118,15 +123,22 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
             // build without that index, the filter call throws — fall back to querying
             // all AccessApproved events and filtering client-side.
             let tokenIds = [];
+            // Query in chunks to avoid exceeding the RPC provider's block-range limit (-32005).
+            const latestBlock = await contracts.soulbound.provider.getBlockNumber();
             try {
                 const filter = contracts.soulbound.filters.AccessApproved(null, myAddress);
-                const events = await contracts.soulbound.queryFilter(filter);
+                const events = await queryFilterInChunks(
+                    contracts.soulbound, filter,
+                    CONFIG.DEPLOYMENT_BLOCK, latestBlock
+                );
                 tokenIds = [...new Set(events.map(e => e.args.tokenId.toNumber()))];
             } catch (filterErr) {
                 console.warn('Indexed requester filter failed, falling back to full scan:', filterErr.message);
                 try {
-                    const allEvents = await contracts.soulbound.queryFilter(
-                        contracts.soulbound.filters.AccessApproved()
+                    const allEvents = await queryFilterInChunks(
+                        contracts.soulbound,
+                        contracts.soulbound.filters.AccessApproved(),
+                        CONFIG.DEPLOYMENT_BLOCK, latestBlock
                     );
                     tokenIds = [...new Set(
                         allEvents
