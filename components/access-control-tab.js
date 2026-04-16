@@ -12,6 +12,8 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
     const [approvingRequester, setApprovingRequester] = useState(null);
     const [selectedCredTypes, setSelectedCredTypes] = useState({0: true, 1: true, 2: true, 3: true, 4: true});
     const [selectedSocialSections, setSelectedSocialSections] = useState({0: true, 1: true, 2: true});
+    const [selectedRequests, setSelectedRequests] = useState(new Set());
+    const [showBatchApproveModal, setShowBatchApproveModal] = useState(false);
 
     // Helper function to get countdown string
     const getExpiryCountdown = (expiresAt) => {
@@ -72,12 +74,14 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
 
             setPendingRequests(enhancedRequests);
 
-            // Load granted addresses from contract (on-chain — no localStorage needed)
-            const grantedAddrs = await contracts.soulbound.getGrantedAddresses(selectedToken);
+            // Reconstruct granted addresses from AccessApproved events (contract has no getter)
+            const approvedFilter = contracts.soulbound.filters.AccessApproved(selectedToken);
+            const approvedEvents = await contracts.soulbound.queryFilter(approvedFilter);
+            const uniqueAddresses = [...new Set(approvedEvents.map(e => e.args.requester))];
 
             // Verify each address still has active (non-expired) access — all in parallel
             const accessResults = await Promise.all(
-                grantedAddrs.map(async (address) => {
+                uniqueAddresses.map(async (address) => {
                     try {
                         const [hasAccess, expiresAt] = await contracts.soulbound.checkAccess(selectedToken, address);
                         return hasAccess ? { address, expiresAt: expiresAt.toNumber() } : null;
@@ -99,11 +103,15 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
         if (!contracts) return;
 
         try {
-            const maxTokenId = (await contracts.soulbound.lastTokenId()).toNumber();
             const myAddress = await contracts.soulbound.signer.getAddress();
 
+            // Find tokens where I was ever approved via AccessApproved events
+            const filter = contracts.soulbound.filters.AccessApproved(null, myAddress);
+            const events = await contracts.soulbound.queryFilter(filter);
+            const tokenIds = [...new Set(events.map(e => e.args.tokenId.toNumber()))];
+
             const results = await Promise.all(
-                Array.from({ length: maxTokenId }, (_, i) => i + 1).map(async (tokenId) => {
+                tokenIds.map(async (tokenId) => {
                     try {
                         const owner = await contracts.soulbound.ownerOf(tokenId);
                         if (owner.toLowerCase() === myAddress.toLowerCase()) return null;
@@ -114,7 +122,7 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
                         const [, expiresAt] = await contracts.soulbound.checkAccess(tokenId, myAddress);
                         let metadataCID = '';
                         try {
-                            metadataCID = await contracts.soulbound.getMetadata(tokenId);
+                            metadataCID = await contracts.soulbound.tokenURI(tokenId);
                         } catch {}
 
                         return { tokenId, owner, expiresAt: expiresAt.toNumber(), cid: metadataCID || 'N/A' };
@@ -196,23 +204,37 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
         setShowApproveModal(true);
     };
 
+    const buildBitmasks = () => {
+        const credBitmask = Object.entries(selectedCredTypes)
+            .reduce((mask, [bit, checked]) => checked ? mask | (1 << parseInt(bit)) : mask, 0);
+        const socialBitmask = Object.entries(selectedSocialSections)
+            .reduce((mask, [bit, checked]) => checked ? mask | (1 << parseInt(bit)) : mask, 0);
+        return { credBitmask, socialBitmask };
+    };
+
     const handleApproveAccess = async () => {
         if (!approvingRequester) return;
         try {
             const duration = 30 * 24 * 60 * 60;
+            const { credBitmask, socialBitmask } = buildBitmasks();
 
-            const credBitmask = Object.entries(selectedCredTypes)
-                .reduce((mask, [bit, checked]) => checked ? mask | (1 << parseInt(bit)) : mask, 0);
-            const socialBitmask = Object.entries(selectedSocialSections)
-                .reduce((mask, [bit, checked]) => checked ? mask | (1 << parseInt(bit)) : mask, 0);
+            showNotification('Step 1/3: Approving identity access...', 'info');
+            const tx1 = await contracts.soulbound.approveAccess(selectedToken, approvingRequester, duration);
+            await tx1.wait();
 
-            showNotification('Approving access...', 'info');
-            const tx = await contracts.soulbound.approveAccessWithPermissions(
-                selectedToken, approvingRequester, duration, credBitmask, socialBitmask
-            );
-            await tx.wait();
+            if (credBitmask > 0) {
+                showNotification('Step 2/3: Granting credential access...', 'info');
+                const tx2 = await contracts.credentials.grantCredentialAccess(selectedToken, approvingRequester, credBitmask);
+                await tx2.wait();
+            }
 
-            showNotification('Access approved!', 'success');
+            if (socialBitmask > 0) {
+                showNotification('Step 3/3: Granting social access...', 'info');
+                const tx3 = await contracts.social.grantSocialAccess(selectedToken, approvingRequester, socialBitmask);
+                await tx3.wait();
+            }
+
+            showNotification('Access approved with permissions!', 'success');
             setShowApproveModal(false);
             setApprovingRequester(null);
             loadAccessData();
@@ -220,6 +242,70 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
             console.error('Error approving access:', error);
             showNotification('Failed to approve access', 'error');
         }
+    };
+
+    const handleBatchApprove = async () => {
+        if (selectedRequests.size === 0) return;
+        try {
+            const duration = 30 * 24 * 60 * 60;
+            const requesters = Array.from(selectedRequests);
+            const durations = requesters.map(() => duration);
+            const { credBitmask, socialBitmask } = buildBitmasks();
+
+            showNotification(`Step 1/3: Approving ${requesters.length} request(s)...`, 'info');
+            const tx1 = await contracts.soulbound.batchApproveAccess(selectedToken, requesters, durations);
+            await tx1.wait();
+
+            if (credBitmask > 0) {
+                showNotification('Step 2/3: Granting credential access...', 'info');
+                const tx2 = await contracts.credentials.batchGrantCredentialAccess(selectedToken, requesters, credBitmask);
+                await tx2.wait();
+            }
+
+            if (socialBitmask > 0) {
+                showNotification('Step 3/3: Granting social access...', 'info');
+                const tx3 = await contracts.social.batchGrantSocialAccess(selectedToken, requesters, socialBitmask);
+                await tx3.wait();
+            }
+
+            showNotification(`${requesters.length} request(s) approved!`, 'success');
+            setShowBatchApproveModal(false);
+            setSelectedRequests(new Set());
+            loadAccessData();
+        } catch (error) {
+            console.error('Error batch approving:', error);
+            showNotification('Failed to batch approve', 'error');
+        }
+    };
+
+    const handleBatchDeny = async () => {
+        if (selectedRequests.size === 0) return;
+        try {
+            const requesters = Array.from(selectedRequests);
+            showNotification(`Denying ${requesters.length} request(s)...`, 'info');
+            const tx = await contracts.soulbound.batchDenyAccess(selectedToken, requesters);
+            await tx.wait();
+            showNotification(`${requesters.length} request(s) denied`, 'success');
+            setSelectedRequests(new Set());
+            loadAccessData();
+        } catch (error) {
+            console.error('Error batch denying:', error);
+            showNotification('Failed to batch deny', 'error');
+        }
+    };
+
+    const toggleRequestSelection = (address) => {
+        setSelectedRequests(prev => {
+            const next = new Set(prev);
+            next.has(address) ? next.delete(address) : next.add(address);
+            return next;
+        });
+    };
+
+    const openBatchApproveModal = () => {
+        setSelectedCredTypes({0: true, 1: true, 2: true, 3: true, 4: true});
+        setSelectedSocialSections({0: true, 1: true, 2: true});
+        setShowBatchApproveModal(true);
     };
 
     const handleDenyAccess = async (requester) => {
@@ -239,7 +325,7 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
         try {
             const reason = "Access revoked by token owner";
             showNotification('Revoking access...', 'info');
-            const tx = await contracts.soulbound.revokeAccessWithPermissions(selectedToken, requester, reason);
+            const tx = await contracts.soulbound.revokeAccess(selectedToken, requester, reason);
             await tx.wait();
 
             showNotification('Access revoked!', 'success');
@@ -288,53 +374,96 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
                             <p>No pending access requests</p>
                         </div>
                     ) : (
-                        <div className="requests-list">
-                            {pendingRequests.map((requester, idx) => {
-                                const statusInfo = getAccessStatusLabel(requester.status || 1);
-                                return (
-                                    <div key={idx} className="request-item">
-                                        <div className="requester-info">
-                                            <div className="requester-avatar">👤</div>
-                                            <div style={{ flex: 1 }}>
-                                                <div className="requester-address">
-                                                    {shortenAddress(requester.address || requester)}
-                                                </div>
-                                                <div className="requester-label">Wallet Address</div>
-                                                <div style={{
-                                                    marginTop: '8px',
-                                                    display: 'inline-flex',
-                                                    alignItems: 'center',
-                                                    gap: '6px',
-                                                    padding: '4px 10px',
-                                                    background: 'rgba(245, 158, 11, 0.1)',
-                                                    borderRadius: '12px',
-                                                    fontSize: '0.85rem',
-                                                    fontWeight: '600',
-                                                    color: statusInfo.color
-                                                }}>
-                                                    {statusInfo.icon} {statusInfo.label}
+                        <>
+                            {/* Batch action bar — visible once any request is selected */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px', color: 'var(--gray-light)' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedRequests.size === pendingRequests.length && pendingRequests.length > 0}
+                                        onChange={(e) => {
+                                            if (e.target.checked) {
+                                                setSelectedRequests(new Set(pendingRequests.map(r => r.address || r)));
+                                            } else {
+                                                setSelectedRequests(new Set());
+                                            }
+                                        }}
+                                    />
+                                    Select all
+                                </label>
+                                {selectedRequests.size > 0 && (
+                                    <>
+                                        <span style={{ fontSize: '13px', color: 'var(--gray)' }}>{selectedRequests.size} selected</span>
+                                        <Button
+                                            onClick={openBatchApproveModal}
+                                            style={{ padding: '6px 14px', fontSize: '12px' }}
+                                        >
+                                            ✓ Approve Selected
+                                        </Button>
+                                        <Button
+                                            variant="danger"
+                                            onClick={handleBatchDeny}
+                                            style={{ padding: '6px 14px', fontSize: '12px' }}
+                                        >
+                                            ✕ Deny Selected
+                                        </Button>
+                                    </>
+                                )}
+                            </div>
+
+                            <div className="requests-list">
+                                {pendingRequests.map((requester, idx) => {
+                                    const addr = requester.address || requester;
+                                    const statusInfo = getAccessStatusLabel(requester.status || 1);
+                                    return (
+                                        <div key={idx} className="request-item">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedRequests.has(addr)}
+                                                onChange={() => toggleRequestSelection(addr)}
+                                                style={{ flexShrink: 0 }}
+                                            />
+                                            <div className="requester-info" style={{ flex: 1 }}>
+                                                <div className="requester-avatar">👤</div>
+                                                <div style={{ flex: 1 }}>
+                                                    <div className="requester-address">{shortenAddress(addr)}</div>
+                                                    <div className="requester-label">Wallet Address</div>
+                                                    <div style={{
+                                                        marginTop: '8px',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '6px',
+                                                        padding: '4px 10px',
+                                                        background: 'rgba(245, 158, 11, 0.1)',
+                                                        borderRadius: '12px',
+                                                        fontSize: '0.85rem',
+                                                        fontWeight: '600',
+                                                        color: statusInfo.color
+                                                    }}>
+                                                        {statusInfo.icon} {statusInfo.label}
+                                                    </div>
                                                 </div>
                                             </div>
+                                            <div className="request-actions">
+                                                <Button
+                                                    onClick={() => openApproveModal(addr)}
+                                                    style={{ padding: '8px 16px', fontSize: '13px' }}
+                                                >
+                                                    Approve
+                                                </Button>
+                                                <Button
+                                                    variant="danger"
+                                                    onClick={() => handleDenyAccess(addr)}
+                                                    style={{ padding: '8px 16px', fontSize: '13px' }}
+                                                >
+                                                    Deny
+                                                </Button>
+                                            </div>
                                         </div>
-                                        <div className="request-actions">
-                                            <Button
-                                                onClick={() => openApproveModal(requester.address || requester)}
-                                                style={{ padding: '8px 16px', fontSize: '13px' }}
-                                            >
-                                                Approve
-                                            </Button>
-                                            <Button
-                                                variant="danger"
-                                                onClick={() => handleDenyAccess(requester.address || requester)}
-                                                style={{ padding: '8px 16px', fontSize: '13px' }}
-                                            >
-                                                Deny
-                                            </Button>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                                    );
+                                })}
+                            </div>
+                        </>
                     )}
                 </Card>
 
@@ -580,6 +709,66 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
                         </Button>
                         <Button onClick={handleApproveAccess}>
                             Approve Access
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal isOpen={showBatchApproveModal} onClose={() => setShowBatchApproveModal(false)} title={`Batch Approve ${selectedRequests.size} Request(s)`}>
+                <div className="request-form">
+                    <p style={{ color: 'var(--gray-light)', marginBottom: '20px' }}>
+                        Approving <strong style={{ color: 'var(--teal-light)' }}>{selectedRequests.size}</strong> request(s) for <strong>30 days</strong> in a single transaction.
+                        Choose what they can see:
+                    </p>
+
+                    <div style={{ marginBottom: '20px' }}>
+                        <h4 style={{ color: 'var(--beige)', marginBottom: '12px' }}>📋 Credentials</h4>
+                        {[
+                            { bit: 0, icon: '🎓', label: 'Degrees' },
+                            { bit: 1, icon: '📜', label: 'Certifications' },
+                            { bit: 2, icon: '💼', label: 'Work Experience' },
+                            { bit: 3, icon: '🆔', label: 'Identity Proofs' },
+                            { bit: 4, icon: '⚡', label: 'Skills' }
+                        ].map(({ bit, icon, label }) => (
+                            <label key={bit} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', cursor: 'pointer' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={selectedCredTypes[bit]}
+                                    onChange={(e) => setSelectedCredTypes(prev => ({ ...prev, [bit]: e.target.checked }))}
+                                />
+                                <span>{icon} {label}</span>
+                            </label>
+                        ))}
+                    </div>
+
+                    <div style={{ marginBottom: '20px' }}>
+                        <h4 style={{ color: 'var(--beige)', marginBottom: '12px' }}>🌐 Social</h4>
+                        {[
+                            { bit: 0, icon: '⭐', label: 'Reviews & Reputation' },
+                            { bit: 1, icon: '🚀', label: 'Projects' },
+                            { bit: 2, icon: '👍', label: 'Endorsements' }
+                        ].map(({ bit, icon, label }) => (
+                            <label key={bit} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', cursor: 'pointer' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={selectedSocialSections[bit]}
+                                    onChange={(e) => setSelectedSocialSections(prev => ({ ...prev, [bit]: e.target.checked }))}
+                                />
+                                <span>{icon} {label}</span>
+                            </label>
+                        ))}
+                    </div>
+
+                    <div style={{ background: 'rgba(14,116,144,0.08)', border: '1px solid rgba(14,116,144,0.3)', borderRadius: '8px', padding: '12px', fontSize: '13px', color: 'var(--gray-light)', marginBottom: '4px' }}>
+                        This sends up to 3 transactions: one to approve identity access, one for credential permissions, one for social permissions.
+                    </div>
+
+                    <div className="modal-actions">
+                        <Button variant="secondary" onClick={() => setShowBatchApproveModal(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleBatchApprove}>
+                            Approve All Selected
                         </Button>
                     </div>
                 </div>

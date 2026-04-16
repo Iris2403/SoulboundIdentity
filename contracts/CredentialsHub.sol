@@ -236,6 +236,24 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
         emit CredentialAccessGranted(tokenId, viewer, types);
     }
 
+    /// @notice Grant multiple viewers the same credential type access in one transaction
+    /// @param tokenId The identity token ID
+    /// @param viewers Array of addresses to grant access to
+    /// @param types Bitmask of CredentialTypes to allow (0 = revoke all)
+    function batchGrantCredentialAccess(
+        uint256 tokenId,
+        address[] calldata viewers,
+        uint8 types
+    ) external onlyTokenOwner(tokenId) {
+        for (uint256 i = 0; i < viewers.length; ) {
+            grantedTypes[tokenId][viewers[i]] = types;
+            emit CredentialAccessGranted(tokenId, viewers[i], types);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
     /*//////////////////////////////////////////////////////////////
                         ISSUE CREDENTIALS
     //////////////////////////////////////////////////////////////*/

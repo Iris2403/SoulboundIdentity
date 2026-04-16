@@ -210,6 +210,24 @@ contract SocialHub is Ownable, ReentrancyGuard {
         emit SocialAccessGranted(tokenId, viewer, sections);
     }
 
+    /// @notice Grant multiple viewers the same social section access in one transaction
+    /// @param tokenId The identity token ID
+    /// @param viewers Array of addresses to grant access to
+    /// @param sections Bitmask of sections to allow (0 = revoke all)
+    function batchGrantSocialAccess(
+        uint256 tokenId,
+        address[] calldata viewers,
+        uint8 sections
+    ) external onlyTokenOwner(tokenId) {
+        for (uint256 i = 0; i < viewers.length; ) {
+            grantedSections[tokenId][viewers[i]] = sections;
+            emit SocialAccessGranted(tokenId, viewers[i], sections);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
     /*//////////////////////////////////////////////////////////////
                         REPUTATION SYSTEM
     //////////////////////////////////////////////////////////////*/
