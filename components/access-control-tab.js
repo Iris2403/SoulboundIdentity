@@ -82,12 +82,14 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
             setPendingRequests(enhancedRequests);
 
             // Reconstruct granted addresses from AccessApproved events (contract has no getter).
-            // Query in chunks to avoid exceeding the RPC provider's block-range limit (-32005).
+            // fromBlock is capped to MAX_BLOCK_LOOKBACK so we never generate hundreds of
+            // sequential chunk calls on a chain with a large block count.
             const approvedFilter = contracts.soulbound.filters.AccessApproved(selectedToken);
             const latestBlock = await contracts.soulbound.provider.getBlockNumber();
+            const fromBlock = Math.max(CONFIG.DEPLOYMENT_BLOCK, latestBlock - CONFIG.MAX_BLOCK_LOOKBACK);
             const approvedEvents = await queryFilterInChunks(
                 contracts.soulbound, approvedFilter,
-                CONFIG.DEPLOYMENT_BLOCK, latestBlock
+                fromBlock, latestBlock
             );
             const uniqueAddresses = [...new Set(approvedEvents.map(e => e.args.requester))];
 
@@ -118,20 +120,16 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
             const myAddress = await contracts.soulbound.signer.getAddress();
 
             // Find tokens where this address was ever approved.
-            // We always use the indexed filter AccessApproved(tokenId, requester)
-            // with requester fixed to myAddress — this lets the node search only
-            // the relevant topic slot and avoids fetching unrelated events.
-            // queryFilterInChunks handles the block-range limit automatically,
-            // including auto-retry with a halved chunk size on -32005.
-            // We never fall back to an unindexed full scan because that would
-            // fetch every AccessApproved event ever emitted and still fail on
-            // large chains with the same range error.
+            // Always use the indexed filter (null, myAddress) so the node only
+            // searches topic[1] — never widen to a full unindexed scan.
+            // fromBlock is capped to MAX_BLOCK_LOOKBACK to bound chunk count.
             let tokenIds = [];
             const latestBlock = await contracts.soulbound.provider.getBlockNumber();
+            const fromBlock = Math.max(CONFIG.DEPLOYMENT_BLOCK, latestBlock - CONFIG.MAX_BLOCK_LOOKBACK);
             const indexedFilter = contracts.soulbound.filters.AccessApproved(null, myAddress);
             const events = await queryFilterInChunks(
                 contracts.soulbound, indexedFilter,
-                CONFIG.DEPLOYMENT_BLOCK, latestBlock
+                fromBlock, latestBlock
             );
             tokenIds = [...new Set(events.map(e => e.args.tokenId.toNumber()))];
 
