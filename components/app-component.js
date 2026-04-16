@@ -271,9 +271,10 @@ App = function () {
         soulbound.on(accessApprovedFilter, handleAccessApproved);
         soulbound.on(accessRevokedFilter, handleAccessRevoked);
 
-        // Credential events filtered by tokenId
+        // Credential events: CredentialIssued is indexed by tokenId (first param).
+        // CredentialRevoked is indexed by credentialId only — no tokenId filter possible.
         const credentialIssuedFilter = credentials.filters.CredentialIssued(tokenId);
-        const credentialRevokedFilter = credentials.filters.CredentialRevoked(tokenId);
+        const credentialRevokedFilter = credentials.filters.CredentialRevoked();
         credentials.on(credentialIssuedFilter, handleCredentialIssued);
         credentials.on(credentialRevokedFilter, handleCredentialRevoked);
 
