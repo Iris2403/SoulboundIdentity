@@ -61,6 +61,7 @@ CREDENTIALS_HUB_ABI = [
     "error NotAuthorizedIssuer()",
     "error CredentialNotFound()",
     "error InvalidDates()",
+    "error InvalidParameter()",
     "error NoAccess()",
     "error TooManyCredentials()",
     "event CredentialIssued(uint256 indexed tokenId, uint256 indexed credentialId, uint8 indexed credType, address issuer)",
