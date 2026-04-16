@@ -57,11 +57,18 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
         setLoading(true);
         try {
             // Load pending requests with status
-            const requests = await contracts.soulbound.getPendingRequests(selectedToken, 0, 50);
+            let requesters = [];
+            try {
+                const requests = await contracts.soulbound.getPendingRequests(selectedToken, 0, 50);
+                // Named-tuple access (ethers v5); fall back to positional index for old ABI shapes
+                requesters = requests.requesters ?? requests[0] ?? [];
+            } catch (e) {
+                console.error('getPendingRequests failed:', e.reason || e.data || e.message);
+            }
 
             // Enhance pending requests with status info — all in parallel
             const enhancedRequests = await Promise.all(
-                requests.requesters.map(async (requester) => {
+                requesters.map(async (requester) => {
                     try {
                         const status = await contracts.soulbound.getAccessStatus(selectedToken, requester);
                         return { address: requester, status };
@@ -93,7 +100,7 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
 
             setGrantedAccess(accessResults.filter(Boolean));
         } catch (error) {
-            console.error('Error loading access data:', error);
+            console.error('Error loading access data:', error.reason || error.data || error.message, error);
         } finally {
             setLoading(false);
         }
@@ -105,10 +112,31 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
         try {
             const myAddress = await contracts.soulbound.signer.getAddress();
 
-            // Find tokens where I was ever approved via AccessApproved events
-            const filter = contracts.soulbound.filters.AccessApproved(null, myAddress);
-            const events = await contracts.soulbound.queryFilter(filter);
-            const tokenIds = [...new Set(events.map(e => e.args.tokenId.toNumber()))];
+            // Find tokens where I was ever approved via AccessApproved events.
+            // Try the indexed requester filter first (requires the deployed contract to
+            // have `address indexed requester`). If the deployed contract is an older
+            // build without that index, the filter call throws — fall back to querying
+            // all AccessApproved events and filtering client-side.
+            let tokenIds = [];
+            try {
+                const filter = contracts.soulbound.filters.AccessApproved(null, myAddress);
+                const events = await contracts.soulbound.queryFilter(filter);
+                tokenIds = [...new Set(events.map(e => e.args.tokenId.toNumber()))];
+            } catch (filterErr) {
+                console.warn('Indexed requester filter failed, falling back to full scan:', filterErr.message);
+                try {
+                    const allEvents = await contracts.soulbound.queryFilter(
+                        contracts.soulbound.filters.AccessApproved()
+                    );
+                    tokenIds = [...new Set(
+                        allEvents
+                            .filter(e => e.args.requester.toLowerCase() === myAddress.toLowerCase())
+                            .map(e => e.args.tokenId.toNumber())
+                    )];
+                } catch (fallbackErr) {
+                    console.error('Full AccessApproved scan failed:', fallbackErr.reason || fallbackErr.data || fallbackErr.message);
+                }
+            }
 
             const results = await Promise.all(
                 tokenIds.map(async (tokenId) => {
@@ -116,10 +144,9 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
                         const owner = await contracts.soulbound.ownerOf(tokenId);
                         if (owner.toLowerCase() === myAddress.toLowerCase()) return null;
 
-                        const hasAccess = await contracts.soulbound.canView(tokenId, myAddress);
+                        const [hasAccess, expiresAt] = await contracts.soulbound.checkAccess(tokenId, myAddress);
                         if (!hasAccess) return null;
 
-                        const [, expiresAt] = await contracts.soulbound.checkAccess(tokenId, myAddress);
                         let metadataCID = '';
                         try {
                             metadataCID = await contracts.soulbound.tokenURI(tokenId);
@@ -133,7 +160,7 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
             );
             setTokensICanAccess(results.filter(Boolean));
         } catch (error) {
-            console.error('Error loading accessible tokens:', error);
+            console.error('Error loading accessible tokens:', error.reason || error.data || error.message, error);
         }
     };
 
