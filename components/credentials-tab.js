@@ -186,11 +186,18 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
             };
 
             const metadataHash = ethers.utils.id(JSON.stringify(metadata));
-            const issueDate = credentialData.issueDate ?
-                Math.floor(new Date(credentialData.issueDate).getTime() / 1000) :
-                Math.floor(Date.now() / 1000);
-            const expiryDate = credentialData.expiryDate ?
-                Math.floor(new Date(credentialData.expiryDate).getTime() / 1000) : 0;
+            const issueDateMs = credentialData.issueDate
+                ? new Date(credentialData.issueDate).getTime()
+                : Date.now();
+            const issueDate = isNaN(issueDateMs) || issueDateMs <= 0
+                ? Math.floor(Date.now() / 1000)
+                : Math.floor(issueDateMs / 1000);
+            const expiryDateMs = credentialData.expiryDate
+                ? new Date(credentialData.expiryDate).getTime()
+                : 0;
+            const expiryDate = (expiryDateMs && !isNaN(expiryDateMs) && expiryDateMs > 0)
+                ? Math.floor(expiryDateMs / 1000)
+                : 0;
 
             if (expiryDate !== 0 && expiryDate <= issueDate) {
                 showNotification('Expiry date must be after issue date!', 'error');
@@ -228,11 +235,25 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
         } catch (error) {
             console.error('❌ Error adding credential:', error);
 
-            if (error.message.includes('TooManyCredentials')) {
-                showNotification(`❌ Maximum limit reached (${MAX_CREDENTIALS_PER_TYPE} credentials per type)`, 'error');
+            const errName = error.errorName || error.data?.errorName || '';
+            const errMsg = error.message || '';
+
+            let message;
+            if (error.code === 'ACTION_REJECTED' || errMsg.includes('user rejected')) {
+                message = 'Transaction was rejected by wallet';
+            } else if (errName === 'InvalidParameter' || errMsg.includes('InvalidParameter')) {
+                message = 'Invalid parameters: please ensure all fields are filled in correctly and the issue date is valid';
+            } else if (errName === 'TooManyCredentials' || errMsg.includes('TooManyCredentials')) {
+                message = `❌ Maximum limit reached (${MAX_CREDENTIALS_PER_TYPE} credentials per type)`;
+            } else if (errName === 'InvalidDates' || errMsg.includes('InvalidDates')) {
+                message = 'Invalid dates: expiry date must be after issue date';
+            } else if (errName === 'NotTokenOwner' || errMsg.includes('NotTokenOwner')) {
+                message = 'You do not own this identity token';
             } else {
-                showNotification(error.message || 'Failed to add credential', 'error');
+                message = errMsg || 'Failed to add credential';
             }
+
+            showNotification(message, 'error');
         } finally {
             setLoading(false);
         }
