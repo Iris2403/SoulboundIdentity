@@ -90,9 +90,9 @@ App = function () {
             }));
 
             setUserTokens(tokenData);
-            if (tokenData.length > 0 && !selectedToken) {
-                setSelectedToken(tokenData[0].id);
-            }
+            // Always update selectedToken when tokens are (re)loaded so that
+            // switching wallets never leaves a stale token from the previous account.
+            setSelectedToken(tokenData.length > 0 ? tokenData[0].id : null);
         } catch (error) {
             console.error('Error loading tokens:', error);
             showNotification('Failed to load tokens', 'error');

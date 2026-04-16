@@ -169,6 +169,13 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 return;
             }
 
+            // Guard: ensure the selected token belongs to the connected wallet
+            const isOwnToken = userTokens.some(t => t.id === selectedToken);
+            if (!isOwnToken) {
+                showNotification('You do not own this identity token. Please select your token from the Identity tab.', 'error');
+                return;
+            }
+
             // Check limit
             const currentCount = credentialCounts[parseInt(credentialData.credType)] || 0;
             if (currentCount >= MAX_CREDENTIALS_PER_TYPE) {
