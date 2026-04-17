@@ -24,11 +24,6 @@ TokenCard = function ({ token, isSelected, onSelect, contracts, onBurned }) {
         }
     };
 
-    const handleCardClick = (e) => {
-        // Open details modal when clicking anywhere on the card
-        setShowDetails(true);
-    };
-
     const copyToClipboard = (text) => {
         navigator.clipboard.writeText(text);
         addToast('Copied to clipboard!', 'success');
@@ -67,60 +62,65 @@ TokenCard = function ({ token, isSelected, onSelect, contracts, onBurned }) {
 
     return (
         <>
-            <Card className={`token-card ${isSelected ? 'selected' : ''}`}>
-                <div className="token-header" onClick={onSelect} style={{ cursor: 'pointer' }}>
-                    <div className="token-avatar">
-                        {metadata?.profileImage ? (
-                            <img src={metadata.profileImage} alt="Profile" />
-                        ) : (
-                            <div className="avatar-placeholder">👤</div>
+            <Card className={`token-card ${isSelected ? 'selected' : ''}`} onClick={onSelect}>
+                <div className="token-body">
+                    {/* ── Left: token info ── */}
+                    <div className="token-info-col">
+                        <div className="token-header">
+                            <div className="token-avatar">
+                                {metadata?.profileImage ? (
+                                    <img src={metadata.profileImage} alt="Profile" />
+                                ) : (
+                                    <div className="avatar-placeholder">👤</div>
+                                )}
+                            </div>
+                            <div className="token-meta">
+                                <h3>{metadata?.name || `Token #${token.id}`}</h3>
+                                <span className="token-id">ID: {token.id}</span>
+                            </div>
+                        </div>
+
+                        {metadata?.bio && (
+                            <p className="token-bio">{metadata.bio}</p>
                         )}
+
+                        <div className="token-cid">
+                            <span className="cid-label">IPFS CID:</span>
+                            <code className="cid-value">{token.cid.substring(0, 20)}...</code>
+                        </div>
+
+                        <div className="token-actions">
+                            <button
+                                className="view-details-btn"
+                                onClick={(e) => { e.stopPropagation(); setShowDetails(true); }}
+                            >
+                                👁️ View Details
+                            </button>
+                            <button
+                                className="invalidate-btn"
+                                onClick={(e) => { e.stopPropagation(); setShowBurnConfirm(true); }}
+                            >
+                                Invalidate
+                            </button>
+                        </div>
                     </div>
-                    <div className="token-info">
-                        <h3>{metadata?.name || `Token #${token.id}`}</h3>
-                        <span className="token-id">ID: {token.id}</span>
+
+                    {/* ── Right: QR code ── */}
+                    <div className="token-qr-col" onClick={(e) => e.stopPropagation()}>
+                        <QRCodeDisplay
+                            tokenId={token.id}
+                            contractAddress={CONFIG.CONTRACTS.SOULBOUND_IDENTITY}
+                            size={160}
+                        />
                     </div>
-                </div>
-
-                {metadata?.bio && (
-                    <p className="token-bio">{metadata.bio}</p>
-                )}
-
-                <div className="token-cid">
-                    <span className="cid-label">IPFS CID:</span>
-                    <code className="cid-value">{token.cid.substring(0, 20)}...</code>
-                </div>
-
-                <div className="token-actions">
-                    <button
-                        className="view-details-btn"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setShowDetails(true);
-                        }}
-                        style={{ position: 'relative', zIndex: 100 }}
-                    >
-                        👁️ View Full Details
-                    </button>
-                    <button
-                        className="invalidate-btn"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setShowBurnConfirm(true);
-                        }}
-                        style={{ position: 'relative', zIndex: 100 }}
-                    >
-                        Invalidate Token
-                    </button>
                 </div>
 
                 {isSelected && (
-                    <div className="selected-badge">
-                        ✓ Selected
-                    </div>
+                    <div className="selected-badge">✓ Selected</div>
                 )}
             </Card>
 
+            {/* ── Details Modal ── */}
             <Modal isOpen={showDetails} onClose={() => setShowDetails(false)} title={`Token #${token.id} Details`}>
                 <div className="token-details">
                     <div className="detail-section">
@@ -154,10 +154,7 @@ TokenCard = function ({ token, isSelected, onSelect, contracts, onBurned }) {
                         <h4>IPFS Metadata</h4>
                         <div className="cid-display">
                             <code className="full-cid">{token.cid}</code>
-                            <button
-                                className="copy-btn"
-                                onClick={() => copyToClipboard(token.cid)}
-                            >
+                            <button className="copy-btn" onClick={() => copyToClipboard(token.cid)}>
                                 📋 Copy
                             </button>
                         </div>
@@ -187,26 +184,9 @@ TokenCard = function ({ token, isSelected, onSelect, contracts, onBurned }) {
                         </div>
                     </div>
 
-                    <div className="detail-section">
-                        <h4>Share This Identity</h4>
-                        <p style={{ color: 'var(--gray)', fontSize: '13px', marginBottom: '16px' }}>
-                            Scan to view or share token #{token.id} on the block explorer.
-                        </p>
-                        <QRCodeDisplay
-                            tokenId={token.id}
-                            contractAddress={CONFIG.CONTRACTS.SOULBOUND_IDENTITY}
-                            size={200}
-                        />
-                    </div>
-
                     {!isSelected && (
                         <div className="modal-actions" style={{ marginTop: '24px' }}>
-                            <Button
-                                onClick={() => {
-                                    onSelect();
-                                    setShowDetails(false);
-                                }}
-                            >
+                            <Button onClick={() => { onSelect(); setShowDetails(false); }}>
                                 Select This Token
                             </Button>
                         </div>
@@ -225,11 +205,7 @@ TokenCard = function ({ token, isSelected, onSelect, contracts, onBurned }) {
                         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '16px' }}>
                             Permanently invalidate this identity token and all associated access data. This action cannot be undone.
                         </p>
-                        <Button
-                            variant="danger"
-                            onClick={() => setShowBurnConfirm(true)}
-                            disabled={burning}
-                        >
+                        <Button variant="danger" onClick={() => setShowBurnConfirm(true)} disabled={burning}>
                             Invalidate Token
                         </Button>
                     </div>
@@ -340,156 +316,7 @@ TokenCard = function ({ token, isSelected, onSelect, contracts, onBurned }) {
                 `}</style>
             </Modal>
 
-            <style>{`
-                .token-card {
-                    cursor: default;
-                    position: relative;
-                    transition: all 0.3s ease;
-                }
-
-                .token-card.selected {
-                    border-color: var(--teal-light);
-                    box-shadow: 0 0 0 2px rgba(14, 116, 144, 0.3);
-                }
-
-                .token-header {
-                    display: flex;
-                    gap: 16px;
-                    margin-bottom: 16px;
-                }
-
-                .token-avatar {
-                    width: 60px;
-                    height: 60px;
-                    border-radius: 12px;
-                    overflow: hidden;
-                    background: rgba(14, 116, 144, 0.2);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                }
-
-                .token-avatar img {
-                    width: 100%;
-                    height: 100%;
-                    object-fit: cover;
-                }
-
-                .avatar-placeholder {
-                    font-size: 32px;
-                }
-
-                .token-info {
-                    flex: 1;
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: center;
-                }
-
-                .token-info h3 {
-                    font-size: 18px;
-                    color: var(--beige);
-                    margin-bottom: 4px;
-                }
-
-                .token-id {
-                    font-size: 12px;
-                    color: var(--gray);
-                    font-family: monospace;
-                }
-
-                .token-bio {
-                    color: var(--gray-light);
-                    font-size: 14px;
-                    line-height: 1.5;
-                    margin-bottom: 16px;
-                    display: -webkit-box;
-                    -webkit-line-clamp: 2;
-                    -webkit-box-orient: vertical;
-                    overflow: hidden;
-                }
-
-                .token-cid {
-                    background: rgba(26, 35, 50, 0.5);
-                    border-radius: 6px;
-                    padding: 8px 12px;
-                    font-size: 12px;
-                }
-
-                .cid-label {
-                    color: var(--gray);
-                    margin-right: 8px;
-                }
-
-                .cid-value {
-                    color: var(--teal-light);
-                    font-family: monospace;
-                }
-
-                .token-actions {
-                    margin-top: 16px;
-                    padding-top: 16px;
-                    border-top: 1px solid rgba(14, 116, 144, 0.2);
-                    display: flex;
-                    gap: 8px;
-                }
-
-                .view-details-btn {
-                    flex: 1;
-                    padding: 12px;
-                    background: var(--teal);
-                    border: none;
-                    color: white;
-                    border-radius: 8px;
-                    cursor: pointer;
-                    font-size: 14px;
-                    font-weight: 600;
-                    transition: all 0.3s ease;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 8px;
-                }
-
-                .view-details-btn:hover {
-                    background: var(--teal-light);
-                    transform: translateY(-2px);
-                    box-shadow: 0 4px 12px rgba(14, 116, 144, 0.4);
-                }
-
-                .invalidate-btn {
-                    padding: 12px 16px;
-                    background: transparent;
-                    border: 1px solid rgba(239, 68, 68, 0.5);
-                    color: var(--error, #ef4444);
-                    border-radius: 8px;
-                    cursor: pointer;
-                    font-size: 14px;
-                    font-weight: 600;
-                    transition: all 0.3s ease;
-                    white-space: nowrap;
-                }
-
-                .invalidate-btn:hover {
-                    background: rgba(239, 68, 68, 0.1);
-                    border-color: var(--error, #ef4444);
-                    transform: translateY(-2px);
-                }
-
-                .selected-badge {
-                    position: absolute;
-                    top: 12px;
-                    right: 12px;
-                    background: var(--teal);
-                    color: white;
-                    padding: 4px 12px;
-                    border-radius: 12px;
-                    font-size: 12px;
-                    font-weight: 600;
-                }
-            `}</style>
-
-            {/* Burn Confirmation Modal */}
+            {/* ── Burn Confirmation Modal ── */}
             <Modal
                 isOpen={showBurnConfirm}
                 onClose={() => setShowBurnConfirm(false)}
@@ -533,23 +360,216 @@ TokenCard = function ({ token, isSelected, onSelect, contracts, onBurned }) {
                     </p>
 
                     <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                        <Button
-                            variant="secondary"
-                            onClick={() => setShowBurnConfirm(false)}
-                            disabled={burning}
-                        >
+                        <Button variant="secondary" onClick={() => setShowBurnConfirm(false)} disabled={burning}>
                             Cancel
                         </Button>
-                        <Button
-                            variant="danger"
-                            onClick={handleBurnToken}
-                            disabled={burning}
-                        >
+                        <Button variant="danger" onClick={handleBurnToken} disabled={burning}>
                             {burning ? 'Invalidating...' : 'Yes, Invalidate Token'}
                         </Button>
                     </div>
                 </div>
             </Modal>
+
+            <style>{`
+                .token-card {
+                    cursor: pointer;
+                    position: relative;
+                    transition: all 0.3s ease;
+                }
+
+                .token-card:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 8px 24px rgba(14, 116, 144, 0.2);
+                }
+
+                .token-card.selected {
+                    border-color: var(--teal-light);
+                    box-shadow: 0 0 0 2px rgba(14, 116, 144, 0.3);
+                }
+
+                /* ── Side-by-side layout ── */
+                .token-body {
+                    display: flex;
+                    gap: 0;
+                    align-items: stretch;
+                }
+
+                .token-info-col {
+                    flex: 1;
+                    min-width: 0;
+                    padding-right: 20px;
+                    border-right: 1px solid rgba(14, 116, 144, 0.2);
+                    display: flex;
+                    flex-direction: column;
+                }
+
+                .token-qr-col {
+                    flex-shrink: 0;
+                    padding-left: 20px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+
+                .token-header {
+                    display: flex;
+                    gap: 16px;
+                    margin-bottom: 16px;
+                }
+
+                .token-avatar {
+                    width: 52px;
+                    height: 52px;
+                    border-radius: 10px;
+                    overflow: hidden;
+                    background: rgba(14, 116, 144, 0.2);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    flex-shrink: 0;
+                }
+
+                .token-avatar img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                }
+
+                .avatar-placeholder {
+                    font-size: 28px;
+                }
+
+                .token-meta {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    min-width: 0;
+                }
+
+                .token-meta h3 {
+                    font-size: 17px;
+                    color: var(--beige);
+                    margin-bottom: 4px;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+
+                .token-id {
+                    font-size: 12px;
+                    color: var(--gray);
+                    font-family: monospace;
+                }
+
+                .token-bio {
+                    color: var(--gray-light);
+                    font-size: 13px;
+                    line-height: 1.5;
+                    margin-bottom: 14px;
+                    display: -webkit-box;
+                    -webkit-line-clamp: 2;
+                    -webkit-box-orient: vertical;
+                    overflow: hidden;
+                    flex: 1;
+                }
+
+                .token-cid {
+                    background: rgba(26, 35, 50, 0.5);
+                    border-radius: 6px;
+                    padding: 7px 10px;
+                    font-size: 11px;
+                    margin-bottom: 14px;
+                }
+
+                .cid-label {
+                    color: var(--gray);
+                    margin-right: 6px;
+                }
+
+                .cid-value {
+                    color: var(--teal-light);
+                    font-family: monospace;
+                }
+
+                .token-actions {
+                    display: flex;
+                    gap: 8px;
+                    margin-top: auto;
+                }
+
+                .view-details-btn {
+                    flex: 1;
+                    padding: 10px;
+                    background: var(--teal);
+                    border: none;
+                    color: white;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 13px;
+                    font-weight: 600;
+                    transition: all 0.3s ease;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 6px;
+                }
+
+                .view-details-btn:hover {
+                    background: var(--teal-light);
+                    transform: translateY(-1px);
+                    box-shadow: 0 4px 12px rgba(14, 116, 144, 0.4);
+                }
+
+                .invalidate-btn {
+                    padding: 10px 14px;
+                    background: transparent;
+                    border: 1px solid rgba(239, 68, 68, 0.5);
+                    color: var(--error, #ef4444);
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 13px;
+                    font-weight: 600;
+                    transition: all 0.3s ease;
+                    white-space: nowrap;
+                }
+
+                .invalidate-btn:hover {
+                    background: rgba(239, 68, 68, 0.1);
+                    border-color: var(--error, #ef4444);
+                    transform: translateY(-1px);
+                }
+
+                .selected-badge {
+                    position: absolute;
+                    top: 10px;
+                    right: 10px;
+                    background: var(--teal);
+                    color: white;
+                    padding: 3px 10px;
+                    border-radius: 10px;
+                    font-size: 11px;
+                    font-weight: 600;
+                }
+
+                @media (max-width: 600px) {
+                    .token-body {
+                        flex-direction: column;
+                    }
+
+                    .token-info-col {
+                        padding-right: 0;
+                        border-right: none;
+                        border-bottom: 1px solid rgba(14, 116, 144, 0.2);
+                        padding-bottom: 20px;
+                    }
+
+                    .token-qr-col {
+                        padding-left: 0;
+                        padding-top: 20px;
+                    }
+                }
+            `}</style>
         </>
     );
 }
