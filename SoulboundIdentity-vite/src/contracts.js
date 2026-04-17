@@ -1,0 +1,133 @@
+// Contract ABIs and configuration
+
+export const SOULBOUND_IDENTITY_ABI = [
+    "function mint(string calldata ipfsCID, uint8 burnAuth) external returns (uint256)",
+    "function burn(uint256 tokenId) external",
+    "function tokensOfOwner(address owner) external view returns (uint256[] memory)",
+    "function tokenURI(uint256 tokenId) external view returns (string memory)",
+    "function getOwnedTokensPaginated(address owner, uint256 offset, uint256 limit) external view returns (uint256[] memory tokenIds, string[] memory metadataCIDs, uint256 totalCount)",
+    "function requestAccess(uint256 tokenId) external",
+    "function approveAccess(uint256 tokenId, address requester, uint64 duration) external",
+    "function denyAccess(uint256 tokenId, address requester) external",
+    "function batchApproveAccess(uint256 tokenId, address[] calldata requesters, uint64[] calldata durations) external",
+    "function batchDenyAccess(uint256 tokenId, address[] calldata requesters) external",
+    "function revokeAccess(uint256 tokenId, address requester, string calldata reason) external",
+    "function cleanExpiredAccess(uint256 tokenId, address[] calldata addresses) external returns (uint256)",
+    "function canView(uint256 tokenId, address viewer) external view returns (bool)",
+    "function checkAccess(uint256 tokenId, address requester) external view returns (bool hasAccess, uint64 expiresAt)",
+    "function getPendingRequests(uint256 tokenId, uint256 offset, uint256 limit) external view returns (address[] memory requesters, uint256 totalCount)",
+    "function getAccessStatus(uint256 tokenId, address requester) external view returns (uint8 status)",
+    "function ownerOf(uint256 tokenId) external view returns (address)",
+    "function balanceOf(address owner) external view returns (uint256)",
+    "function MAX_REQUESTS_PER_DAY() external view returns (uint256)",
+    "function owner() external view returns (address)",
+    "error OnlyTokenOwner()",
+    "error OwnerHasAccess()",
+    "error TooManyRequests()",
+    "error RequestCooldown(uint256 timeRemaining)",
+    "error InvalidIPFSCID()",
+    "error InvalidAddress()",
+    "error NoAccessRequest()",
+    "error RequestAlreadyExists()",
+    "error InvalidDuration()",
+    "error AlreadyHasToken()",
+    "error ArrayLengthMismatch()",
+    "event Minted(address indexed to, uint256 indexed tokenId, string ipfsCID, uint8 burnAuth)",
+    "event AccessRequested(uint256 indexed tokenId, address indexed requester)",
+    "event AccessApproved(uint256 indexed tokenId, address indexed requester, uint64 expiresAt)",
+    "event AccessDenied(uint256 indexed tokenId, address indexed requester)",
+    "event AccessRevoked(uint256 indexed tokenId, address indexed requester, string reason)",
+    "event AccessExpired(uint256 indexed tokenId, address indexed requester)",
+    "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)"
+];
+
+export const CREDENTIALS_HUB_ABI = [
+    "function issueCredential(uint256 tokenId, uint8 credType, bytes32 metadataHash, uint64 issueDate, uint64 expiryDate, uint8 category) external returns (uint256)",
+    "function addCredential(uint256 tokenId, uint8 credType, bytes32 metadataHash, uint64 issueDate, uint64 expiryDate, uint8 category) external returns (uint256)",
+    "function revokeCredential(uint256 tokenId, uint256 credentialId) external",
+    "function updateCredentialStatus(uint256 tokenId, uint256 credentialId) external",
+    "function setIssuerAuthorization(uint8 credType, address issuer, bool authorized) external",
+    "function batchAuthorizeIssuers(uint8 credType, address[] calldata issuers, bool authorized) external",
+    "function grantCredentialAccess(uint256 tokenId, address viewer, uint8 types) external",
+    "function batchGrantCredentialAccess(uint256 tokenId, address[] calldata viewers, uint8 types) external",
+    "function getCredential(uint256 tokenId, uint256 credentialId) external view returns (tuple(uint256 credentialId, uint8 credType, bytes32 metadataHash, address issuer, uint64 issueDate, uint64 expiryDate, uint8 status, uint8 category, bool verified))",
+    "function getCredentialsByType(uint256 tokenId, uint8 credType) external view returns (tuple(uint256 credentialId, uint8 credType, bytes32 metadataHash, address issuer, uint64 issueDate, uint64 expiryDate, uint8 status, uint8 category, bool verified)[] memory)",
+    "function getActiveCredentials(uint256 tokenId, uint8 credType) external view returns (tuple(uint256 credentialId, uint8 credType, bytes32 metadataHash, address issuer, uint64 issueDate, uint64 expiryDate, uint8 status, uint8 category, bool verified)[] memory)",
+    "function getCredentialSummary(uint256 tokenId) external view returns (uint256 degrees, uint256 certifications, uint256 workExperience, uint256 identityProofs, uint256 skills)",
+    "function getCredentialCount(uint256 tokenId, uint8 credType) external view returns (uint256)",
+    "function isCredentialValid(uint256 tokenId, uint256 credentialId) external view returns (bool)",
+    "function authorizedIssuers(uint8 credType, address issuer) external view returns (bool)",
+    "function grantedTypes(uint256 tokenId, address viewer) external view returns (uint8)",
+    "error NotTokenOwner()",
+    "error NotAuthorizedIssuer()",
+    "error CredentialNotFound()",
+    "error InvalidDates()",
+    "error InvalidParameter()",
+    "error NoAccess()",
+    "error TooManyCredentials()",
+    "event CredentialIssued(uint256 indexed tokenId, uint256 indexed credentialId, uint8 indexed credType, address issuer)",
+    "event CredentialRevoked(uint256 indexed credentialId, address indexed revoker)",
+    "event CredentialStatusChanged(uint256 indexed credentialId, uint8 newStatus)",
+    "event IssuerAuthorized(uint8 indexed credType, address indexed issuer, bool authorized)",
+    "event CredentialAccessGranted(uint256 indexed tokenId, address indexed viewer, uint8 types)"
+];
+
+export const SOCIAL_HUB_ABI = [
+    "function submitReview(uint256 subjectTokenId, uint256 reviewerTokenId, uint8 score, bool verified, bool isAnonymous, string calldata comment) external",
+    "function createProject(uint256 tokenId, bytes32 metadataHash) external returns (uint256)",
+    "function updateProjectStatus(uint256 tokenId, uint256 projectId, uint8 newStatus) external",
+    "function addCollaborator(uint256 tokenId, uint256 projectId, uint256 collaboratorTokenId) external",
+    "function endorseSkill(uint256 subjectTokenId, uint256 endorserTokenId, bytes32 skillHash, string calldata comment) external",
+    "function grantSocialAccess(uint256 tokenId, address viewer, uint8 sections) external",
+    "function batchGrantSocialAccess(uint256 tokenId, address[] calldata viewers, uint8 sections) external",
+    "function getReviews(uint256 tokenId) external view returns (tuple(uint256 reviewId, uint256 reviewerTokenId, uint8 score, bool verified, bool isAnonymous, uint64 createdAt, string comment)[] memory)",
+    "function getReputationSummary(uint256 tokenId) external view returns (tuple(uint256 averageScore, uint256 totalReviews, uint256 verifiedReviews) memory)",
+    "function getProjects(uint256 tokenId) external view returns (tuple(uint256 projectId, bytes32 metadataHash, uint64 createdAt, uint64 completedAt, uint8 status, uint256[] collaborators)[] memory)",
+    "function getEndorsements(uint256 tokenId) external view returns (tuple(uint256 endorserId, bytes32 skillHash, uint64 endorsedAt, string comment)[] memory)",
+    "function hasReviewed(uint256 reviewerTokenId, uint256 subjectTokenId) external view returns (bool)",
+    "function getProjectCountByStatus(uint256 tokenId, uint8 status) external view returns (uint256)",
+    "function grantedSections(uint256 tokenId, address viewer) external view returns (uint8)",
+    "function setReputationCommitment(uint256 tokenId, bytes32 commitment) external",
+    "function reputationCommitment(uint256 tokenId) external view returns (bytes32)",
+    "function getAverageScore(uint256 tokenId) external view returns (uint256)",
+    "error CannotReviewSelf()",
+    "error AlreadyReviewed()",
+    "error ProjectNotFound()",
+    "error NotProjectOwner()",
+    "error InvalidScore()",
+    "error NoAccess()",
+    "event ReviewSubmitted(uint256 indexed subjectTokenId, uint256 indexed reviewerTokenId, uint256 indexed reviewId, uint8 score)",
+    "event ProjectCreated(uint256 indexed tokenId, uint256 indexed projectId, bytes32 metadataHash)",
+    "event SkillEndorsed(uint256 indexed tokenId, uint256 indexed endorserId, bytes32 indexed skillHash)",
+    "event SocialAccessGranted(uint256 indexed tokenId, address indexed viewer, uint8 sections)",
+    "event ReputationCommitmentSet(uint256 indexed tokenId, bytes32 commitment)"
+];
+
+export const REPUTATION_VERIFIER_ABI = [
+    "function proveReputation(uint256 tokenId, uint256 threshold, uint256[2] calldata _pA, uint256[2][2] calldata _pB, uint256[2] calldata _pC, uint256[2] calldata pubSignals) external",
+    "event ReputationProved(address indexed prover, uint256 threshold, uint256 commitment)"
+];
+
+export const CONFIG = {
+    RPC_URL: 'https://rpc.dimikog.org/rpc/',
+    DEPLOYMENT_BLOCK: 0,
+    MAX_BLOCK_LOOKBACK: 100000,
+    CHAIN_ID: 424242,
+    CHAIN_ID_HEX: '0x67932',
+    NETWORK_NAME: 'QBFT_Besu_EduNet',
+    CONTRACTS: {
+        SOULBOUND_IDENTITY: '0xCE1A74E0a8Eaa76A558B9129395f7E5831DA23fB',
+        CREDENTIALS_HUB: '0x6247BA84a9040d1587D5b50057c1334153B2590f',
+        SOCIAL_HUB: '0x9652130C561a358696B19f814C3372B41cbBe47e',
+        REPUTATION_VERIFIER: '0x548E11A0A6E0A2FC618Df456c4415b403fC1De38'
+    },
+    IPFS_GATEWAY: 'https://gateway.pinata.cloud/ipfs/',
+    BLOCK_EXPLORER: 'https://explorer.dimikog.org',
+    PINATA: {
+        API_KEY: '65771a86bfe3634b65e5',
+        API_SECRET: '0b472036f14175e29cb4e4c4791accf50ae7a3e65ed17244863620fe5e22aa12',
+        JWT: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiI2OTY4OTBhYi0wMWNlLTQ2ZTktOGIyYS0xZGVmMGYwOTM5YTMiLCJlbWFpbCI6ImlyaXMuY2Fjb3VsaWRpQGdtYWlsLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJwaW5fcG9saWN5Ijp7InJlZ2lvbnMiOlt7ImRlc2lyZWRSZXBsaWNhdGlvbkNvdW50IjoxLCJpZCI6IkZSQTEifSx7ImRlc2lyZWRSZXBsaWNhdGlvbkNvdW50IjoxLCJpZCI6Ik5ZQzEifV0sInZlcnNpb24iOjF9LCJtZmFfZW5hYmxlZCI6ZmFsc2UsInN0YXR1cyI6IkFDVElWRSJ9LCJhdXRoZW50aWNhdGlvblR5cGUiOiJzY29wZWRLZXkiLCJzY29wZWRLZXlLZXkiOiI2NTc3MWE4NmJmZTM2MzRiNjVlNSIsInNjb3BlZEtleVNlY3JldCI6IjBiNDcyMDM2ZjE0MTc1ZTI5Y2I0ZTRjNDc5MWFjY2Y1MGFlN2EzZTY1ZWQxNzI0NDg2MzYyMGZlNWUyMmFhMTIiLCJleHAiOjE4MDQ5NTI3NzN9.aGUGxhmYntxY9PQ_3O7GhANYzqGXh9KT5dU_-Mq7wnQ'
+    }
+};
+
+console.log('✅ Contracts and config loaded');
