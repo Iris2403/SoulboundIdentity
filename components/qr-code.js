@@ -1,31 +1,37 @@
-QRCodeDisplay = function ({ tokenId, contractAddress, size = 200 }) {
+QRCodeDisplay = function ({ tokenId, contractAddress, size = 160 }) {
     const canvasRef = useRef(null);
     const [qrError, setQrError] = useState(null);
     const { addToast } = useToast();
 
-    const qrValue = `${CONFIG.BLOCK_EXPLORER}/token/${contractAddress}/${tokenId}`;
+    const qrValue = useMemo(
+        () => `${CONFIG.BLOCK_EXPLORER}/token/${contractAddress}/${tokenId}`,
+        [tokenId, contractAddress]
+    );
 
     useEffect(() => {
         if (!canvasRef.current) return;
-        if (typeof QRCode === 'undefined') {
-            setQrError('QR Code library not available');
+        if (typeof QRious === 'undefined') {
+            setQrError('QR library unavailable');
             return;
         }
-        setQrError(null);
-        QRCode.toCanvas(canvasRef.current, qrValue, {
-            width: size,
-            margin: 2,
-            color: {
-                dark: '#0e7490',
-                light: '#0a0e1a'
-            }
-        }, (err) => {
-            if (err) {
-                console.error('QR generation error:', err);
-                setQrError('Failed to generate QR code');
-            }
-        });
-    }, [tokenId, contractAddress, size]);
+        try {
+            new QRious({
+                element: canvasRef.current,
+                value: qrValue,
+                size: size,
+                background: '#0a0e1a',
+                backgroundAlpha: 1,
+                foreground: '#0e7490',
+                foregroundAlpha: 1,
+                level: 'M',
+                padding: 10
+            });
+            setQrError(null);
+        } catch (err) {
+            console.error('QR generation error:', err);
+            setQrError('Failed to render QR code');
+        }
+    }, [qrValue, size]);
 
     const handleDownload = () => {
         if (!canvasRef.current) return;
@@ -38,69 +44,85 @@ QRCodeDisplay = function ({ tokenId, contractAddress, size = 200 }) {
 
     const handleCopyUrl = () => {
         navigator.clipboard.writeText(qrValue);
-        addToast('Token URL copied to clipboard!', 'success');
+        addToast('Token URL copied!', 'success');
     };
 
     return (
-        <div className="qr-container">
-            {qrError ? (
-                <div style={{ color: 'var(--error)', fontSize: '14px', padding: '16px' }}>{qrError}</div>
-            ) : (
-                <div className="qr-canvas-wrapper">
+        <div className="qr-panel">
+            <p className="qr-label">Scan to share</p>
+
+            <div className="qr-canvas-wrap">
+                {qrError ? (
+                    <div className="qr-error">{qrError}</div>
+                ) : (
                     <canvas ref={canvasRef} />
-                </div>
-            )}
+                )}
+            </div>
 
-            <p className="qr-url-text">{qrValue}</p>
-
-            <div className="qr-actions">
-                <button className="qr-btn qr-btn-primary" onClick={handleDownload} disabled={!!qrError}>
-                    &#x2B07;&#xFE0F; Download PNG
+            <div className="qr-btns">
+                <button
+                    className="qr-btn qr-primary"
+                    onClick={handleDownload}
+                    disabled={!!qrError}
+                    title="Download QR as PNG"
+                >
+                    ↓ PNG
                 </button>
-                <button className="qr-btn qr-btn-secondary" onClick={handleCopyUrl}>
-                    &#x1F4CB; Copy URL
+                <button
+                    className="qr-btn qr-secondary"
+                    onClick={handleCopyUrl}
+                    title="Copy token URL"
+                >
+                    Copy URL
                 </button>
             </div>
 
             <style>{`
-                .qr-container {
+                .qr-panel {
                     display: flex;
                     flex-direction: column;
                     align-items: center;
-                    gap: 16px;
-                }
-
-                .qr-canvas-wrapper {
-                    padding: 12px;
-                    background: #0a0e1a;
-                    border-radius: 12px;
-                    border: 1px solid rgba(14, 116, 144, 0.4);
-                    display: inline-block;
-                    box-shadow: 0 0 20px rgba(14, 116, 144, 0.15);
-                }
-
-                .qr-url-text {
-                    font-size: 11px;
-                    color: var(--gray);
-                    text-align: center;
-                    max-width: 260px;
-                    word-break: break-all;
-                    line-height: 1.5;
-                    margin: 0;
-                }
-
-                .qr-actions {
-                    display: flex;
                     gap: 10px;
                 }
 
-                .qr-btn {
-                    padding: 9px 18px;
-                    border-radius: 8px;
-                    cursor: pointer;
-                    font-size: 13px;
+                .qr-label {
+                    font-size: 11px;
                     font-weight: 600;
-                    transition: all 0.25s ease;
+                    color: var(--gray);
+                    text-transform: uppercase;
+                    letter-spacing: 0.08em;
+                    margin: 0;
+                }
+
+                .qr-canvas-wrap {
+                    padding: 8px;
+                    background: #0a0e1a;
+                    border-radius: 10px;
+                    border: 1px solid rgba(14, 116, 144, 0.4);
+                    box-shadow: 0 0 16px rgba(14, 116, 144, 0.12);
+                    line-height: 0;
+                }
+
+                .qr-error {
+                    width: 160px;
+                    padding: 16px;
+                    color: var(--error, #ef4444);
+                    font-size: 12px;
+                    text-align: center;
+                }
+
+                .qr-btns {
+                    display: flex;
+                    gap: 6px;
+                }
+
+                .qr-btn {
+                    padding: 6px 12px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 12px;
+                    font-weight: 600;
+                    transition: all 0.2s ease;
                     white-space: nowrap;
                 }
 
@@ -109,25 +131,25 @@ QRCodeDisplay = function ({ tokenId, contractAddress, size = 200 }) {
                     cursor: not-allowed;
                 }
 
-                .qr-btn-primary {
+                .qr-primary {
                     background: var(--teal);
                     border: none;
                     color: white;
                 }
 
-                .qr-btn-primary:hover:not(:disabled) {
+                .qr-primary:hover:not(:disabled) {
                     background: var(--teal-light);
                     transform: translateY(-1px);
-                    box-shadow: 0 4px 12px rgba(14, 116, 144, 0.4);
+                    box-shadow: 0 4px 10px rgba(14, 116, 144, 0.35);
                 }
 
-                .qr-btn-secondary {
+                .qr-secondary {
                     background: transparent;
-                    border: 1px solid var(--teal);
+                    border: 1px solid rgba(14, 116, 144, 0.5);
                     color: var(--teal-light);
                 }
 
-                .qr-btn-secondary:hover {
+                .qr-secondary:hover {
                     background: rgba(14, 116, 144, 0.1);
                     transform: translateY(-1px);
                 }

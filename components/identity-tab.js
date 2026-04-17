@@ -212,7 +212,7 @@ IdentityTab = function ({ contracts, account, userTokens, selectedToken, setSele
 
                 .tokens-grid {
                     display: grid;
-                    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+                    grid-template-columns: repeat(auto-fill, minmax(560px, 1fr));
                     gap: 20px;
                 }
 
