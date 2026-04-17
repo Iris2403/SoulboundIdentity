@@ -187,6 +187,18 @@ TokenCard = function ({ token, isSelected, onSelect, contracts, onBurned }) {
                         </div>
                     </div>
 
+                    <div className="detail-section">
+                        <h4>Share This Identity</h4>
+                        <p style={{ color: 'var(--gray)', fontSize: '13px', marginBottom: '16px' }}>
+                            Scan to view or share token #{token.id} on the block explorer.
+                        </p>
+                        <QRCodeDisplay
+                            tokenId={token.id}
+                            contractAddress={CONFIG.CONTRACTS.SOULBOUND_IDENTITY}
+                            size={200}
+                        />
+                    </div>
+
                     {!isSelected && (
                         <div className="modal-actions" style={{ marginTop: '24px' }}>
                             <Button
