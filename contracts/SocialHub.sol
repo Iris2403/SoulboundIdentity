@@ -40,6 +40,7 @@ contract SocialHub is Ownable, ReentrancyGuard {
     error NotTokenOwner();
     error CannotReviewSelf();
     error AlreadyReviewed();
+    error AlreadyEndorsedSkill();
     error ReviewNotFound();
     error ProjectNotFound();
     error NotProjectOwner();
@@ -55,6 +56,7 @@ contract SocialHub is Ownable, ReentrancyGuard {
     uint256 public constant MAX_SCORE = 100;
     uint256 public constant MAX_PROJECTS = 50;
     uint256 public constant MAX_COLLABORATORS = 20;
+    uint8 public constant PREDEFINED_SKILL_COUNT = 16;
 
     /*//////////////////////////////////////////////////////////////
                             ENUMS
@@ -65,6 +67,38 @@ contract SocialHub is Ownable, ReentrancyGuard {
         Active,
         Completed,
         Cancelled
+    }
+
+    /// @notice Predefined standardized skill list (no free-text duplicates)
+    enum PredefinedSkill {
+        // Technical Skills (0-5)
+        SoftwareDevelopment,
+        WebDevelopment,
+        DataAnalysis,
+        AIMachineLearning,
+        CybersecurityAwareness,
+        BlockchainDevelopment,
+        // Business Skills (6-10)
+        ProjectManagement,
+        BusinessStrategy,
+        MarketingDigitalMarketing,
+        SalesNegotiation,
+        FinancialLiteracy,
+        // Creative Skills (11-13)
+        UIUXDesign,
+        ContentCreation,
+        VideoMediaProduction,
+        // Soft Skills (14-15)
+        CommunicationSkills,
+        LeadershipTeamwork
+    }
+
+    /// @notice Skill grouping categories
+    enum SkillCategory {
+        Technical,
+        Business,
+        Creative,
+        Soft
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -138,6 +172,12 @@ contract SocialHub is Ownable, ReentrancyGuard {
     /// @notice Per-section access grants: tokenId => viewer => bitmask
     mapping(uint256 => mapping(address => uint8)) public grantedSections;
 
+    /// @notice Standardized skill endorsement counts: tokenId => skillId => count
+    mapping(uint256 => mapping(uint8 => uint256)) private _standardSkillCount;
+
+    /// @notice Duplicate-endorsement guard: subjectTokenId => skillId => endorserTokenId => bool
+    mapping(uint256 => mapping(uint8 => mapping(uint256 => bool))) private _hasEndorsedStandardSkill;
+
     /*//////////////////////////////////////////////////////////////
                             EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -169,6 +209,12 @@ contract SocialHub is Ownable, ReentrancyGuard {
         uint256 indexed tokenId,
         uint256 indexed endorserId,
         bytes32 indexed skillHash
+    );
+
+    event StandardSkillEndorsed(
+        uint256 indexed subjectTokenId,
+        uint256 indexed endorserTokenId,
+        PredefinedSkill indexed skill
     );
 
     event SocialAccessGranted(
@@ -504,6 +550,105 @@ contract SocialHub is Ownable, ReentrancyGuard {
         }
 
         return result;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    STANDARDIZED SKILL ENDORSEMENTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Endorse a predefined standardized skill (one endorsement per endorser per skill)
+    /// @param subjectTokenId Token of the skill owner
+    /// @param endorserTokenId Token of the endorser (caller must own this token)
+    /// @param skill The predefined skill to endorse
+    /// @param comment Optional short comment
+    function endorseStandardSkill(
+        uint256 subjectTokenId,
+        uint256 endorserTokenId,
+        PredefinedSkill skill,
+        string calldata comment
+    ) external onlyTokenOwner(endorserTokenId) nonReentrant {
+        if (subjectTokenId == endorserTokenId) revert CannotReviewSelf();
+
+        uint8 skillId = uint8(skill);
+        if (_hasEndorsedStandardSkill[subjectTokenId][skillId][endorserTokenId])
+            revert AlreadyEndorsedSkill();
+
+        _hasEndorsedStandardSkill[subjectTokenId][skillId][endorserTokenId] = true;
+        _standardSkillCount[subjectTokenId][skillId]++;
+
+        endorsementsByToken[subjectTokenId].push(
+            Endorsement({
+                endorserId: endorserTokenId,
+                skillHash: bytes32(uint256(skillId)),
+                endorsedAt: uint64(block.timestamp),
+                comment: comment
+            })
+        );
+        endorsementCounts[subjectTokenId][bytes32(uint256(skillId))]++;
+
+        emit StandardSkillEndorsed(subjectTokenId, endorserTokenId, skill);
+    }
+
+    /// @notice Get endorsement count for a specific predefined skill
+    function getStandardSkillEndorsementCount(
+        uint256 tokenId,
+        PredefinedSkill skill
+    ) external view returns (uint256) {
+        return _standardSkillCount[tokenId][uint8(skill)];
+    }
+
+    /// @notice Get all 16 predefined skill endorsement counts for a token
+    /// @return counts Array indexed by PredefinedSkill (length = PREDEFINED_SKILL_COUNT)
+    function getAllStandardSkillCounts(
+        uint256 tokenId
+    ) external view returns (uint256[16] memory counts) {
+        for (uint8 i = 0; i < PREDEFINED_SKILL_COUNT; ) {
+            counts[i] = _standardSkillCount[tokenId][i];
+            unchecked { ++i; }
+        }
+    }
+
+    /// @notice Get endorsement counts for all skills within a category
+    /// @return skillIds The skill enum IDs in the requested category
+    /// @return counts Endorsement counts matching skillIds
+    function getSkillCountsByCategory(
+        uint256 tokenId,
+        SkillCategory category
+    ) external view returns (uint8[] memory skillIds, uint256[] memory counts) {
+        uint8 start;
+        uint8 end;
+        if (category == SkillCategory.Technical) { start = 0;  end = 6;  }
+        else if (category == SkillCategory.Business)  { start = 6;  end = 11; }
+        else if (category == SkillCategory.Creative)  { start = 11; end = 14; }
+        else                                          { start = 14; end = 16; }
+
+        uint8 size = end - start;
+        skillIds = new uint8[](size);
+        counts   = new uint256[](size);
+
+        for (uint8 i = 0; i < size; ) {
+            skillIds[i] = start + i;
+            counts[i]   = _standardSkillCount[tokenId][start + i];
+            unchecked { ++i; }
+        }
+    }
+
+    /// @notice Return the category a predefined skill belongs to
+    function getSkillCategory(PredefinedSkill skill) external pure returns (SkillCategory) {
+        uint8 id = uint8(skill);
+        if (id <= 5)  return SkillCategory.Technical;
+        if (id <= 10) return SkillCategory.Business;
+        if (id <= 13) return SkillCategory.Creative;
+        return SkillCategory.Soft;
+    }
+
+    /// @notice Check whether an endorser has already endorsed a skill for a subject
+    function hasEndorsedStandardSkill(
+        uint256 subjectTokenId,
+        PredefinedSkill skill,
+        uint256 endorserTokenId
+    ) external view returns (bool) {
+        return _hasEndorsedStandardSkill[subjectTokenId][uint8(skill)][endorserTokenId];
     }
 
     /*//////////////////////////////////////////////////////////////
