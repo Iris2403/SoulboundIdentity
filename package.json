@@ -1,0 +1,13 @@
+{
+  "name": "soulbound-identity",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "babel contracts.js utils.js app.js --out-dir dist --presets @babel/preset-react && babel components --out-dir dist/components --presets @babel/preset-react"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.23.4",
+    "@babel/core": "^7.23.5",
+    "@babel/preset-react": "^7.23.3"
+  }
+}

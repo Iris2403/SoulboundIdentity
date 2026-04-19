@@ -9,9 +9,6 @@
     <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
 
-    <!-- Babel Standalone -->
-    <script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
-
     <!-- Ethers.js v5 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
 
@@ -31,7 +28,6 @@
         console.log('🚀 Starting modular app load...');
         console.log('✅ React available:', typeof React !== 'undefined');
         console.log('✅ ReactDOM available:', typeof ReactDOM !== 'undefined');
-        console.log('✅ Babel available:', typeof Babel !== 'undefined');
         console.log('✅ ethers available:', typeof ethers !== 'undefined');
 
         // Expose React hooks globally for dynamically evaluated modules
@@ -43,32 +39,29 @@
         window.useContext = React.useContext;
     </script>
 
-    <!--
-      Use Babel script tags instead of fetch/eval so the app can be opened directly
-      without requiring a local HTTP server.
-    -->
-    <script type="text/babel" data-presets="react" src="contracts.js"></script>
-    <script type="text/babel" data-presets="react" src="utils.js"></script>
-    <script type="text/babel" data-presets="react" src="components/theme.js"></script>
-    <script type="text/babel" data-presets="react" src="components/toast.js"></script>
-    <script type="text/babel" data-presets="react" src="components/ui.js"></script>
-    <script type="text/babel" data-presets="react" src="components/app-component.js"></script>
-    <script type="text/babel" data-presets="react" src="components/header.js"></script>
-    <script type="text/babel" data-presets="react" src="components/welcome.js"></script>
-    <script type="text/babel" data-presets="react" src="components/navigation.js"></script>
-    <script type="text/babel" data-presets="react" src="components/notification.js"></script>
-    <script type="text/babel" data-presets="react" src="components/identity-tab.js"></script>
-    <script type="text/babel" data-presets="react" src="components/qr-code.js"></script>
-    <script type="text/babel" data-presets="react" src="components/token-card.js"></script>
-    <script type="text/babel" data-presets="react" src="components/credentials-tab.js"></script>
-    <script type="text/babel" data-presets="react" src="components/access-control-tab.js"></script>
-    <script type="text/babel" data-presets="react" src="components/social-tab.js"></script>
-    <script type="text/babel" data-presets="react" src="components/reputation-section.js"></script>
-    <script type="text/babel" data-presets="react" src="components/projects-section.js"></script>
-    <script type="text/babel" data-presets="react" src="components/endorsements-section.js"></script>
-    <script type="text/babel" data-presets="react" src="components/zkp-section.js"></script>
-    <script type="text/babel" data-presets="react" src="components/analytics-tab.js"></script>
-    <script type="text/babel" data-presets="react" src="components/view-identities-tab.js"></script>
-    <script type="text/babel" data-presets="react" src="app.js"></script>
+    <!-- Pre-compiled output (run: npm run build) -->
+    <script src="dist/contracts.js"></script>
+    <script src="dist/utils.js"></script>
+    <script src="dist/components/theme.js"></script>
+    <script src="dist/components/toast.js"></script>
+    <script src="dist/components/ui.js"></script>
+    <script src="dist/components/app-component.js"></script>
+    <script src="dist/components/header.js"></script>
+    <script src="dist/components/welcome.js"></script>
+    <script src="dist/components/navigation.js"></script>
+    <script src="dist/components/notification.js"></script>
+    <script src="dist/components/identity-tab.js"></script>
+    <script src="dist/components/qr-code.js"></script>
+    <script src="dist/components/token-card.js"></script>
+    <script src="dist/components/credentials-tab.js"></script>
+    <script src="dist/components/access-control-tab.js"></script>
+    <script src="dist/components/social-tab.js"></script>
+    <script src="dist/components/reputation-section.js"></script>
+    <script src="dist/components/projects-section.js"></script>
+    <script src="dist/components/endorsements-section.js"></script>
+    <script src="dist/components/zkp-section.js"></script>
+    <script src="dist/components/analytics-tab.js"></script>
+    <script src="dist/components/view-identities-tab.js"></script>
+    <script src="dist/app.js"></script>
 </body>
 </html>
