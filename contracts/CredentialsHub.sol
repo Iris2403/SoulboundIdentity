@@ -91,6 +91,32 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
         Other
     }
 
+    /// @notice Academic degree category
+    enum DegreeCategory {
+        ArtsAndCulture,
+        Business,
+        ChildDevelopmentAndEducation,
+        CommunicationAndMedia,
+        Economics,
+        Health,
+        Informatics,
+        LiteratureAndAreaStudies,
+        Law,
+        LifeAndEarthSciences,
+        PeopleAndSociety,
+        Psychology,
+        Science
+    }
+
+    /// @notice Certification domain / sector
+    enum CertificationDomain {
+        ITSoftwareDevelopment,
+        BusinessManagement,
+        HealthMedicine,
+        DataAIAnalytics,
+        CommunicationMarketing
+    }
+
     /*//////////////////////////////////////////////////////////////
                             STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -137,6 +163,9 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
     /// @notice Per-type access grants: tokenId => viewer => bitmask of allowed CredentialTypes
     mapping(uint256 => mapping(address => uint8)) public grantedTypes;
 
+    /// @notice GPA for degree credentials (stored * 100: e.g. 350 = 3.50)
+    mapping(uint256 => uint16) public degreeGPA;
+
     /*//////////////////////////////////////////////////////////////
                             EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -168,6 +197,19 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
         uint256 indexed tokenId,
         address indexed viewer,
         uint8 types
+    );
+
+    event DegreeCredentialAdded(
+        uint256 indexed tokenId,
+        uint256 indexed credentialId,
+        uint16 gpa,
+        DegreeCategory degreeCategory
+    );
+
+    event CertificationCredentialAdded(
+        uint256 indexed tokenId,
+        uint256 indexed credentialId,
+        CertificationDomain domain
     );
 
     /*//////////////////////////////////////////////////////////////
@@ -347,6 +389,196 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
     }
 
     /*//////////////////////////////////////////////////////////////
+                    DEGREE CREDENTIALS (WITH GPA + CATEGORY)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Self-add a degree credential with GPA and category (unverified)
+    /// @param tokenId The identity token ID
+    /// @param metadataHash IPFS CID hash
+    /// @param issueDate Issue date (unix timestamp)
+    /// @param expiryDate Expiry date (0 for non-expiring)
+    /// @param gpa GPA stored * 100 (e.g. 350 = 3.50)
+    /// @param degreeCategory Category of the degree
+    function addDegreeCredential(
+        uint256 tokenId,
+        bytes32 metadataHash,
+        uint64 issueDate,
+        uint64 expiryDate,
+        uint16 gpa,
+        DegreeCategory degreeCategory
+    ) external onlyTokenOwner(tokenId) nonReentrant returns (uint256) {
+        if (metadataHash == bytes32(0)) revert InvalidParameter();
+        if (expiryDate != 0 && expiryDate <= issueDate) revert InvalidDates();
+        if (credentialCount[tokenId][CredentialType.Degree] >= MAX_CREDENTIALS_PER_TYPE)
+            revert TooManyCredentials();
+
+        uint256 credentialId;
+        unchecked {
+            credentialId = ++_credentialIdCounter;
+        }
+
+        credentials[tokenId][credentialId] = Credential({
+            credentialId: credentialId,
+            credType: CredentialType.Degree,
+            metadataHash: metadataHash,
+            issuer: msg.sender,
+            issueDate: issueDate,
+            expiryDate: expiryDate,
+            status: CredentialStatus.Active,
+            category: uint8(degreeCategory),
+            verified: false
+        });
+
+        degreeGPA[credentialId] = gpa;
+        credentialsByType[tokenId][CredentialType.Degree].push(credentialId);
+        credentialCount[tokenId][CredentialType.Degree]++;
+
+        emit CredentialIssued(tokenId, credentialId, CredentialType.Degree, msg.sender);
+        emit DegreeCredentialAdded(tokenId, credentialId, gpa, degreeCategory);
+
+        return credentialId;
+    }
+
+    /// @notice Issue a degree credential with GPA and category (authorized issuer, verified)
+    /// @param tokenId The identity token ID
+    /// @param metadataHash IPFS CID hash
+    /// @param issueDate Issue date (unix timestamp)
+    /// @param expiryDate Expiry date (0 for non-expiring)
+    /// @param gpa GPA stored * 100 (e.g. 350 = 3.50)
+    /// @param degreeCategory Category of the degree
+    function issueDegreeCredential(
+        uint256 tokenId,
+        bytes32 metadataHash,
+        uint64 issueDate,
+        uint64 expiryDate,
+        uint16 gpa,
+        DegreeCategory degreeCategory
+    ) external onlyAuthorizedIssuer(CredentialType.Degree) nonReentrant returns (uint256) {
+        if (metadataHash == bytes32(0)) revert InvalidParameter();
+        if (expiryDate != 0 && expiryDate <= issueDate) revert InvalidDates();
+        if (credentialCount[tokenId][CredentialType.Degree] >= MAX_CREDENTIALS_PER_TYPE)
+            revert TooManyCredentials();
+
+        uint256 credentialId;
+        unchecked {
+            credentialId = ++_credentialIdCounter;
+        }
+
+        credentials[tokenId][credentialId] = Credential({
+            credentialId: credentialId,
+            credType: CredentialType.Degree,
+            metadataHash: metadataHash,
+            issuer: msg.sender,
+            issueDate: issueDate,
+            expiryDate: expiryDate,
+            status: CredentialStatus.Active,
+            category: uint8(degreeCategory),
+            verified: true
+        });
+
+        degreeGPA[credentialId] = gpa;
+        credentialsByType[tokenId][CredentialType.Degree].push(credentialId);
+        credentialCount[tokenId][CredentialType.Degree]++;
+
+        emit CredentialIssued(tokenId, credentialId, CredentialType.Degree, msg.sender);
+        emit DegreeCredentialAdded(tokenId, credentialId, gpa, degreeCategory);
+
+        return credentialId;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                CERTIFICATION CREDENTIALS (WITH DOMAIN)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Self-add a certification credential with domain (unverified)
+    /// @param tokenId The identity token ID
+    /// @param metadataHash IPFS CID hash
+    /// @param issueDate Issue date (unix timestamp)
+    /// @param expiryDate Expiry date (0 for non-expiring)
+    /// @param domain The certification domain / sector
+    function addCertificationCredential(
+        uint256 tokenId,
+        bytes32 metadataHash,
+        uint64 issueDate,
+        uint64 expiryDate,
+        CertificationDomain domain
+    ) external onlyTokenOwner(tokenId) nonReentrant returns (uint256) {
+        if (metadataHash == bytes32(0)) revert InvalidParameter();
+        if (expiryDate != 0 && expiryDate <= issueDate) revert InvalidDates();
+        if (credentialCount[tokenId][CredentialType.Certification] >= MAX_CREDENTIALS_PER_TYPE)
+            revert TooManyCredentials();
+
+        uint256 credentialId;
+        unchecked {
+            credentialId = ++_credentialIdCounter;
+        }
+
+        credentials[tokenId][credentialId] = Credential({
+            credentialId: credentialId,
+            credType: CredentialType.Certification,
+            metadataHash: metadataHash,
+            issuer: msg.sender,
+            issueDate: issueDate,
+            expiryDate: expiryDate,
+            status: CredentialStatus.Active,
+            category: uint8(domain),
+            verified: false
+        });
+
+        credentialsByType[tokenId][CredentialType.Certification].push(credentialId);
+        credentialCount[tokenId][CredentialType.Certification]++;
+
+        emit CredentialIssued(tokenId, credentialId, CredentialType.Certification, msg.sender);
+        emit CertificationCredentialAdded(tokenId, credentialId, domain);
+
+        return credentialId;
+    }
+
+    /// @notice Issue a certification credential with domain (authorized issuer, verified)
+    /// @param tokenId The identity token ID
+    /// @param metadataHash IPFS CID hash
+    /// @param issueDate Issue date (unix timestamp)
+    /// @param expiryDate Expiry date (0 for non-expiring)
+    /// @param domain The certification domain / sector
+    function issueCertificationCredential(
+        uint256 tokenId,
+        bytes32 metadataHash,
+        uint64 issueDate,
+        uint64 expiryDate,
+        CertificationDomain domain
+    ) external onlyAuthorizedIssuer(CredentialType.Certification) nonReentrant returns (uint256) {
+        if (metadataHash == bytes32(0)) revert InvalidParameter();
+        if (expiryDate != 0 && expiryDate <= issueDate) revert InvalidDates();
+        if (credentialCount[tokenId][CredentialType.Certification] >= MAX_CREDENTIALS_PER_TYPE)
+            revert TooManyCredentials();
+
+        uint256 credentialId;
+        unchecked {
+            credentialId = ++_credentialIdCounter;
+        }
+
+        credentials[tokenId][credentialId] = Credential({
+            credentialId: credentialId,
+            credType: CredentialType.Certification,
+            metadataHash: metadataHash,
+            issuer: msg.sender,
+            issueDate: issueDate,
+            expiryDate: expiryDate,
+            status: CredentialStatus.Active,
+            category: uint8(domain),
+            verified: true
+        });
+
+        credentialsByType[tokenId][CredentialType.Certification].push(credentialId);
+        credentialCount[tokenId][CredentialType.Certification]++;
+
+        emit CredentialIssued(tokenId, credentialId, CredentialType.Certification, msg.sender);
+        emit CertificationCredentialAdded(tokenId, credentialId, domain);
+
+        return credentialId;
+    }
+
+    /*//////////////////////////////////////////////////////////////
                         REVOKE/UPDATE CREDENTIALS
     //////////////////////////////////////////////////////////////*/
 
@@ -485,6 +717,37 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
         skills = _canAccessType(tokenId, CredentialType.Skill)
             ? credentialCount[tokenId][CredentialType.Skill]
             : 0;
+    }
+
+    /// @notice Calculate total work experience across all WorkExperience credentials
+    /// @dev issueDate = job start, expiryDate = job end (0 = currently employed)
+    /// @param tokenId The identity token ID
+    /// @return totalYears Full years of accumulated experience
+    /// @return remainingMonths Remaining months after full years (approximate, 30-day months)
+    function getTotalWorkExperience(
+        uint256 tokenId
+    ) external view returns (uint256 totalYears, uint256 remainingMonths) {
+        uint256[] memory ids = credentialsByType[tokenId][CredentialType.WorkExperience];
+        uint256 totalSeconds = 0;
+
+        for (uint256 i = 0; i < ids.length; i++) {
+            Credential memory cred = credentials[tokenId][ids[i]];
+            if (cred.status == CredentialStatus.Revoked) continue;
+
+            uint64 start = cred.issueDate;
+            uint64 end = cred.expiryDate == 0
+                ? uint64(block.timestamp)
+                : cred.expiryDate;
+
+            if (end > start) {
+                unchecked {
+                    totalSeconds += end - start;
+                }
+            }
+        }
+
+        totalYears = totalSeconds / 365 days;
+        remainingMonths = (totalSeconds % 365 days) / 30 days;
     }
 
     /// @notice Check if credential is currently valid

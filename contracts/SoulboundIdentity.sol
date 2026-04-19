@@ -60,6 +60,9 @@ contract SoulboundIdentity is ERC5484, Ownable {
     /// @notice Mapping from token ID to IPFS metadata CID
     mapping(uint256 => string) private _metadataCID;
 
+    /// @notice Immutable creation timestamp per token (set once at mint, never changed)
+    mapping(uint256 => uint64) private _mintDate;
+
     /// @notice Rate limiting: last request time per address per token
     mapping(address => mapping(uint256 => uint256)) private _lastRequestTime;
 
@@ -111,6 +114,7 @@ contract SoulboundIdentity is ERC5484, Ownable {
     );
     event AccessExpired(uint256 indexed tokenId, address indexed requester);
     event ExpiredAccessCleaned(uint256 indexed tokenId, uint256 count);
+    event SBTMinted(uint256 indexed tokenId, address indexed owner, uint64 mintDate);
 
     /*//////////////////////////////////////////////////////////////
                         MODIFIERS
@@ -182,7 +186,10 @@ contract SoulboundIdentity is ERC5484, Ownable {
         }
 
         _mintSBT(to, tokenId, burnAuth);
+        uint64 mintDate = uint64(block.timestamp);
+        _mintDate[tokenId] = mintDate;
         _metadataCID[tokenId] = ipfsCID;
+        emit SBTMinted(tokenId, to, mintDate);
         return tokenId;
     }
 
@@ -596,6 +603,14 @@ contract SoulboundIdentity is ERC5484, Ownable {
         }
 
         return (tokenIds, metadataCIDs, totalCount);
+    }
+
+    /// @notice Get the immutable creation date of a token
+    /// @param tokenId The token ID
+    /// @return The Unix timestamp when the token was minted
+    function getMintDate(uint256 tokenId) external view returns (uint64) {
+        require(ownerOf(tokenId) != address(0), "Token does not exist");
+        return _mintDate[tokenId];
     }
 
     /*//////////////////////////////////////////////////////////////
