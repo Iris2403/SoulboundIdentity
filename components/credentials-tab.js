@@ -480,6 +480,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
 
     const categoryFilterOptions = getCategoryFilterOptions(selectedType);
     const showCategoryFilter = categoryFilterOptions.length > 0;
+    const formConfig = getFormConfig(credentialData.credType);
 
     return (
         <div className="credentials-tab">
@@ -845,119 +846,137 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 </div>
             </Modal>
 
-            {/* Add Self-Reported Modal */}
+            {/* Add Credential Modal */}
             <Modal
                 isOpen={showAddModal}
                 onClose={() => setShowAddModal(false)}
                 title="➕ Add Credential"
             >
                 <div>
-                    <div style={{
-                        background: 'rgba(245, 158, 11, 0.1)',
-                        padding: '12px',
-                        borderRadius: '8px',
-                        marginBottom: '20px',
-                        border: '1px solid rgba(245, 158, 11, 0.3)'
-                    }}>
-                        <p style={{
-                            fontSize: '0.9rem',
-                            color: 'var(--warning)',
-                            margin: 0
-                        }}>
+                    {/* Invalid-by-default notice */}
+                    <div style={{ background: 'rgba(245, 158, 11, 0.1)', padding: '12px', borderRadius: '8px', marginBottom: '20px', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                        <p style={{ fontSize: '0.9rem', color: 'var(--warning)', margin: 0 }}>
                             ⚠️ Newly added credentials are <strong>invalid by default</strong> and must be validated through the network before they are recognised. Use the <strong>Validate</strong> button on each credential card after adding.
                         </p>
                     </div>
 
-                    {/* Limit warning in modal */}
+                    {/* Approaching-limit warning */}
                     {isApproachingLimit(parseInt(credentialData.credType)) && (
-                        <div style={{
-                            background: 'rgba(245, 158, 11, 0.1)',
-                            padding: '12px',
-                            borderRadius: '8px',
-                            marginBottom: '16px',
-                            border: '1px solid rgba(245, 158, 11, 0.3)'
-                        }}>
-                            <p style={{
-                                fontSize: '0.85rem',
-                                color: 'var(--warning)',
-                                margin: 0
-                            }}>
-                                ⚠️ You have {credentialCounts[parseInt(credentialData.credType)] || 0}/{MAX_CREDENTIALS_PER_TYPE} {credentialTypes[parseInt(credentialData.credType)]} credentials. Approaching limit!
+                        <div style={{ background: 'rgba(245, 158, 11, 0.1)', padding: '12px', borderRadius: '8px', marginBottom: '16px', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                            <p style={{ fontSize: '0.85rem', color: 'var(--warning)', margin: 0 }}>
+                                ⚠️ {credentialCounts[parseInt(credentialData.credType)] || 0}/{MAX_CREDENTIALS_PER_TYPE} {credentialTypes[parseInt(credentialData.credType)]} credentials — approaching limit!
                             </p>
                         </div>
                     )}
 
+                    {/* Type selector — resets all fields on change */}
                     <Select
                         label="Credential Type"
                         value={credentialData.credType}
-                        onChange={(val) => setCredentialData({ ...credentialData, credType: val })}
+                        onChange={(val) => setCredentialData({
+                            credType: val,
+                            institution: '', title: '', description: '',
+                            issueDate: '', expiryDate: '',
+                            gpa: '', degreeCategory: '0', certDomain: '0', skillCategory: '0'
+                        })}
                         options={credentialTypes.map((t, i) => ({
                             value: i.toString(),
                             label: `${t} (${credentialCounts[i] || 0}/${MAX_CREDENTIALS_PER_TYPE})`
                         }))}
                     />
 
+                    {/* Institution — label and placeholder driven by type */}
                     <Input
-                        label="Institution/Organization"
+                        label={formConfig.institutionLabel}
                         value={credentialData.institution}
                         onChange={(val) => setCredentialData({ ...credentialData, institution: val })}
-                        placeholder="e.g., MIT, Google, AWS"
+                        placeholder={formConfig.institutionPlaceholder}
                     />
 
+                    {/* Title — label and placeholder driven by type */}
                     <Input
-                        label="Title/Name"
+                        label={formConfig.titleLabel}
                         value={credentialData.title}
                         onChange={(val) => setCredentialData({ ...credentialData, title: val })}
-                        placeholder="e.g., Bachelor of Computer Science"
+                        placeholder={formConfig.titlePlaceholder}
                     />
 
                     <TextArea
-                        label="Description"
+                        label="Description (optional)"
                         value={credentialData.description}
                         onChange={(val) => setCredentialData({ ...credentialData, description: val })}
-                        placeholder="Brief description of the credential"
+                        placeholder="Brief description..."
                     />
 
+                    {/* Issue / Start date — label driven by type */}
                     <Input
-                        label="Issue Date"
+                        label={formConfig.issueDateLabel}
                         type="date"
                         value={credentialData.issueDate}
                         onChange={(val) => setCredentialData({ ...credentialData, issueDate: val })}
                     />
 
-                    <Input
-                        label="Expiry Date (optional)"
-                        type="date"
-                        value={credentialData.expiryDate}
-                        onChange={(val) => setCredentialData({ ...credentialData, expiryDate: val })}
-                    />
+                    {/* Expiry / End date — hidden for Degree and Skill */}
+                    {formConfig.showExpiry && (
+                        <Input
+                            label={formConfig.expiryDateLabel || 'Expiry Date (optional)'}
+                            type="date"
+                            value={credentialData.expiryDate}
+                            onChange={(val) => setCredentialData({ ...credentialData, expiryDate: val })}
+                        />
+                    )}
 
-                    {parseInt(credentialData.credType) === 4 && (
+                    {/* GPA — Degree only */}
+                    {formConfig.showGPA && (
+                        <Input
+                            label="GPA (optional, e.g. 3.75)"
+                            value={credentialData.gpa}
+                            onChange={(val) => setCredentialData({ ...credentialData, gpa: val })}
+                            placeholder="e.g., 3.75"
+                        />
+                    )}
+
+                    {/* Degree Category — Degree only */}
+                    {formConfig.showDegreeCategory && (
+                        <Select
+                            label="Degree Category"
+                            value={credentialData.degreeCategory}
+                            onChange={(val) => setCredentialData({ ...credentialData, degreeCategory: val })}
+                            options={degreeCategories.map((c, i) => ({
+                                value: i.toString(),
+                                label: `${degreeCategoryInfo[i]?.icon || '🎓'} ${c}`
+                            }))}
+                        />
+                    )}
+
+                    {/* Certification Domain — Certification only */}
+                    {formConfig.showCertDomain && (
+                        <Select
+                            label="Certification Domain"
+                            value={credentialData.certDomain}
+                            onChange={(val) => setCredentialData({ ...credentialData, certDomain: val })}
+                            options={certificationDomains.map((c, i) => ({
+                                value: i.toString(),
+                                label: `${certDomainInfo[i]?.icon || '📜'} ${c}`
+                            }))}
+                        />
+                    )}
+
+                    {/* Skill Category — Skill only */}
+                    {formConfig.showSkillCategory && (
                         <Select
                             label="Skill Category"
-                            value={credentialData.category}
-                            onChange={(val) => setCredentialData({ ...credentialData, category: val })}
+                            value={credentialData.skillCategory}
+                            onChange={(val) => setCredentialData({ ...credentialData, skillCategory: val })}
                             options={skillCategories.map((c, i) => {
-                                const catInfo = getSkillCategoryInfo(i);
-                                return {
-                                    value: i.toString(),
-                                    label: `${catInfo.icon} ${c}`
-                                };
+                                const info = getSkillCategoryInfo(i);
+                                return { value: i.toString(), label: `${info.icon} ${c}` };
                             })}
                         />
                     )}
 
-                    <div style={{
-                        display: 'flex',
-                        gap: '12px',
-                        justifyContent: 'flex-end',
-                        marginTop: '24px'
-                    }}>
-                        <Button
-                            variant="secondary"
-                            onClick={() => setShowAddModal(false)}
-                            disabled={loading}
-                        >
+                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                        <Button variant="secondary" onClick={() => setShowAddModal(false)} disabled={loading}>
                             Cancel
                         </Button>
                         <Button
