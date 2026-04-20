@@ -201,10 +201,8 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
         }
     };
 
-    // Load credential counts per type
     const loadCredentialCounts = async () => {
         if (!selectedToken || !contracts) return;
-
         try {
             const counts = {};
             for (let i = 0; i < credentialTypes.length; i++) {
@@ -217,38 +215,50 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
         }
     };
 
-    // Check if approaching limit
     const isApproachingLimit = (type) => {
         const count = credentialCounts[type] || 0;
         return count >= MAX_CREDENTIALS_PER_TYPE * WARNING_THRESHOLD;
     };
 
-    // Load credentials with active filter and skill category filter
     const loadCredentials = async () => {
         if (!selectedToken || !contracts) return;
-
         setLoading(true);
         try {
             let creds;
-
             if (showActiveOnly) {
                 creds = await contracts.credentials.getActiveCredentials(selectedToken, selectedType);
             } else {
                 creds = await contracts.credentials.getCredentialsByType(selectedToken, selectedType);
             }
 
-            // Filter by skill category if Skills type is selected and category is chosen
-            if (selectedType === 4 && selectedSkillCategory !== null) {
-                creds = creds.filter(c => c.category === selectedSkillCategory);
+            // Apply category filter for types that support it (Degree, Certification, Skill)
+            if ([0, 1, 4].includes(selectedType) && selectedCategoryFilter !== null) {
+                creds = creds.filter(c => Number(c.category) === selectedCategoryFilter);
             }
 
-            // Credentials start as invalid until explicitly validated by the user
+            // Fetch GPA for degree credentials in parallel
+            if (selectedType === 0 && creds.length > 0) {
+                const gpas = {};
+                await Promise.all(creds.map(async (cred) => {
+                    try {
+                        const gpa = await contracts.credentials.degreeGPA(cred.credentialId);
+                        const gpaNum = gpa.toNumber ? gpa.toNumber() : Number(gpa);
+                        if (gpaNum > 0) {
+                            gpas[cred.credentialId.toString()] = (gpaNum / 100).toFixed(2);
+                        }
+                    } catch (e) {}
+                }));
+                setDegreeGPAs(gpas);
+            } else {
+                setDegreeGPAs({});
+            }
+
+            // Credentials start invalid until explicitly validated by the user
             const validated = loadValidatedFromStorage();
             const validationStatuses = {};
             for (const cred of creds) {
                 validationStatuses[cred.credentialId.toString()] = validated.has(cred.credentialId.toString());
             }
-
             setValidationStatus(validationStatuses);
             setCredentials(creds);
         } catch (error) {
@@ -261,7 +271,6 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
 
     const loadSummary = async () => {
         if (!selectedToken || !contracts) return;
-
         try {
             const sum = await contracts.credentials.getCredentialSummary(selectedToken);
             setSummary({
@@ -276,7 +285,6 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
         }
     };
 
-    // Validate a credential on the network
     const handleValidateCredential = async (credentialId) => {
         const idKey = credentialId.toString();
         try {
