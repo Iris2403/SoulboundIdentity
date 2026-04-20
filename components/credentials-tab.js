@@ -8,9 +8,10 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
     const [showActiveOnly, setShowActiveOnly] = useState(false);
     const [credentialCounts, setCredentialCounts] = useState({});
     const [validationStatus, setValidationStatus] = useState({});
-    const [selectedSkillCategory, setSelectedSkillCategory] = useState(null);
+    const [selectedCategoryFilter, setSelectedCategoryFilter] = useState(null);
     const [validatingIds, setValidatingIds] = useState({});
     const [showValidateModal, setShowValidateModal] = useState(false);
+    const [degreeGPAs, setDegreeGPAs] = useState({});
 
     const getValidatedKey = () => `sbi_validated_${selectedToken}`;
     const loadValidatedFromStorage = () => {
@@ -25,12 +26,44 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
         description: '',
         issueDate: '',
         expiryDate: '',
-        category: '0'
+        // Degree-specific
+        gpa: '',
+        degreeCategory: '0',
+        // Certification-specific
+        certDomain: '0',
+        // Skill-specific
+        skillCategory: '0'
     });
 
     // Constants
     const MAX_CREDENTIALS_PER_TYPE = 100;
-    const WARNING_THRESHOLD = 0.9; // Show warning at 90%
+    const WARNING_THRESHOLD = 0.9;
+
+    // Visual metadata for degree categories (matches DegreeCategory enum order)
+    const degreeCategoryInfo = [
+        { icon: '🎭', color: '#a78bfa' }, // Arts & Culture
+        { icon: '💼', color: '#60a5fa' }, // Business
+        { icon: '👶', color: '#34d399' }, // Child Development & Education
+        { icon: '📡', color: '#f472b6' }, // Communication & Media
+        { icon: '📈', color: '#fbbf24' }, // Economics
+        { icon: '🏥', color: '#4ade80' }, // Health
+        { icon: '💻', color: '#667eea' }, // Informatics
+        { icon: '📚', color: '#fb923c' }, // Literature & Area Studies
+        { icon: '⚖️', color: '#e879f9' }, // Law
+        { icon: '🌿', color: '#86efac' }, // Life & Earth Sciences
+        { icon: '👥', color: '#94a3b8' }, // People & Society
+        { icon: '🧠', color: '#c084fc' }, // Psychology
+        { icon: '🔬', color: '#38bdf8' }, // Science
+    ];
+
+    // Visual metadata for certification domains (matches CertificationDomain enum order)
+    const certDomainInfo = [
+        { icon: '💻', color: '#667eea' }, // IT & Software Dev
+        { icon: '💼', color: '#60a5fa' }, // Business & Management
+        { icon: '🏥', color: '#4ade80' }, // Health & Medicine
+        { icon: '📊', color: '#fbbf24' }, // Data & AI Analytics
+        { icon: '📢', color: '#f472b6' }, // Communication & Marketing
+    ];
 
     useEffect(() => {
         if (selectedToken && contracts) {
@@ -38,9 +71,71 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
             loadSummary();
             loadCredentialCounts();
         }
-    }, [selectedToken, contracts, selectedType, showActiveOnly, selectedSkillCategory]);
+    }, [selectedToken, contracts, selectedType, showActiveOnly, selectedCategoryFilter]);
 
-    // Helper function to get credential status info
+    // Returns form field configuration based on credential type
+    const getFormConfig = (credType) => {
+        switch (parseInt(credType)) {
+            case 0: return {
+                institutionLabel: 'University / Institution',
+                institutionPlaceholder: 'e.g., MIT, Harvard University',
+                institutionRequired: true,
+                titleLabel: 'Degree Title',
+                titlePlaceholder: 'e.g., Bachelor of Computer Science',
+                issueDateLabel: 'Graduation Date',
+                showExpiry: false,
+                showGPA: true,
+                showDegreeCategory: true,
+            };
+            case 1: return {
+                institutionLabel: 'Issuing Organization',
+                institutionPlaceholder: 'e.g., AWS, Google, Coursera',
+                institutionRequired: true,
+                titleLabel: 'Certification Name',
+                titlePlaceholder: 'e.g., AWS Solutions Architect',
+                issueDateLabel: 'Issue Date',
+                showExpiry: true,
+                showCertDomain: true,
+            };
+            case 2: return {
+                institutionLabel: 'Company / Organization',
+                institutionPlaceholder: 'e.g., Google, Startup Inc.',
+                institutionRequired: true,
+                titleLabel: 'Job Title / Role',
+                titlePlaceholder: 'e.g., Software Engineer',
+                issueDateLabel: 'Start Date',
+                expiryDateLabel: 'End Date (leave blank if currently employed)',
+                showExpiry: true,
+            };
+            case 3: return {
+                institutionLabel: 'Issuing Authority',
+                institutionPlaceholder: 'e.g., Government, Notary Office',
+                institutionRequired: true,
+                titleLabel: 'Document Type',
+                titlePlaceholder: "e.g., Passport, Driver's License",
+                issueDateLabel: 'Issue Date',
+                showExpiry: true,
+            };
+            case 4: return {
+                institutionLabel: 'Source / Platform (optional)',
+                institutionPlaceholder: 'e.g., Udemy, Self-taught, University',
+                institutionRequired: false,
+                titleLabel: 'Skill Name',
+                titlePlaceholder: 'e.g., Python, Machine Learning',
+                issueDateLabel: 'Date Acquired (optional)',
+                showExpiry: false,
+                showSkillCategory: true,
+            };
+            default: return {
+                institutionLabel: 'Institution',
+                institutionRequired: true,
+                titleLabel: 'Title',
+                issueDateLabel: 'Issue Date',
+                showExpiry: true,
+            };
+        }
+    };
+
     const getCredentialStatusInfo = (status) => {
         const statusMap = {
             0: { label: 'Active', color: 'var(--success)', icon: '🟢', bg: 'rgba(16, 185, 129, 0.1)' },
@@ -50,7 +145,7 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
         return statusMap[status] || statusMap[0];
     };
 
-    // Helper to get skill category info with colors
+    // Skill category info for CredentialsHub SkillCategory enum
     const getSkillCategoryInfo = (category) => {
         const categoryMap = {
             0: { label: 'Technical', icon: '💻', color: '#667eea' },
@@ -61,6 +156,49 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
             5: { label: 'Other', icon: '📦', color: '#a8b2c1' }
         };
         return categoryMap[category] || categoryMap[5];
+    };
+
+    // Returns badge display info (label, icon, color) for a credential's category field
+    const getCategoryDisplay = (credType, category) => {
+        switch (credType) {
+            case 0: {
+                const info = degreeCategoryInfo[category] || { icon: '🎓', color: '#667eea' };
+                return { label: degreeCategories[category] || 'Unknown', icon: info.icon, color: info.color };
+            }
+            case 1: {
+                const info = certDomainInfo[category] || { icon: '📜', color: '#4facfe' };
+                return { label: certificationDomains[category] || 'Unknown', icon: info.icon, color: info.color };
+            }
+            case 4:
+                return getSkillCategoryInfo(category);
+            default:
+                return null;
+        }
+    };
+
+    // Returns the list of filter buttons for types that have categories (0, 1, 4)
+    const getCategoryFilterOptions = (type) => {
+        switch (type) {
+            case 0:
+                return degreeCategories.map((cat, idx) => ({
+                    label: cat,
+                    icon: degreeCategoryInfo[idx]?.icon || '🎓',
+                    color: degreeCategoryInfo[idx]?.color || '#667eea'
+                }));
+            case 1:
+                return certificationDomains.map((cat, idx) => ({
+                    label: cat,
+                    icon: certDomainInfo[idx]?.icon || '📜',
+                    color: certDomainInfo[idx]?.color || '#4facfe'
+                }));
+            case 4:
+                return skillCategories.map((cat, idx) => {
+                    const info = getSkillCategoryInfo(idx);
+                    return { label: cat, icon: info.icon, color: info.color };
+                });
+            default:
+                return [];
+        }
     };
 
     // Load credential counts per type
