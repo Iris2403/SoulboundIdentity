@@ -74,4 +74,80 @@ getStatusBadge = isVerified => {
 credentialTypes = ['Degree', 'Certification', 'Work Experience', 'Identity Proof', 'Skill'];
 skillCategories = ['Technical', 'Soft', 'Language', 'Domain', 'Tool', 'Other'];
 projectStatuses = ['Planning', 'Active', 'Completed', 'Cancelled'];
+
+// Degree categories (matches CredentialsHub.sol DegreeCategory enum)
+degreeCategories = ['Arts & Culture', 'Business', 'Child Development & Education', 'Communication & Media', 'Economics', 'Health', 'Informatics', 'Literature & Area Studies', 'Law', 'Life & Earth Sciences', 'People & Society', 'Psychology', 'Science'];
+
+// Certification domains (matches CredentialsHub.sol CertificationDomain enum)
+certificationDomains = ['IT & Software Dev', 'Business & Management', 'Health & Medicine', 'Data & AI Analytics', 'Communication & Marketing'];
+
+// Predefined standardized skills (matches SocialHub.sol PredefinedSkill enum)
+predefinedSkills = [{
+  id: 0,
+  name: 'Software Development',
+  category: 0
+}, {
+  id: 1,
+  name: 'Web Development',
+  category: 0
+}, {
+  id: 2,
+  name: 'Data Analysis',
+  category: 0
+}, {
+  id: 3,
+  name: 'AI / Machine Learning',
+  category: 0
+}, {
+  id: 4,
+  name: 'Cybersecurity',
+  category: 0
+}, {
+  id: 5,
+  name: 'Blockchain Development',
+  category: 0
+}, {
+  id: 6,
+  name: 'Project Management',
+  category: 1
+}, {
+  id: 7,
+  name: 'Business Strategy',
+  category: 1
+}, {
+  id: 8,
+  name: 'Marketing & Digital Marketing',
+  category: 1
+}, {
+  id: 9,
+  name: 'Sales & Negotiation',
+  category: 1
+}, {
+  id: 10,
+  name: 'Financial Literacy',
+  category: 1
+}, {
+  id: 11,
+  name: 'UI/UX Design',
+  category: 2
+}, {
+  id: 12,
+  name: 'Content Creation',
+  category: 2
+}, {
+  id: 13,
+  name: 'Video & Media Production',
+  category: 2
+}, {
+  id: 14,
+  name: 'Communication Skills',
+  category: 3
+}, {
+  id: 15,
+  name: 'Leadership & Teamwork',
+  category: 3
+}];
+
+// Standard skill categories (matches SocialHub.sol SkillCategory enum)
+standardSkillCategories = ['Technical', 'Business', 'Creative', 'Soft'];
 console.log('✅ Utilities loaded globally');
