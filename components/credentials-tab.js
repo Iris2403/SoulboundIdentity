@@ -305,67 +305,91 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
         }
     };
 
-    // Add self-reported credential with limit check
     const handleAddCredential = async () => {
+        const credType = parseInt(credentialData.credType);
+        const formConfig = getFormConfig(credType);
         try {
-            console.log('🔵 Starting credential add...', { selectedToken, credentialData });
-
-            if (!credentialData.institution || !credentialData.title) {
-                showNotification('Please fill in all required fields', 'error');
+            // Validate required fields based on type
+            if (formConfig.institutionRequired && !credentialData.institution.trim()) {
+                showNotification(`Please fill in the ${formConfig.institutionLabel.replace(' (optional)', '')} field`, 'error');
+                return;
+            }
+            if (!credentialData.title.trim()) {
+                showNotification(`Please fill in the ${formConfig.titleLabel} field`, 'error');
                 return;
             }
 
-            // Guard: ensure the selected token belongs to the connected wallet
             const isOwnToken = userTokens.some(t => t.id === selectedToken);
             if (!isOwnToken) {
                 showNotification('You do not own this identity token. Please select your token from the Identity tab.', 'error');
                 return;
             }
 
-            // Check limit
-            const currentCount = credentialCounts[parseInt(credentialData.credType)] || 0;
+            const currentCount = credentialCounts[credType] || 0;
             if (currentCount >= MAX_CREDENTIALS_PER_TYPE) {
-                showNotification(`❌ Maximum limit reached (${MAX_CREDENTIALS_PER_TYPE} ${credentialTypes[parseInt(credentialData.credType)]} credentials)`, 'error');
+                showNotification(`❌ Maximum limit reached (${MAX_CREDENTIALS_PER_TYPE} ${credentialTypes[credType]} credentials)`, 'error');
                 return;
             }
 
             setLoading(true);
 
-            const metadata = {
+            const metadataHash = ethers.utils.id(JSON.stringify({
                 institution: credentialData.institution,
                 title: credentialData.title,
                 description: credentialData.description,
                 issuedBy: 'Self-Reported'
-            };
+            }));
 
-            const metadataHash = ethers.utils.id(JSON.stringify(metadata));
-            const issueDateMs = credentialData.issueDate
-                ? new Date(credentialData.issueDate).getTime()
-                : Date.now();
+            const issueDateMs = credentialData.issueDate ? new Date(credentialData.issueDate).getTime() : Date.now();
             const issueDate = isNaN(issueDateMs) || issueDateMs <= 0
                 ? Math.floor(Date.now() / 1000)
                 : Math.floor(issueDateMs / 1000);
-            const expiryDateMs = credentialData.expiryDate
-                ? new Date(credentialData.expiryDate).getTime()
-                : 0;
+            const expiryDateMs = credentialData.expiryDate ? new Date(credentialData.expiryDate).getTime() : 0;
             const expiryDate = (expiryDateMs && !isNaN(expiryDateMs) && expiryDateMs > 0)
                 ? Math.floor(expiryDateMs / 1000)
                 : 0;
 
             if (expiryDate !== 0 && expiryDate <= issueDate) {
-                showNotification('Expiry date must be after issue date!', 'error');
+                showNotification('End/expiry date must be after issue/start date!', 'error');
                 setLoading(false);
                 return;
             }
 
-            const tx = await contracts.credentials.addCredential(
-                selectedToken,
-                parseInt(credentialData.credType),
-                metadataHash,
-                issueDate,
-                expiryDate,
-                parseInt(credentialData.category)
-            );
+            let tx;
+            if (credType === 0) {
+                // Degree — dedicated function with GPA and degree category
+                const gpaValue = credentialData.gpa && credentialData.gpa.trim()
+                    ? Math.round(parseFloat(credentialData.gpa) * 100)
+                    : 0;
+                tx = await contracts.credentials.addDegreeCredential(
+                    selectedToken,
+                    metadataHash,
+                    issueDate,
+                    0,                                    // degrees don't expire
+                    gpaValue,
+                    parseInt(credentialData.degreeCategory)
+                );
+            } else if (credType === 1) {
+                // Certification — dedicated function with domain
+                tx = await contracts.credentials.addCertificationCredential(
+                    selectedToken,
+                    metadataHash,
+                    issueDate,
+                    expiryDate,
+                    parseInt(credentialData.certDomain)
+                );
+            } else {
+                // Work Experience (2), Identity Proof (3), Skill (4) — generic function
+                const category = credType === 4 ? parseInt(credentialData.skillCategory) : 0;
+                tx = await contracts.credentials.addCredential(
+                    selectedToken,
+                    credType,
+                    metadataHash,
+                    issueDate,
+                    expiryDate,
+                    category
+                );
+            }
 
             showNotification('Transaction submitted...', 'info');
             await tx.wait();
@@ -379,7 +403,10 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 description: '',
                 issueDate: '',
                 expiryDate: '',
-                category: '0'
+                gpa: '',
+                degreeCategory: '0',
+                certDomain: '0',
+                skillCategory: '0'
             });
 
             loadCredentials();
@@ -387,7 +414,6 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
             loadCredentialCounts();
         } catch (error) {
             console.error('❌ Error adding credential:', error);
-
             const errName = error.errorName || error.data?.errorName || '';
             const errMsg = error.message || '';
 
@@ -395,17 +421,16 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
             if (error.code === 'ACTION_REJECTED' || errMsg.includes('user rejected')) {
                 message = 'Transaction was rejected by wallet';
             } else if (errName === 'InvalidParameter' || errMsg.includes('InvalidParameter')) {
-                message = 'Invalid parameters: please ensure all fields are filled in correctly and the issue date is valid';
+                message = 'Invalid parameters: please check all fields are filled correctly';
             } else if (errName === 'TooManyCredentials' || errMsg.includes('TooManyCredentials')) {
                 message = `❌ Maximum limit reached (${MAX_CREDENTIALS_PER_TYPE} credentials per type)`;
             } else if (errName === 'InvalidDates' || errMsg.includes('InvalidDates')) {
-                message = 'Invalid dates: expiry date must be after issue date';
+                message = 'Invalid dates: end/expiry date must be after start/issue date';
             } else if (errName === 'NotTokenOwner' || errMsg.includes('NotTokenOwner')) {
                 message = 'You do not own this identity token';
             } else {
                 message = errMsg || 'Failed to add credential';
             }
-
             showNotification(message, 'error');
         } finally {
             setLoading(false);
