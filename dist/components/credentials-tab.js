@@ -14,9 +14,10 @@ CredentialsTab = function ({
   const [showActiveOnly, setShowActiveOnly] = useState(false);
   const [credentialCounts, setCredentialCounts] = useState({});
   const [validationStatus, setValidationStatus] = useState({});
-  const [selectedSkillCategory, setSelectedSkillCategory] = useState(null);
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState(null);
   const [validatingIds, setValidatingIds] = useState({});
   const [showValidateModal, setShowValidateModal] = useState(false);
+  const [degreeGPAs, setDegreeGPAs] = useState({});
   const getValidatedKey = () => `sbi_validated_${selectedToken}`;
   const loadValidatedFromStorage = () => {
     try {
@@ -32,22 +33,188 @@ CredentialsTab = function ({
     description: '',
     issueDate: '',
     expiryDate: '',
-    category: '0'
+    // Degree-specific
+    gpa: '',
+    degreeCategory: '0',
+    // Certification-specific
+    certDomain: '0',
+    // Skill-specific
+    skillCategory: '0'
   });
 
   // Constants
   const MAX_CREDENTIALS_PER_TYPE = 100;
-  const WARNING_THRESHOLD = 0.9; // Show warning at 90%
+  const WARNING_THRESHOLD = 0.9;
 
+  // Visual metadata for degree categories (matches DegreeCategory enum order)
+  const degreeCategoryInfo = [{
+    icon: '🎭',
+    color: '#a78bfa'
+  },
+  // Arts & Culture
+  {
+    icon: '💼',
+    color: '#60a5fa'
+  },
+  // Business
+  {
+    icon: '👶',
+    color: '#34d399'
+  },
+  // Child Development & Education
+  {
+    icon: '📡',
+    color: '#f472b6'
+  },
+  // Communication & Media
+  {
+    icon: '📈',
+    color: '#fbbf24'
+  },
+  // Economics
+  {
+    icon: '🏥',
+    color: '#4ade80'
+  },
+  // Health
+  {
+    icon: '💻',
+    color: '#667eea'
+  },
+  // Informatics
+  {
+    icon: '📚',
+    color: '#fb923c'
+  },
+  // Literature & Area Studies
+  {
+    icon: '⚖️',
+    color: '#e879f9'
+  },
+  // Law
+  {
+    icon: '🌿',
+    color: '#86efac'
+  },
+  // Life & Earth Sciences
+  {
+    icon: '👥',
+    color: '#94a3b8'
+  },
+  // People & Society
+  {
+    icon: '🧠',
+    color: '#c084fc'
+  },
+  // Psychology
+  {
+    icon: '🔬',
+    color: '#38bdf8'
+  } // Science
+  ];
+
+  // Visual metadata for certification domains (matches CertificationDomain enum order)
+  const certDomainInfo = [{
+    icon: '💻',
+    color: '#667eea'
+  },
+  // IT & Software Dev
+  {
+    icon: '💼',
+    color: '#60a5fa'
+  },
+  // Business & Management
+  {
+    icon: '🏥',
+    color: '#4ade80'
+  },
+  // Health & Medicine
+  {
+    icon: '📊',
+    color: '#fbbf24'
+  },
+  // Data & AI Analytics
+  {
+    icon: '📢',
+    color: '#f472b6'
+  } // Communication & Marketing
+  ];
   useEffect(() => {
     if (selectedToken && contracts) {
       loadCredentials();
       loadSummary();
       loadCredentialCounts();
     }
-  }, [selectedToken, contracts, selectedType, showActiveOnly, selectedSkillCategory]);
+  }, [selectedToken, contracts, selectedType, showActiveOnly, selectedCategoryFilter]);
 
-  // Helper function to get credential status info
+  // Returns form field configuration based on credential type
+  const getFormConfig = credType => {
+    switch (parseInt(credType)) {
+      case 0:
+        return {
+          institutionLabel: 'University / Institution',
+          institutionPlaceholder: 'e.g., MIT, Harvard University',
+          institutionRequired: true,
+          titleLabel: 'Degree Title',
+          titlePlaceholder: 'e.g., Bachelor of Computer Science',
+          issueDateLabel: 'Graduation Date',
+          showExpiry: false,
+          showGPA: true,
+          showDegreeCategory: true
+        };
+      case 1:
+        return {
+          institutionLabel: 'Issuing Organization',
+          institutionPlaceholder: 'e.g., AWS, Google, Coursera',
+          institutionRequired: true,
+          titleLabel: 'Certification Name',
+          titlePlaceholder: 'e.g., AWS Solutions Architect',
+          issueDateLabel: 'Issue Date',
+          showExpiry: true,
+          showCertDomain: true
+        };
+      case 2:
+        return {
+          institutionLabel: 'Company / Organization',
+          institutionPlaceholder: 'e.g., Google, Startup Inc.',
+          institutionRequired: true,
+          titleLabel: 'Job Title / Role',
+          titlePlaceholder: 'e.g., Software Engineer',
+          issueDateLabel: 'Start Date',
+          expiryDateLabel: 'End Date (leave blank if currently employed)',
+          showExpiry: true
+        };
+      case 3:
+        return {
+          institutionLabel: 'Issuing Authority',
+          institutionPlaceholder: 'e.g., Government, Notary Office',
+          institutionRequired: true,
+          titleLabel: 'Document Type',
+          titlePlaceholder: "e.g., Passport, Driver's License",
+          issueDateLabel: 'Issue Date',
+          showExpiry: true
+        };
+      case 4:
+        return {
+          institutionLabel: 'Source / Platform (optional)',
+          institutionPlaceholder: 'e.g., Udemy, Self-taught, University',
+          institutionRequired: false,
+          titleLabel: 'Skill Name',
+          titlePlaceholder: 'e.g., Python, Machine Learning',
+          issueDateLabel: 'Date Acquired (optional)',
+          showExpiry: false,
+          showSkillCategory: true
+        };
+      default:
+        return {
+          institutionLabel: 'Institution',
+          institutionRequired: true,
+          titleLabel: 'Title',
+          issueDateLabel: 'Issue Date',
+          showExpiry: true
+        };
+    }
+  };
   const getCredentialStatusInfo = status => {
     const statusMap = {
       0: {
@@ -72,7 +239,7 @@ CredentialsTab = function ({
     return statusMap[status] || statusMap[0];
   };
 
-  // Helper to get skill category info with colors
+  // Skill category info for CredentialsHub SkillCategory enum
   const getSkillCategoryInfo = category => {
     const categoryMap = {
       0: {
@@ -109,7 +276,68 @@ CredentialsTab = function ({
     return categoryMap[category] || categoryMap[5];
   };
 
-  // Load credential counts per type
+  // Returns badge display info (label, icon, color) for a credential's category field
+  const getCategoryDisplay = (credType, category) => {
+    switch (credType) {
+      case 0:
+        {
+          const info = degreeCategoryInfo[category] || {
+            icon: '🎓',
+            color: '#667eea'
+          };
+          return {
+            label: degreeCategories[category] || 'Unknown',
+            icon: info.icon,
+            color: info.color
+          };
+        }
+      case 1:
+        {
+          const info = certDomainInfo[category] || {
+            icon: '📜',
+            color: '#4facfe'
+          };
+          return {
+            label: certificationDomains[category] || 'Unknown',
+            icon: info.icon,
+            color: info.color
+          };
+        }
+      case 4:
+        return getSkillCategoryInfo(category);
+      default:
+        return null;
+    }
+  };
+
+  // Returns the list of filter buttons for types that have categories (0, 1, 4)
+  const getCategoryFilterOptions = type => {
+    switch (type) {
+      case 0:
+        return degreeCategories.map((cat, idx) => ({
+          label: cat,
+          icon: degreeCategoryInfo[idx]?.icon || '🎓',
+          color: degreeCategoryInfo[idx]?.color || '#667eea'
+        }));
+      case 1:
+        return certificationDomains.map((cat, idx) => ({
+          label: cat,
+          icon: certDomainInfo[idx]?.icon || '📜',
+          color: certDomainInfo[idx]?.color || '#4facfe'
+        }));
+      case 4:
+        return skillCategories.map((cat, idx) => {
+          const info = getSkillCategoryInfo(idx);
+          return {
+            label: cat,
+            icon: info.icon,
+            color: info.color
+          };
+        });
+      default:
+        return [];
+    }
+  };
   const loadCredentialCounts = async () => {
     if (!selectedToken || !contracts) return;
     try {
@@ -123,14 +351,10 @@ CredentialsTab = function ({
       console.error('Error loading credential counts:', error);
     }
   };
-
-  // Check if approaching limit
   const isApproachingLimit = type => {
     const count = credentialCounts[type] || 0;
     return count >= MAX_CREDENTIALS_PER_TYPE * WARNING_THRESHOLD;
   };
-
-  // Load credentials with active filter and skill category filter
   const loadCredentials = async () => {
     if (!selectedToken || !contracts) return;
     setLoading(true);
@@ -142,12 +366,29 @@ CredentialsTab = function ({
         creds = await contracts.credentials.getCredentialsByType(selectedToken, selectedType);
       }
 
-      // Filter by skill category if Skills type is selected and category is chosen
-      if (selectedType === 4 && selectedSkillCategory !== null) {
-        creds = creds.filter(c => c.category === selectedSkillCategory);
+      // Apply category filter for types that support it (Degree, Certification, Skill)
+      if ([0, 1, 4].includes(selectedType) && selectedCategoryFilter !== null) {
+        creds = creds.filter(c => Number(c.category) === selectedCategoryFilter);
       }
 
-      // Credentials start as invalid until explicitly validated by the user
+      // Fetch GPA for degree credentials in parallel
+      if (selectedType === 0 && creds.length > 0) {
+        const gpas = {};
+        await Promise.all(creds.map(async cred => {
+          try {
+            const gpa = await contracts.credentials.degreeGPA(cred.credentialId);
+            const gpaNum = gpa.toNumber ? gpa.toNumber() : Number(gpa);
+            if (gpaNum > 0) {
+              gpas[cred.credentialId.toString()] = (gpaNum / 100).toFixed(2);
+            }
+          } catch (e) {}
+        }));
+        setDegreeGPAs(gpas);
+      } else {
+        setDegreeGPAs({});
+      }
+
+      // Credentials start invalid until explicitly validated by the user
       const validated = loadValidatedFromStorage();
       const validationStatuses = {};
       for (const cred of creds) {
@@ -177,8 +418,6 @@ CredentialsTab = function ({
       console.error('Error loading summary:', error);
     }
   };
-
-  // Validate a credential on the network
   const handleValidateCredential = async credentialId => {
     const idKey = credentialId.toString();
     try {
@@ -207,50 +446,60 @@ CredentialsTab = function ({
       }));
     }
   };
-
-  // Add self-reported credential with limit check
   const handleAddCredential = async () => {
+    const credType = parseInt(credentialData.credType);
+    const formConfig = getFormConfig(credType);
     try {
-      console.log('🔵 Starting credential add...', {
-        selectedToken,
-        credentialData
-      });
-      if (!credentialData.institution || !credentialData.title) {
-        showNotification('Please fill in all required fields', 'error');
+      // Validate required fields based on type
+      if (formConfig.institutionRequired && !credentialData.institution.trim()) {
+        showNotification(`Please fill in the ${formConfig.institutionLabel.replace(' (optional)', '')} field`, 'error');
         return;
       }
-
-      // Guard: ensure the selected token belongs to the connected wallet
+      if (!credentialData.title.trim()) {
+        showNotification(`Please fill in the ${formConfig.titleLabel} field`, 'error');
+        return;
+      }
       const isOwnToken = userTokens.some(t => t.id === selectedToken);
       if (!isOwnToken) {
         showNotification('You do not own this identity token. Please select your token from the Identity tab.', 'error');
         return;
       }
-
-      // Check limit
-      const currentCount = credentialCounts[parseInt(credentialData.credType)] || 0;
+      const currentCount = credentialCounts[credType] || 0;
       if (currentCount >= MAX_CREDENTIALS_PER_TYPE) {
-        showNotification(`❌ Maximum limit reached (${MAX_CREDENTIALS_PER_TYPE} ${credentialTypes[parseInt(credentialData.credType)]} credentials)`, 'error');
+        showNotification(`❌ Maximum limit reached (${MAX_CREDENTIALS_PER_TYPE} ${credentialTypes[credType]} credentials)`, 'error');
         return;
       }
       setLoading(true);
-      const metadata = {
+      const metadataHash = ethers.utils.id(JSON.stringify({
         institution: credentialData.institution,
         title: credentialData.title,
         description: credentialData.description,
         issuedBy: 'Self-Reported'
-      };
-      const metadataHash = ethers.utils.id(JSON.stringify(metadata));
+      }));
       const issueDateMs = credentialData.issueDate ? new Date(credentialData.issueDate).getTime() : Date.now();
       const issueDate = isNaN(issueDateMs) || issueDateMs <= 0 ? Math.floor(Date.now() / 1000) : Math.floor(issueDateMs / 1000);
       const expiryDateMs = credentialData.expiryDate ? new Date(credentialData.expiryDate).getTime() : 0;
       const expiryDate = expiryDateMs && !isNaN(expiryDateMs) && expiryDateMs > 0 ? Math.floor(expiryDateMs / 1000) : 0;
       if (expiryDate !== 0 && expiryDate <= issueDate) {
-        showNotification('Expiry date must be after issue date!', 'error');
+        showNotification('End/expiry date must be after issue/start date!', 'error');
         setLoading(false);
         return;
       }
-      const tx = await contracts.credentials.addCredential(selectedToken, parseInt(credentialData.credType), metadataHash, issueDate, expiryDate, parseInt(credentialData.category));
+      let tx;
+      if (credType === 0) {
+        // Degree — dedicated function with GPA and degree category
+        const gpaValue = credentialData.gpa && credentialData.gpa.trim() ? Math.round(parseFloat(credentialData.gpa) * 100) : 0;
+        tx = await contracts.credentials.addDegreeCredential(selectedToken, metadataHash, issueDate, 0,
+        // degrees don't expire
+        gpaValue, parseInt(credentialData.degreeCategory));
+      } else if (credType === 1) {
+        // Certification — dedicated function with domain
+        tx = await contracts.credentials.addCertificationCredential(selectedToken, metadataHash, issueDate, expiryDate, parseInt(credentialData.certDomain));
+      } else {
+        // Work Experience (2), Identity Proof (3), Skill (4) — generic function
+        const category = credType === 4 ? parseInt(credentialData.skillCategory) : 0;
+        tx = await contracts.credentials.addCredential(selectedToken, credType, metadataHash, issueDate, expiryDate, category);
+      }
       showNotification('Transaction submitted...', 'info');
       await tx.wait();
       showNotification('Credential added successfully!', 'success');
@@ -262,7 +511,10 @@ CredentialsTab = function ({
         description: '',
         issueDate: '',
         expiryDate: '',
-        category: '0'
+        gpa: '',
+        degreeCategory: '0',
+        certDomain: '0',
+        skillCategory: '0'
       });
       loadCredentials();
       loadSummary();
@@ -275,11 +527,11 @@ CredentialsTab = function ({
       if (error.code === 'ACTION_REJECTED' || errMsg.includes('user rejected')) {
         message = 'Transaction was rejected by wallet';
       } else if (errName === 'InvalidParameter' || errMsg.includes('InvalidParameter')) {
-        message = 'Invalid parameters: please ensure all fields are filled in correctly and the issue date is valid';
+        message = 'Invalid parameters: please check all fields are filled correctly';
       } else if (errName === 'TooManyCredentials' || errMsg.includes('TooManyCredentials')) {
         message = `❌ Maximum limit reached (${MAX_CREDENTIALS_PER_TYPE} credentials per type)`;
       } else if (errName === 'InvalidDates' || errMsg.includes('InvalidDates')) {
-        message = 'Invalid dates: expiry date must be after issue date';
+        message = 'Invalid dates: end/expiry date must be after start/issue date';
       } else if (errName === 'NotTokenOwner' || errMsg.includes('NotTokenOwner')) {
         message = 'You do not own this identity token';
       } else {
@@ -324,6 +576,9 @@ CredentialsTab = function ({
       className: "empty-icon"
     }, "\uD83D\uDCDC"), /*#__PURE__*/React.createElement("h3", null, "No Token Selected"), /*#__PURE__*/React.createElement("p", null, "Select a token from the Identity tab to manage credentials")));
   }
+  const categoryFilterOptions = getCategoryFilterOptions(selectedType);
+  const showCategoryFilter = categoryFilterOptions.length > 0;
+  const formConfig = getFormConfig(credentialData.credType);
   return /*#__PURE__*/React.createElement("div", {
     className: "credentials-tab"
   }, /*#__PURE__*/React.createElement("div", {
@@ -401,13 +656,18 @@ CredentialsTab = function ({
     const isNearLimit = count >= MAX_CREDENTIALS_PER_TYPE * WARNING_THRESHOLD;
     return /*#__PURE__*/React.createElement("div", {
       key: key,
+      onClick: () => {
+        setSelectedType(type);
+        setSelectedCategoryFilter(null);
+      },
       style: {
         textAlign: 'center',
         padding: '16px',
         background: color,
         borderRadius: '12px',
         position: 'relative',
-        border: isNearLimit ? '2px solid var(--warning)' : 'none'
+        cursor: 'pointer',
+        border: selectedType === type ? '2px solid var(--teal)' : isNearLimit ? '2px solid var(--warning)' : '2px solid transparent'
       }
     }, isNearLimit && /*#__PURE__*/React.createElement("div", {
       style: {
@@ -464,31 +724,30 @@ CredentialsTab = function ({
     const isNearLimit = count >= MAX_CREDENTIALS_PER_TYPE * WARNING_THRESHOLD;
     return /*#__PURE__*/React.createElement("button", {
       key: idx,
-      className: `filter-btn ${selectedType === idx ? 'active' : ''}`,
       onClick: () => {
         setSelectedType(idx);
-        setSelectedSkillCategory(null);
+        setSelectedCategoryFilter(null);
       },
       style: {
         position: 'relative',
         padding: '8px 16px',
-        border: selectedType === idx ? isNearLimit ? '2px solid var(--warning)' : '2px solid var(--teal)' : '1px solid var(--border-color)',
-        background: selectedType === idx ? 'rgba(6, 182, 212, 0.1)' : 'transparent',
-        color: selectedType === idx ? 'var(--teal-light)' : 'var(--text-secondary)',
         borderRadius: '20px',
         cursor: 'pointer',
         fontSize: '0.9rem',
+        transition: 'all 0.3s',
         fontWeight: selectedType === idx ? '600' : '400',
-        transition: 'all 0.3s'
+        border: selectedType === idx ? isNearLimit ? '2px solid var(--warning)' : '2px solid var(--teal)' : '1px solid var(--border-color)',
+        background: selectedType === idx ? 'rgba(6, 182, 212, 0.1)' : 'transparent',
+        color: selectedType === idx ? 'var(--teal-light)' : 'var(--text-secondary)'
       }
     }, type, /*#__PURE__*/React.createElement("span", {
       style: {
         marginLeft: '6px',
-        background: selectedType === idx ? isNearLimit ? 'var(--warning)' : 'rgba(255,255,255,0.3)' : 'var(--teal)',
         padding: '2px 8px',
         borderRadius: '10px',
         fontSize: '0.75rem',
         fontWeight: 'bold',
+        background: selectedType === idx ? isNearLimit ? 'var(--warning)' : 'rgba(255,255,255,0.3)' : 'var(--teal)',
         color: selectedType === idx ? isNearLimit ? 'white' : 'var(--teal-light)' : 'white'
       }
     }, count), isNearLimit && /*#__PURE__*/React.createElement("span", {
@@ -513,33 +772,21 @@ CredentialsTab = function ({
       fontSize: '0.9rem',
       color: 'var(--text-secondary)'
     }
-  }, "Show:"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setShowActiveOnly(false),
+  }, "Show:"), [['All', false], ['🟢 Active Only', true]].map(([label, val]) => /*#__PURE__*/React.createElement("button", {
+    key: label,
+    onClick: () => setShowActiveOnly(val),
     style: {
-      background: !showActiveOnly ? 'var(--gradient-teal)' : 'transparent',
+      background: showActiveOnly === val ? 'var(--gradient-teal)' : 'transparent',
       border: 'none',
-      color: !showActiveOnly ? 'white' : 'var(--text-secondary)',
-      padding: '6px 16px',
       borderRadius: '16px',
       cursor: 'pointer',
-      fontSize: '0.85rem',
-      fontWeight: '600',
-      transition: 'all 0.3s'
-    }
-  }, "All"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setShowActiveOnly(true),
-    style: {
-      background: showActiveOnly ? 'var(--gradient-teal)' : 'transparent',
-      border: 'none',
-      color: showActiveOnly ? 'white' : 'var(--text-secondary)',
       padding: '6px 16px',
-      borderRadius: '16px',
-      cursor: 'pointer',
       fontSize: '0.85rem',
       fontWeight: '600',
-      transition: 'all 0.3s'
+      transition: 'all 0.3s',
+      color: showActiveOnly === val ? 'white' : 'var(--text-secondary)'
     }
-  }, "\uD83D\uDFE2 Active Only"))), selectedType === 4 && /*#__PURE__*/React.createElement("div", {
+  }, label)))), showCategoryFilter && /*#__PURE__*/React.createElement("div", {
     style: {
       marginBottom: '20px',
       paddingTop: '16px',
@@ -552,46 +799,43 @@ CredentialsTab = function ({
       marginBottom: '12px',
       fontWeight: '600'
     }
-  }, "Filter by Category:"), /*#__PURE__*/React.createElement("div", {
+  }, "Filter by ", selectedType === 0 ? 'Degree Category' : selectedType === 1 ? 'Domain' : 'Skill Category', ":"), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       gap: '8px',
       flexWrap: 'wrap'
     }
   }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => setSelectedSkillCategory(null),
+    onClick: () => setSelectedCategoryFilter(null),
     style: {
       padding: '6px 14px',
-      border: selectedSkillCategory === null ? '2px solid var(--teal)' : '1px solid var(--border-color)',
-      background: selectedSkillCategory === null ? 'rgba(6, 182, 212, 0.1)' : 'transparent',
-      color: selectedSkillCategory === null ? 'var(--teal-light)' : 'var(--text-secondary)',
       borderRadius: '16px',
       cursor: 'pointer',
       fontSize: '0.85rem',
-      fontWeight: selectedSkillCategory === null ? '600' : '400',
-      transition: 'all 0.3s'
+      transition: 'all 0.3s',
+      fontWeight: selectedCategoryFilter === null ? '600' : '400',
+      border: selectedCategoryFilter === null ? '2px solid var(--teal)' : '1px solid var(--border-color)',
+      background: selectedCategoryFilter === null ? 'rgba(6, 182, 212, 0.1)' : 'transparent',
+      color: selectedCategoryFilter === null ? 'var(--teal-light)' : 'var(--text-secondary)'
     }
-  }, "All Categories"), skillCategories.map((cat, idx) => {
-    const catInfo = getSkillCategoryInfo(idx);
-    return /*#__PURE__*/React.createElement("button", {
-      key: idx,
-      onClick: () => setSelectedSkillCategory(idx),
-      style: {
-        padding: '6px 14px',
-        border: selectedSkillCategory === idx ? `2px solid ${catInfo.color}` : '1px solid var(--border-color)',
-        background: selectedSkillCategory === idx ? `${catInfo.color}15` : 'transparent',
-        color: selectedSkillCategory === idx ? catInfo.color : 'var(--text-secondary)',
-        borderRadius: '16px',
-        cursor: 'pointer',
-        fontSize: '0.85rem',
-        fontWeight: selectedSkillCategory === idx ? '600' : '400',
-        transition: 'all 0.3s',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '6px'
-      }
-    }, /*#__PURE__*/React.createElement("span", null, catInfo.icon), cat);
-  }))), isApproachingLimit(selectedType) && /*#__PURE__*/React.createElement("div", {
+  }, "All"), categoryFilterOptions.map((cat, idx) => /*#__PURE__*/React.createElement("button", {
+    key: idx,
+    onClick: () => setSelectedCategoryFilter(idx),
+    style: {
+      padding: '6px 14px',
+      borderRadius: '16px',
+      cursor: 'pointer',
+      fontSize: '0.85rem',
+      transition: 'all 0.3s',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '6px',
+      fontWeight: selectedCategoryFilter === idx ? '600' : '400',
+      border: selectedCategoryFilter === idx ? `2px solid ${cat.color}` : '1px solid var(--border-color)',
+      background: selectedCategoryFilter === idx ? `${cat.color}15` : 'transparent',
+      color: selectedCategoryFilter === idx ? cat.color : 'var(--text-secondary)'
+    }
+  }, /*#__PURE__*/React.createElement("span", null, cat.icon), cat.label)))), isApproachingLimit(selectedType) && /*#__PURE__*/React.createElement("div", {
     style: {
       background: 'rgba(245, 158, 11, 0.1)',
       border: '1px solid rgba(245, 158, 11, 0.3)',
@@ -621,13 +865,13 @@ CredentialsTab = function ({
       color: 'var(--text-secondary)',
       marginTop: '4px'
     }
-  }, "You have ", credentialCounts[selectedType] || 0, "/", MAX_CREDENTIALS_PER_TYPE, " ", credentialTypes[selectedType], " credentials. Consider revoking unused credentials."))), loading ? /*#__PURE__*/React.createElement(LoadingSpinner, null) : credentials.length === 0 ? /*#__PURE__*/React.createElement("div", {
+  }, "You have ", credentialCounts[selectedType] || 0, "/", MAX_CREDENTIALS_PER_TYPE, " ", credentialTypes[selectedType], " credentials."))), loading ? /*#__PURE__*/React.createElement(LoadingSpinner, null) : credentials.length === 0 ? /*#__PURE__*/React.createElement("div", {
     className: "empty-message",
     style: {
       textAlign: 'center',
       padding: '40px'
     }
-  }, /*#__PURE__*/React.createElement("p", null, "No ", showActiveOnly ? 'active ' : '', selectedType === 4 && selectedSkillCategory !== null ? `${skillCategories[selectedSkillCategory]} ` : '', credentialTypes[selectedType].toLowerCase(), " credentials yet")) : /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("p", null, "No ", showActiveOnly ? 'active ' : '', selectedCategoryFilter !== null && categoryFilterOptions[selectedCategoryFilter] ? `${categoryFilterOptions[selectedCategoryFilter].label} ` : '', credentialTypes[selectedType].toLowerCase(), " credentials yet")) : /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       flexDirection: 'column',
@@ -638,7 +882,8 @@ CredentialsTab = function ({
     const isValid = validationStatus[cred.credentialId.toString()];
     const isExpired = cred.expiryDate > 0 && Math.floor(Date.now() / 1000) >= cred.expiryDate.toNumber();
     const isValidating = validatingIds[cred.credentialId.toString()];
-    const catInfo = selectedType === 4 ? getSkillCategoryInfo(cred.category) : null;
+    const catDisplay = getCategoryDisplay(cred.credType, cred.category);
+    const gpa = degreeGPAs[cred.credentialId.toString()];
     return /*#__PURE__*/React.createElement("div", {
       key: idx,
       style: {
@@ -705,22 +950,22 @@ CredentialsTab = function ({
         background: isValid ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
         color: isValid ? 'var(--success)' : 'var(--error)'
       }
-    }, isValid ? '✓ Valid' : '✗ Invalid'), selectedType === 4 && catInfo && /*#__PURE__*/React.createElement("span", {
+    }, isValid ? '✓ Valid' : '✗ Invalid'), catDisplay && /*#__PURE__*/React.createElement("span", {
       style: {
         padding: '4px 12px',
         borderRadius: '12px',
         fontSize: '0.8rem',
         fontWeight: '600',
-        background: `${catInfo.color}20`,
-        color: catInfo.color,
+        background: `${catDisplay.color}20`,
+        color: catDisplay.color,
         display: 'flex',
         alignItems: 'center',
         gap: '4px'
       }
-    }, catInfo.icon, " ", catInfo.label))), /*#__PURE__*/React.createElement("div", {
+    }, catDisplay.icon, " ", catDisplay.label))), /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
         gap: '12px',
         marginTop: '16px',
         paddingTop: '16px',
@@ -743,7 +988,7 @@ CredentialsTab = function ({
         color: 'var(--text-muted)',
         marginBottom: '4px'
       }
-    }, "Issue Date"), /*#__PURE__*/React.createElement("div", {
+    }, cred.credType === 2 ? 'Start Date' : 'Issue Date'), /*#__PURE__*/React.createElement("div", {
       style: {
         fontSize: '0.9rem'
       }
@@ -753,12 +998,24 @@ CredentialsTab = function ({
         color: 'var(--text-muted)',
         marginBottom: '4px'
       }
-    }, "Expiry"), /*#__PURE__*/React.createElement("div", {
+    }, cred.credType === 2 ? 'End Date' : 'Expiry'), /*#__PURE__*/React.createElement("div", {
       style: {
         fontSize: '0.9rem',
         color: isExpired ? 'var(--error)' : 'inherit'
       }
-    }, cred.expiryDate.toNumber() === 0 ? 'Never' : formatDate(cred.expiryDate))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    }, cred.expiryDate.toNumber() === 0 ? cred.credType === 2 ? '📌 Currently Employed' : 'Never' : formatDate(cred.expiryDate))), gpa && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: '0.8rem',
+        color: 'var(--text-muted)',
+        marginBottom: '4px'
+      }
+    }, "GPA"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: '0.9rem',
+        fontWeight: '600',
+        color: 'var(--teal-light)'
+      }
+    }, gpa)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
       style: {
         fontSize: '0.8rem',
         color: 'var(--text-muted)',
@@ -779,16 +1036,16 @@ CredentialsTab = function ({
       }
     }, !isValid && cred.status === 0 && /*#__PURE__*/React.createElement(Button, {
       onClick: () => handleValidateCredential(cred.credentialId),
-      disabled: validatingIds[cred.credentialId.toString()],
+      disabled: isValidating,
       style: {
         fontSize: '0.85rem',
         padding: '6px 12px',
         background: 'linear-gradient(135deg, #667eea, #4facfe)',
         border: 'none',
         color: 'white',
-        opacity: validatingIds[cred.credentialId.toString()] ? 0.7 : 1
+        opacity: isValidating ? 0.7 : 1
       }
-    }, validatingIds[cred.credentialId.toString()] ? '⏳ Validating...' : '🔍 Validate'), isExpired && cred.status === 0 && /*#__PURE__*/React.createElement(Button, {
+    }, isValidating ? '⏳ Validating...' : '🔍 Validate'), isExpired && cred.status === 0 && /*#__PURE__*/React.createElement(Button, {
       variant: "secondary",
       onClick: () => handleUpdateStatus(cred.credentialId),
       style: {
@@ -902,69 +1159,107 @@ CredentialsTab = function ({
       color: 'var(--warning)',
       margin: 0
     }
-  }, "\u26A0\uFE0F You have ", credentialCounts[parseInt(credentialData.credType)] || 0, "/", MAX_CREDENTIALS_PER_TYPE, " ", credentialTypes[parseInt(credentialData.credType)], " credentials. Approaching limit!")), /*#__PURE__*/React.createElement(Select, {
+  }, "\u26A0\uFE0F ", credentialCounts[parseInt(credentialData.credType)] || 0, "/", MAX_CREDENTIALS_PER_TYPE, " ", credentialTypes[parseInt(credentialData.credType)], " credentials \u2014 approaching limit!")), /*#__PURE__*/React.createElement(Select, {
     label: "Credential Type",
     value: credentialData.credType,
     onChange: val => setCredentialData({
-      ...credentialData,
-      credType: val
+      credType: val,
+      institution: '',
+      title: '',
+      description: '',
+      issueDate: '',
+      expiryDate: '',
+      gpa: '',
+      degreeCategory: '0',
+      certDomain: '0',
+      skillCategory: '0'
     }),
     options: credentialTypes.map((t, i) => ({
       value: i.toString(),
       label: `${t} (${credentialCounts[i] || 0}/${MAX_CREDENTIALS_PER_TYPE})`
     }))
   }), /*#__PURE__*/React.createElement(Input, {
-    label: "Institution/Organization",
+    label: formConfig.institutionLabel,
     value: credentialData.institution,
     onChange: val => setCredentialData({
       ...credentialData,
       institution: val
     }),
-    placeholder: "e.g., MIT, Google, AWS"
+    placeholder: formConfig.institutionPlaceholder
   }), /*#__PURE__*/React.createElement(Input, {
-    label: "Title/Name",
+    label: formConfig.titleLabel,
     value: credentialData.title,
     onChange: val => setCredentialData({
       ...credentialData,
       title: val
     }),
-    placeholder: "e.g., Bachelor of Computer Science"
+    placeholder: formConfig.titlePlaceholder
   }), /*#__PURE__*/React.createElement(TextArea, {
-    label: "Description",
+    label: "Description (optional)",
     value: credentialData.description,
     onChange: val => setCredentialData({
       ...credentialData,
       description: val
     }),
-    placeholder: "Brief description of the credential"
+    placeholder: "Brief description..."
   }), /*#__PURE__*/React.createElement(Input, {
-    label: "Issue Date",
+    label: formConfig.issueDateLabel,
     type: "date",
     value: credentialData.issueDate,
     onChange: val => setCredentialData({
       ...credentialData,
       issueDate: val
     })
-  }), /*#__PURE__*/React.createElement(Input, {
-    label: "Expiry Date (optional)",
+  }), formConfig.showExpiry && /*#__PURE__*/React.createElement(Input, {
+    label: formConfig.expiryDateLabel || 'Expiry Date (optional)',
     type: "date",
     value: credentialData.expiryDate,
     onChange: val => setCredentialData({
       ...credentialData,
       expiryDate: val
     })
-  }), parseInt(credentialData.credType) === 4 && /*#__PURE__*/React.createElement(Select, {
-    label: "Skill Category",
-    value: credentialData.category,
+  }), formConfig.showGPA && /*#__PURE__*/React.createElement(Input, {
+    label: "GPA (optional, e.g. 3.75)",
+    value: credentialData.gpa,
     onChange: val => setCredentialData({
       ...credentialData,
-      category: val
+      gpa: val
+    }),
+    placeholder: "e.g., 3.75"
+  }), formConfig.showDegreeCategory && /*#__PURE__*/React.createElement(Select, {
+    label: "Degree Category",
+    value: credentialData.degreeCategory,
+    onChange: val => setCredentialData({
+      ...credentialData,
+      degreeCategory: val
+    }),
+    options: degreeCategories.map((c, i) => ({
+      value: i.toString(),
+      label: `${degreeCategoryInfo[i]?.icon || '🎓'} ${c}`
+    }))
+  }), formConfig.showCertDomain && /*#__PURE__*/React.createElement(Select, {
+    label: "Certification Domain",
+    value: credentialData.certDomain,
+    onChange: val => setCredentialData({
+      ...credentialData,
+      certDomain: val
+    }),
+    options: certificationDomains.map((c, i) => ({
+      value: i.toString(),
+      label: `${certDomainInfo[i]?.icon || '📜'} ${c}`
+    }))
+  }), formConfig.showSkillCategory && /*#__PURE__*/React.createElement(Select, {
+    label: "Skill Category",
+    value: credentialData.skillCategory,
+    onChange: val => setCredentialData({
+      ...credentialData,
+      skillCategory: val
     }),
     options: skillCategories.map((c, i) => {
-      const catInfo = getSkillCategoryInfo(i);
+      const info = getSkillCategoryInfo(i);
       return {
         value: i.toString(),
-        label: `${catInfo.icon} ${c}`
+        label: `${info.icon} ${c}`
       };
     })
   }), /*#__PURE__*/React.createElement("div", {
