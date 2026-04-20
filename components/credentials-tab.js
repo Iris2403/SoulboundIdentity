@@ -478,9 +478,12 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
         );
     }
 
+    const categoryFilterOptions = getCategoryFilterOptions(selectedType);
+    const showCategoryFilter = categoryFilterOptions.length > 0;
+
     return (
         <div className="credentials-tab">
-            {/* Header with action buttons */}
+            {/* Header */}
             <div className="tab-header">
                 <div>
                     <h2>Credentials</h2>
@@ -505,69 +508,41 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 </div>
             </div>
 
-            {/* Credential Counts Dashboard */}
+            {/* Summary dashboard — clicking a tile switches the active type */}
             {summary && (
                 <Card style={{ marginBottom: '24px', marginTop: '32px' }}>
-                    <h3 style={{ marginBottom: '16px', color: 'var(--teal-light)' }}>
-                        📊 Credential Summary
-                    </h3>
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-                        gap: '16px'
-                    }}>
+                    <h3 style={{ marginBottom: '16px', color: 'var(--teal-light)' }}>📊 Credential Summary</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px' }}>
                         {[
-                            { key: 'degrees', icon: '🎓', type: 0, color: 'rgba(102, 126, 234, 0.1)' },
-                            { key: 'certifications', icon: '📜', type: 1, color: 'rgba(14, 165, 233, 0.1)' },
-                            { key: 'workExperience', icon: '💼', type: 2, color: 'rgba(6, 182, 212, 0.1)' },
+                            { key: 'degrees',        icon: '🎓', type: 0, color: 'rgba(102, 126, 234, 0.1)' },
+                            { key: 'certifications', icon: '📜', type: 1, color: 'rgba(14, 165, 233, 0.1)'  },
+                            { key: 'workExperience', icon: '💼', type: 2, color: 'rgba(6, 182, 212, 0.1)'   },
                             { key: 'identityProofs', icon: '🆔', type: 3, color: 'rgba(240, 147, 251, 0.1)' },
-                            { key: 'skills', icon: '⚡', type: 4, color: 'rgba(42, 245, 152, 0.1)' }
+                            { key: 'skills',         icon: '⚡', type: 4, color: 'rgba(42, 245, 152, 0.1)'  }
                         ].map(({ key, icon, type, color }) => {
                             const count = summary[key];
                             const isNearLimit = count >= MAX_CREDENTIALS_PER_TYPE * WARNING_THRESHOLD;
-
                             return (
-                                <div key={key} style={{
-                                    textAlign: 'center',
-                                    padding: '16px',
-                                    background: color,
-                                    borderRadius: '12px',
-                                    position: 'relative',
-                                    border: isNearLimit ? '2px solid var(--warning)' : 'none'
-                                }}>
+                                <div
+                                    key={key}
+                                    onClick={() => { setSelectedType(type); setSelectedCategoryFilter(null); }}
+                                    style={{
+                                        textAlign: 'center', padding: '16px', background: color,
+                                        borderRadius: '12px', position: 'relative', cursor: 'pointer',
+                                        border: selectedType === type
+                                            ? '2px solid var(--teal)'
+                                            : isNearLimit ? '2px solid var(--warning)' : '2px solid transparent'
+                                    }}
+                                >
                                     {isNearLimit && (
-                                        <div style={{
-                                            position: 'absolute',
-                                            top: '8px',
-                                            right: '8px',
-                                            width: '8px',
-                                            height: '8px',
-                                            background: 'var(--warning)',
-                                            borderRadius: '50%',
-                                            animation: 'pulse 2s infinite'
-                                        }}></div>
+                                        <div style={{ position: 'absolute', top: '8px', right: '8px', width: '8px', height: '8px', background: 'var(--warning)', borderRadius: '50%', animation: 'pulse 2s infinite' }} />
                                     )}
                                     <div style={{ fontSize: '2rem' }}>{icon}</div>
-                                    <div style={{
-                                        fontSize: '1.5rem',
-                                        fontWeight: 'bold',
-                                        color: isNearLimit ? 'var(--warning)' : 'var(--teal-light)'
-                                    }}>
+                                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: isNearLimit ? 'var(--warning)' : 'var(--teal-light)' }}>
                                         {count}
                                     </div>
-                                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                                        {credentialTypes[type]}
-                                    </div>
-                                    {isNearLimit && (
-                                        <div style={{
-                                            fontSize: '0.75rem',
-                                            color: 'var(--warning)',
-                                            marginTop: '4px',
-                                            fontWeight: '600'
-                                        }}>
-                                            ⚠️ Near Limit
-                                        </div>
-                                    )}
+                                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{credentialTypes[type]}</div>
+                                    {isNearLimit && <div style={{ fontSize: '0.75rem', color: 'var(--warning)', marginTop: '4px', fontWeight: '600' }}>⚠️ Near Limit</div>}
                                 </div>
                             );
                         })}
@@ -575,451 +550,235 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
                 </Card>
             )}
 
-            {/* Filters */}
+            {/* Filters + list */}
             <Card>
-                <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                    marginBottom: '20px',
-                    flexWrap: 'wrap',
-                    gap: '16px'
-                }}>
-                    {/* Type filter */}
+                {/* Row 1: type pills + active toggle */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', flex: 1 }}>
                         {credentialTypes.map((type, idx) => {
                             const count = credentialCounts[idx] || 0;
                             const isNearLimit = count >= MAX_CREDENTIALS_PER_TYPE * WARNING_THRESHOLD;
-
                             return (
                                 <button
                                     key={idx}
-                                    className={`filter-btn ${selectedType === idx ? 'active' : ''}`}
-                                    onClick={() => {
-                                        setSelectedType(idx);
-                                        setSelectedSkillCategory(null);
-                                    }}
+                                    onClick={() => { setSelectedType(idx); setSelectedCategoryFilter(null); }}
                                     style={{
-                                        position: 'relative',
-                                        padding: '8px 16px',
-                                        border: selectedType === idx ?
-                                            (isNearLimit ? '2px solid var(--warning)' : '2px solid var(--teal)') :
-                                            '1px solid var(--border-color)',
-                                        background: selectedType === idx ? 'rgba(6, 182, 212, 0.1)' : 'transparent',
-                                        color: selectedType === idx ? 'var(--teal-light)' : 'var(--text-secondary)',
-                                        borderRadius: '20px',
-                                        cursor: 'pointer',
-                                        fontSize: '0.9rem',
+                                        position: 'relative', padding: '8px 16px', borderRadius: '20px',
+                                        cursor: 'pointer', fontSize: '0.9rem', transition: 'all 0.3s',
                                         fontWeight: selectedType === idx ? '600' : '400',
-                                        transition: 'all 0.3s'
+                                        border: selectedType === idx
+                                            ? (isNearLimit ? '2px solid var(--warning)' : '2px solid var(--teal)')
+                                            : '1px solid var(--border-color)',
+                                        background: selectedType === idx ? 'rgba(6, 182, 212, 0.1)' : 'transparent',
+                                        color: selectedType === idx ? 'var(--teal-light)' : 'var(--text-secondary)'
                                     }}
                                 >
                                     {type}
                                     <span style={{
-                                        marginLeft: '6px',
-                                        background: selectedType === idx ?
-                                            (isNearLimit ? 'var(--warning)' : 'rgba(255,255,255,0.3)') :
-                                            'var(--teal)',
-                                        padding: '2px 8px',
-                                        borderRadius: '10px',
-                                        fontSize: '0.75rem',
-                                        fontWeight: 'bold',
+                                        marginLeft: '6px', padding: '2px 8px', borderRadius: '10px',
+                                        fontSize: '0.75rem', fontWeight: 'bold',
+                                        background: selectedType === idx ? (isNearLimit ? 'var(--warning)' : 'rgba(255,255,255,0.3)') : 'var(--teal)',
                                         color: selectedType === idx ? (isNearLimit ? 'white' : 'var(--teal-light)') : 'white'
                                     }}>
                                         {count}
                                     </span>
-                                    {isNearLimit && (
-                                        <span style={{
-                                            position: 'absolute',
-                                            top: '-4px',
-                                            right: '-4px',
-                                            fontSize: '0.7rem'
-                                        }}>⚠️</span>
-                                    )}
+                                    {isNearLimit && <span style={{ position: 'absolute', top: '-4px', right: '-4px', fontSize: '0.7rem' }}>⚠️</span>}
                                 </button>
                             );
                         })}
                     </div>
 
-                    {/* Active/All toggle */}
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px',
-                        background: 'var(--bg-tertiary)',
-                        padding: '8px 16px',
-                        borderRadius: '24px'
-                    }}>
-                        <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                            Show:
-                        </span>
-                        <button
-                            onClick={() => setShowActiveOnly(false)}
-                            style={{
-                                background: !showActiveOnly ? 'var(--gradient-teal)' : 'transparent',
-                                border: 'none',
-                                color: !showActiveOnly ? 'white' : 'var(--text-secondary)',
-                                padding: '6px 16px',
-                                borderRadius: '16px',
-                                cursor: 'pointer',
-                                fontSize: '0.85rem',
-                                fontWeight: '600',
-                                transition: 'all 0.3s'
-                            }}
-                        >
-                            All
-                        </button>
-                        <button
-                            onClick={() => setShowActiveOnly(true)}
-                            style={{
-                                background: showActiveOnly ? 'var(--gradient-teal)' : 'transparent',
-                                border: 'none',
-                                color: showActiveOnly ? 'white' : 'var(--text-secondary)',
-                                padding: '6px 16px',
-                                borderRadius: '16px',
-                                cursor: 'pointer',
-                                fontSize: '0.85rem',
-                                fontWeight: '600',
-                                transition: 'all 0.3s'
-                            }}
-                        >
-                            🟢 Active Only
-                        </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-tertiary)', padding: '8px 16px', borderRadius: '24px' }}>
+                        <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Show:</span>
+                        {[['All', false], ['🟢 Active Only', true]].map(([label, val]) => (
+                            <button
+                                key={label}
+                                onClick={() => setShowActiveOnly(val)}
+                                style={{
+                                    background: showActiveOnly === val ? 'var(--gradient-teal)' : 'transparent',
+                                    border: 'none', borderRadius: '16px', cursor: 'pointer',
+                                    padding: '6px 16px', fontSize: '0.85rem', fontWeight: '600', transition: 'all 0.3s',
+                                    color: showActiveOnly === val ? 'white' : 'var(--text-secondary)'
+                                }}
+                            >
+                                {label}
+                            </button>
+                        ))}
                     </div>
                 </div>
 
-                {/* Skill Category Filter (only show when Skills type selected) */}
-                {selectedType === 4 && (
-                    <div style={{
-                        marginBottom: '20px',
-                        paddingTop: '16px',
-                        borderTop: '1px solid rgba(6, 182, 212, 0.2)'
-                    }}>
-                        <div style={{
-                            fontSize: '0.9rem',
-                            color: 'var(--text-secondary)',
-                            marginBottom: '12px',
-                            fontWeight: '600'
-                        }}>
-                            Filter by Category:
+                {/* Row 2: category filter — visible for Degree (0), Certification (1), Skill (4) */}
+                {showCategoryFilter && (
+                    <div style={{ marginBottom: '20px', paddingTop: '16px', borderTop: '1px solid rgba(6, 182, 212, 0.2)' }}>
+                        <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '12px', fontWeight: '600' }}>
+                            Filter by {selectedType === 0 ? 'Degree Category' : selectedType === 1 ? 'Domain' : 'Skill Category'}:
                         </div>
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                             <button
-                                onClick={() => setSelectedSkillCategory(null)}
+                                onClick={() => setSelectedCategoryFilter(null)}
                                 style={{
-                                    padding: '6px 14px',
-                                    border: selectedSkillCategory === null ? '2px solid var(--teal)' : '1px solid var(--border-color)',
-                                    background: selectedSkillCategory === null ? 'rgba(6, 182, 212, 0.1)' : 'transparent',
-                                    color: selectedSkillCategory === null ? 'var(--teal-light)' : 'var(--text-secondary)',
-                                    borderRadius: '16px',
-                                    cursor: 'pointer',
-                                    fontSize: '0.85rem',
-                                    fontWeight: selectedSkillCategory === null ? '600' : '400',
-                                    transition: 'all 0.3s'
+                                    padding: '6px 14px', borderRadius: '16px', cursor: 'pointer',
+                                    fontSize: '0.85rem', transition: 'all 0.3s',
+                                    fontWeight: selectedCategoryFilter === null ? '600' : '400',
+                                    border: selectedCategoryFilter === null ? '2px solid var(--teal)' : '1px solid var(--border-color)',
+                                    background: selectedCategoryFilter === null ? 'rgba(6, 182, 212, 0.1)' : 'transparent',
+                                    color: selectedCategoryFilter === null ? 'var(--teal-light)' : 'var(--text-secondary)'
                                 }}
                             >
-                                All Categories
+                                All
                             </button>
-                            {skillCategories.map((cat, idx) => {
-                                const catInfo = getSkillCategoryInfo(idx);
-                                return (
-                                    <button
-                                        key={idx}
-                                        onClick={() => setSelectedSkillCategory(idx)}
-                                        style={{
-                                            padding: '6px 14px',
-                                            border: selectedSkillCategory === idx ?
-                                                `2px solid ${catInfo.color}` :
-                                                '1px solid var(--border-color)',
-                                            background: selectedSkillCategory === idx ?
-                                                `${catInfo.color}15` :
-                                                'transparent',
-                                            color: selectedSkillCategory === idx ? catInfo.color : 'var(--text-secondary)',
-                                            borderRadius: '16px',
-                                            cursor: 'pointer',
-                                            fontSize: '0.85rem',
-                                            fontWeight: selectedSkillCategory === idx ? '600' : '400',
-                                            transition: 'all 0.3s',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '6px'
-                                        }}
-                                    >
-                                        <span>{catInfo.icon}</span>
-                                        {cat}
-                                    </button>
-                                );
-                            })}
+                            {categoryFilterOptions.map((cat, idx) => (
+                                <button
+                                    key={idx}
+                                    onClick={() => setSelectedCategoryFilter(idx)}
+                                    style={{
+                                        padding: '6px 14px', borderRadius: '16px', cursor: 'pointer',
+                                        fontSize: '0.85rem', transition: 'all 0.3s',
+                                        display: 'flex', alignItems: 'center', gap: '6px',
+                                        fontWeight: selectedCategoryFilter === idx ? '600' : '400',
+                                        border: selectedCategoryFilter === idx ? `2px solid ${cat.color}` : '1px solid var(--border-color)',
+                                        background: selectedCategoryFilter === idx ? `${cat.color}15` : 'transparent',
+                                        color: selectedCategoryFilter === idx ? cat.color : 'var(--text-secondary)'
+                                    }}
+                                >
+                                    <span>{cat.icon}</span>{cat.label}
+                                </button>
+                            ))}
                         </div>
                     </div>
                 )}
 
-                {/* Limit Warning */}
+                {/* Limit warning */}
                 {isApproachingLimit(selectedType) && (
-                    <div style={{
-                        background: 'rgba(245, 158, 11, 0.1)',
-                        border: '1px solid rgba(245, 158, 11, 0.3)',
-                        borderRadius: '8px',
-                        padding: '12px 16px',
-                        marginBottom: '20px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px'
-                    }}>
+                    <div style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '8px', padding: '12px 16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <span style={{ fontSize: '1.2rem' }}>⚠️</span>
                         <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: '600', color: 'var(--warning)' }}>
-                                Approaching Credential Limit
-                            </div>
+                            <div style={{ fontWeight: '600', color: 'var(--warning)' }}>Approaching Credential Limit</div>
                             <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
                                 You have {credentialCounts[selectedType] || 0}/{MAX_CREDENTIALS_PER_TYPE} {credentialTypes[selectedType]} credentials.
-                                Consider revoking unused credentials.
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* Credentials list */}
+                {/* Credential cards */}
                 {loading ? (
                     <LoadingSpinner />
                 ) : credentials.length === 0 ? (
                     <div className="empty-message" style={{ textAlign: 'center', padding: '40px' }}>
                         <p>
                             No {showActiveOnly ? 'active ' : ''}
-                            {selectedType === 4 && selectedSkillCategory !== null ?
-                                `${skillCategories[selectedSkillCategory]} ` : ''}
+                            {selectedCategoryFilter !== null && categoryFilterOptions[selectedCategoryFilter]
+                                ? `${categoryFilterOptions[selectedCategoryFilter].label} ` : ''}
                             {credentialTypes[selectedType].toLowerCase()} credentials yet
                         </p>
                     </div>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         {credentials.map((cred, idx) => {
-                            const statusInfo = getCredentialStatusInfo(cred.status);
-                            const isValid = validationStatus[cred.credentialId.toString()];
-                            const isExpired = cred.expiryDate > 0 &&
-                                Math.floor(Date.now() / 1000) >= cred.expiryDate.toNumber();
+                            const statusInfo  = getCredentialStatusInfo(cred.status);
+                            const isValid     = validationStatus[cred.credentialId.toString()];
+                            const isExpired   = cred.expiryDate > 0 && Math.floor(Date.now() / 1000) >= cred.expiryDate.toNumber();
                             const isValidating = validatingIds[cred.credentialId.toString()];
-
-                            const catInfo = selectedType === 4 ? getSkillCategoryInfo(cred.category) : null;
+                            const catDisplay  = getCategoryDisplay(cred.credType, cred.category);
+                            const gpa         = degreeGPAs[cred.credentialId.toString()];
 
                             return (
-                                <div
-                                    key={idx}
-                                    style={{
-                                        background: 'var(--bg-tertiary)',
-                                        padding: '20px',
-                                        borderRadius: '12px',
-                                        borderLeft: `4px solid ${statusInfo.color}`
-                                    }}
-                                >
-                                    {/* Header with status badges */}
-                                    <div style={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'flex-start',
-                                        marginBottom: '12px',
-                                        flexWrap: 'wrap',
-                                        gap: '12px'
-                                    }}>
+                                <div key={idx} style={{ background: 'var(--bg-tertiary)', padding: '20px', borderRadius: '12px', borderLeft: `4px solid ${statusInfo.color}` }}>
+
+                                    {/* Card header: type label + badges */}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px', flexWrap: 'wrap', gap: '12px' }}>
                                         <div style={{ flex: 1 }}>
-                                            <div style={{
-                                                fontSize: '1.1rem',
-                                                fontWeight: '600',
-                                                color: 'var(--teal-light)',
-                                                marginBottom: '8px'
-                                            }}>
+                                            <div style={{ fontSize: '1.1rem', fontWeight: '600', color: 'var(--teal-light)', marginBottom: '8px' }}>
                                                 {credentialTypes[cred.credType]}
                                             </div>
-                                            <div style={{
-                                                fontSize: '0.85rem',
-                                                color: 'var(--text-secondary)'
-                                            }}>
+                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                                                 ID: {cred.credentialId.toString()}
                                             </div>
                                         </div>
 
-                                        {/* Badges */}
-                                        <div style={{
-                                            display: 'flex',
-                                            gap: '8px',
-                                            flexWrap: 'wrap'
-                                        }}>
-                                            {/* Verified badge */}
-                                            <span style={{
-                                                padding: '4px 12px',
-                                                borderRadius: '12px',
-                                                fontSize: '0.8rem',
-                                                fontWeight: '600',
-                                                background: cred.verified
-                                                    ? 'rgba(16, 185, 129, 0.2)'
-                                                    : 'rgba(59, 130, 246, 0.15)',
-                                                color: cred.verified
-                                                    ? 'var(--success)'
-                                                    : '#3b82f6'
-                                            }}>
+                                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                            {/* Verified / Self-Reported */}
+                                            <span style={{ padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: '600', background: cred.verified ? 'rgba(16, 185, 129, 0.2)' : 'rgba(59, 130, 246, 0.15)', color: cred.verified ? 'var(--success)' : '#3b82f6' }}>
                                                 {cred.verified ? '✅ Verified' : '⚠️ Self-Reported'}
                                             </span>
 
-                                            {/* Status badge */}
-                                            <span style={{
-                                                padding: '4px 12px',
-                                                borderRadius: '12px',
-                                                fontSize: '0.8rem',
-                                                fontWeight: '600',
-                                                background: statusInfo.bg,
-                                                color: statusInfo.color
-                                            }}>
+                                            {/* Status */}
+                                            <span style={{ padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: '600', background: statusInfo.bg, color: statusInfo.color }}>
                                                 {statusInfo.icon} {statusInfo.label}
                                             </span>
 
-                                            {/* Validation badge */}
+                                            {/* Validation */}
                                             {isValid !== undefined && (
-                                                <span style={{
-                                                    padding: '4px 12px',
-                                                    borderRadius: '12px',
-                                                    fontSize: '0.8rem',
-                                                    fontWeight: '600',
-                                                    background: isValid ?
-                                                        'rgba(16, 185, 129, 0.2)' :
-                                                        'rgba(239, 68, 68, 0.2)',
-                                                    color: isValid ? 'var(--success)' : 'var(--error)'
-                                                }}>
+                                                <span style={{ padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: '600', background: isValid ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)', color: isValid ? 'var(--success)' : 'var(--error)' }}>
                                                     {isValid ? '✓ Valid' : '✗ Invalid'}
                                                 </span>
                                             )}
 
-                                            {/* Skill Category Badge (for skills only) */}
-                                            {selectedType === 4 && catInfo && (
-                                                <span style={{
-                                                    padding: '4px 12px',
-                                                    borderRadius: '12px',
-                                                    fontSize: '0.8rem',
-                                                    fontWeight: '600',
-                                                    background: `${catInfo.color}20`,
-                                                    color: catInfo.color,
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '4px'
-                                                }}>
-                                                    {catInfo.icon} {catInfo.label}
+                                            {/* Category badge — Degree, Certification, Skill only */}
+                                            {catDisplay && (
+                                                <span style={{ padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: '600', background: `${catDisplay.color}20`, color: catDisplay.color, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    {catDisplay.icon} {catDisplay.label}
                                                 </span>
                                             )}
                                         </div>
                                     </div>
 
-                                    {/* Details */}
-                                    <div style={{
-                                        display: 'grid',
-                                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                                        gap: '12px',
-                                        marginTop: '16px',
-                                        paddingTop: '16px',
-                                        borderTop: '1px solid rgba(6, 182, 212, 0.2)'
-                                    }}>
+                                    {/* Details grid */}
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(6, 182, 212, 0.2)' }}>
                                         <div>
-                                            <div style={{
-                                                fontSize: '0.8rem',
-                                                color: 'var(--text-muted)',
-                                                marginBottom: '4px'
-                                            }}>
-                                                Issuer
-                                            </div>
-                                            <code style={{
-                                                fontSize: '0.85rem',
-                                                color: 'var(--teal-light)'
-                                            }}>
-                                                {shortenAddress(cred.issuer)}
-                                            </code>
+                                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Issuer</div>
+                                            <code style={{ fontSize: '0.85rem', color: 'var(--teal-light)' }}>{shortenAddress(cred.issuer)}</code>
                                         </div>
                                         <div>
-                                            <div style={{
-                                                fontSize: '0.8rem',
-                                                color: 'var(--text-muted)',
-                                                marginBottom: '4px'
-                                            }}>
-                                                Issue Date
+                                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                                                {cred.credType === 2 ? 'Start Date' : 'Issue Date'}
                                             </div>
-                                            <div style={{ fontSize: '0.9rem' }}>
-                                                {formatDate(cred.issueDate)}
-                                            </div>
+                                            <div style={{ fontSize: '0.9rem' }}>{formatDate(cred.issueDate)}</div>
                                         </div>
                                         <div>
-                                            <div style={{
-                                                fontSize: '0.8rem',
-                                                color: 'var(--text-muted)',
-                                                marginBottom: '4px'
-                                            }}>
-                                                Expiry
+                                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                                                {cred.credType === 2 ? 'End Date' : 'Expiry'}
                                             </div>
-                                            <div style={{
-                                                fontSize: '0.9rem',
-                                                color: isExpired ? 'var(--error)' : 'inherit'
-                                            }}>
-                                                {cred.expiryDate.toNumber() === 0 ?
-                                                    'Never' :
-                                                    formatDate(cred.expiryDate)
-                                                }
+                                            <div style={{ fontSize: '0.9rem', color: isExpired ? 'var(--error)' : 'inherit' }}>
+                                                {cred.expiryDate.toNumber() === 0
+                                                    ? (cred.credType === 2 ? '📌 Currently Employed' : 'Never')
+                                                    : formatDate(cred.expiryDate)}
                                             </div>
                                         </div>
-                                        <div>
-                                            <div style={{
-                                                fontSize: '0.8rem',
-                                                color: 'var(--text-muted)',
-                                                marginBottom: '4px'
-                                            }}>
-                                                Metadata Hash
+                                        {/* GPA — degrees only, shown when non-zero */}
+                                        {gpa && (
+                                            <div>
+                                                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px' }}>GPA</div>
+                                                <div style={{ fontSize: '0.9rem', fontWeight: '600', color: 'var(--teal-light)' }}>{gpa}</div>
                                             </div>
-                                            <code style={{
-                                                fontSize: '0.75rem',
-                                                color: 'var(--teal-light)',
-                                                wordBreak: 'break-all'
-                                            }}>
+                                        )}
+                                        <div>
+                                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Metadata Hash</div>
+                                            <code style={{ fontSize: '0.75rem', color: 'var(--teal-light)', wordBreak: 'break-all' }}>
                                                 {cred.metadataHash.slice(0, 20)}...
                                             </code>
                                         </div>
                                     </div>
 
                                     {/* Actions */}
-                                    <div style={{
-                                        display: 'flex',
-                                        gap: '8px',
-                                        marginTop: '16px',
-                                        flexWrap: 'wrap'
-                                    }}>
-                                        {/* Validate button — shown when credential is not yet valid and is active */}
+                                    <div style={{ display: 'flex', gap: '8px', marginTop: '16px', flexWrap: 'wrap' }}>
                                         {!isValid && cred.status === 0 && (
                                             <Button
                                                 onClick={() => handleValidateCredential(cred.credentialId)}
-                                                disabled={validatingIds[cred.credentialId.toString()]}
-                                                style={{
-                                                    fontSize: '0.85rem',
-                                                    padding: '6px 12px',
-                                                    background: 'linear-gradient(135deg, #667eea, #4facfe)',
-                                                    border: 'none',
-                                                    color: 'white',
-                                                    opacity: validatingIds[cred.credentialId.toString()] ? 0.7 : 1
-                                                }}
+                                                disabled={isValidating}
+                                                style={{ fontSize: '0.85rem', padding: '6px 12px', background: 'linear-gradient(135deg, #667eea, #4facfe)', border: 'none', color: 'white', opacity: isValidating ? 0.7 : 1 }}
                                             >
-                                                {validatingIds[cred.credentialId.toString()] ? '⏳ Validating...' : '🔍 Validate'}
+                                                {isValidating ? '⏳ Validating...' : '🔍 Validate'}
                                             </Button>
                                         )}
-
                                         {isExpired && cred.status === 0 && (
-                                            <Button
-                                                variant="secondary"
-                                                onClick={() => handleUpdateStatus(cred.credentialId)}
-                                                style={{ fontSize: '0.85rem', padding: '6px 12px' }}
-                                            >
+                                            <Button variant="secondary" onClick={() => handleUpdateStatus(cred.credentialId)} style={{ fontSize: '0.85rem', padding: '6px 12px' }}>
                                                 🔄 Update to Expired
                                             </Button>
                                         )}
-
                                         {cred.status === 0 && (
-                                            <Button
-                                                variant="danger"
-                                                onClick={() => handleRevoke(cred.credentialId)}
-                                                style={{ fontSize: '0.85rem', padding: '6px 12px' }}
-                                            >
+                                            <Button variant="danger" onClick={() => handleRevoke(cred.credentialId)} style={{ fontSize: '0.85rem', padding: '6px 12px' }}>
                                                 Revoke
                                             </Button>
                                         )}
