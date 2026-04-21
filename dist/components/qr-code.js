@@ -20,12 +20,12 @@ QRCodeDisplay = function ({
         element: canvasRef.current,
         value: qrValue,
         size: size,
-        background: '#0a0e1a',
+        background: '#f5f3ff',
         backgroundAlpha: 1,
-        foreground: '#0e7490',
+        foreground: '#5b21b6',
         foregroundAlpha: 1,
         level: 'M',
-        padding: 10
+        padding: 12
       });
       setQrError(null);
     } catch (err) {
@@ -71,24 +71,24 @@ QRCodeDisplay = function ({
                     display: flex;
                     flex-direction: column;
                     align-items: center;
-                    gap: 10px;
+                    gap: 12px;
                 }
 
                 .qr-label {
                     font-size: 11px;
-                    font-weight: 600;
-                    color: var(--gray);
+                    font-weight: 700;
+                    color: #c4b5fd;
                     text-transform: uppercase;
-                    letter-spacing: 0.08em;
+                    letter-spacing: 0.1em;
                     margin: 0;
                 }
 
                 .qr-canvas-wrap {
-                    padding: 8px;
-                    background: #0a0e1a;
-                    border-radius: 10px;
-                    border: 1px solid rgba(14, 116, 144, 0.4);
-                    box-shadow: 0 0 16px rgba(14, 116, 144, 0.12);
+                    padding: 10px;
+                    background: #f5f3ff;
+                    border-radius: 12px;
+                    border: 2px solid rgba(139, 92, 246, 0.5);
+                    box-shadow: 0 0 24px rgba(139, 92, 246, 0.25), 0 4px 16px rgba(0,0,0,0.3);
                     line-height: 0;
                 }
 
@@ -102,12 +102,12 @@ QRCodeDisplay = function ({
 
                 .qr-btns {
                     display: flex;
-                    gap: 6px;
+                    gap: 8px;
                 }
 
                 .qr-btn {
-                    padding: 6px 12px;
-                    border-radius: 6px;
+                    padding: 7px 14px;
+                    border-radius: 8px;
                     cursor: pointer;
                     font-size: 12px;
                     font-weight: 600;
@@ -121,25 +121,26 @@ QRCodeDisplay = function ({
                 }
 
                 .qr-primary {
-                    background: var(--teal);
+                    background: #7c3aed;
                     border: none;
                     color: white;
                 }
 
                 .qr-primary:hover:not(:disabled) {
-                    background: var(--teal-light);
+                    background: #8b5cf6;
                     transform: translateY(-1px);
-                    box-shadow: 0 4px 10px rgba(14, 116, 144, 0.35);
+                    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.5);
                 }
 
                 .qr-secondary {
                     background: transparent;
-                    border: 1px solid rgba(14, 116, 144, 0.5);
-                    color: var(--teal-light);
+                    border: 1px solid rgba(139, 92, 246, 0.5);
+                    color: #a78bfa;
                 }
 
                 .qr-secondary:hover {
-                    background: rgba(14, 116, 144, 0.1);
+                    background: rgba(139, 92, 246, 0.12);
+                    border-color: rgba(139, 92, 246, 0.8);
                     transform: translateY(-1px);
                 }
             `));

@@ -108,15 +108,26 @@ IdentityTab = function ({
       marginTop: '20px'
     }
   }, "Create Identity Token"))) : /*#__PURE__*/React.createElement("div", {
-    className: "tokens-grid"
-  }, userTokens.map(token => /*#__PURE__*/React.createElement(TokenCard, {
+    className: "tokens-list"
+  }, userTokens.map(token => /*#__PURE__*/React.createElement("div", {
     key: token.id,
+    className: "token-entry"
+  }, /*#__PURE__*/React.createElement(TokenCard, {
     token: token,
     isSelected: selectedToken === token.id,
     onSelect: () => setSelectedToken(token.id),
     contracts: contracts,
     onBurned: onTokenCreated
-  }))), /*#__PURE__*/React.createElement(Modal, {
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "qr-card-wrapper"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "qr-standalone-card",
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement(QRCodeDisplay, {
+    tokenId: token.id,
+    contractAddress: CONFIG.CONTRACTS.SOULBOUND_IDENTITY,
+    size: 180
+  })))))), /*#__PURE__*/React.createElement(Modal, {
     isOpen: showMintModal,
     onClose: () => setShowMintModal(false),
     title: "Mint Identity Token"
@@ -203,10 +214,31 @@ IdentityTab = function ({
                     font-size: 16px;
                 }
 
-                .tokens-grid {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fill, minmax(560px, 1fr));
-                    gap: 20px;
+                .tokens-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                }
+
+                .token-entry {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0;
+                }
+
+                .qr-card-wrapper {
+                    display: flex;
+                    justify-content: center;
+                    padding: 20px 0;
+                }
+
+                .qr-standalone-card {
+                    background: linear-gradient(135deg, #140828 0%, #1a0f35 50%, #0f172a 100%);
+                    border: 1px solid rgba(139, 92, 246, 0.4);
+                    border-radius: 16px;
+                    padding: 24px 32px;
+                    box-shadow: 0 0 32px rgba(139, 92, 246, 0.15), 0 8px 24px rgba(0,0,0,0.4);
+                    display: inline-block;
                 }
 
                 .mint-form {
