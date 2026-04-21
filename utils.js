@@ -91,19 +91,12 @@ projectStatuses = ['Planning', 'Active', 'Completed', 'Cancelled'];
 
 // Degree categories (matches CredentialsHub.sol DegreeCategory enum)
 degreeCategories = [
-    'Arts & Culture',
-    'Business',
-    'Child Development & Education',
-    'Communication & Media',
-    'Economics',
-    'Health',
-    'Informatics',
-    'Literature & Area Studies',
-    'Law',
-    'Life & Earth Sciences',
-    'People & Society',
-    'Psychology',
-    'Science'
+    'Arts & Humanities',
+    'Business & Economics',
+    'Law & Social Sciences',
+    'Education & Development',
+    'Health & Life Sciences',
+    'Science & Technology'
 ];
 
 // Certification domains (matches CredentialsHub.sol CertificationDomain enum)

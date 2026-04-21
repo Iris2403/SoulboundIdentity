@@ -41,19 +41,12 @@ CredentialsTab = function ({ contracts, selectedToken, userTokens, showNotificat
 
     // Visual metadata for degree categories (matches DegreeCategory enum order)
     const degreeCategoryInfo = [
-        { icon: '🎭', color: '#a78bfa' }, // Arts & Culture
-        { icon: '💼', color: '#60a5fa' }, // Business
-        { icon: '👶', color: '#34d399' }, // Child Development & Education
-        { icon: '📡', color: '#f472b6' }, // Communication & Media
-        { icon: '📈', color: '#fbbf24' }, // Economics
-        { icon: '🏥', color: '#4ade80' }, // Health
-        { icon: '💻', color: '#667eea' }, // Informatics
-        { icon: '📚', color: '#fb923c' }, // Literature & Area Studies
-        { icon: '⚖️', color: '#e879f9' }, // Law
-        { icon: '🌿', color: '#86efac' }, // Life & Earth Sciences
-        { icon: '👥', color: '#94a3b8' }, // People & Society
-        { icon: '🧠', color: '#c084fc' }, // Psychology
-        { icon: '🔬', color: '#38bdf8' }, // Science
+        { icon: '🎭', color: '#a78bfa' }, // Arts & Humanities
+        { icon: '💼', color: '#60a5fa' }, // Business & Economics
+        { icon: '⚖️', color: '#e879f9' }, // Law & Social Sciences
+        { icon: '📚', color: '#34d399' }, // Education & Development
+        { icon: '🏥', color: '#4ade80' }, // Health & Life Sciences
+        { icon: '🔬', color: '#38bdf8' }, // Science & Technology
     ];
 
     // Visual metadata for certification domains (matches CertificationDomain enum order)
