@@ -1015,17 +1015,30 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
                                         </p>
                                         <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', marginBottom: '12px' }}>
                                             <div style={{ flex: 1 }}>
-                                                <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
+                                                <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>
                                                     Prove score is above
                                                 </label>
-                                                <input
-                                                    className="input-field"
-                                                    type="number"
-                                                    value={repThreshold}
-                                                    onChange={e => { setRepThreshold(e.target.value); setRepZkpStatus('idle'); setRepZkpMessage(''); }}
-                                                    placeholder="e.g. 50"
-                                                    style={{ width: '100%' }}
-                                                />
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                                    {[10, 20, 30, 40, 50, 60, 70, 80, 90].map(val => (
+                                                        <button
+                                                            key={val}
+                                                            onClick={() => { setRepThreshold(val.toString()); setRepZkpStatus('idle'); setRepZkpMessage(''); }}
+                                                            style={{
+                                                                padding: '6px 14px',
+                                                                borderRadius: '20px',
+                                                                border: `1px solid ${repThreshold === val.toString() ? 'var(--teal)' : 'rgba(14,116,144,0.3)'}`,
+                                                                background: repThreshold === val.toString() ? 'rgba(14,116,144,0.25)' : 'transparent',
+                                                                color: repThreshold === val.toString() ? 'var(--teal-light)' : 'var(--gray-light)',
+                                                                fontSize: '0.85rem',
+                                                                fontWeight: repThreshold === val.toString() ? '700' : '400',
+                                                                cursor: 'pointer',
+                                                                transition: 'all 0.15s'
+                                                            }}
+                                                        >
+                                                            {val}
+                                                        </button>
+                                                    ))}
+                                                </div>
                                             </div>
                                             <Button
                                                 onClick={() => handleVerifyReputation(viewingToken.tokenId, viewingToken.reputation.averageScore)}
