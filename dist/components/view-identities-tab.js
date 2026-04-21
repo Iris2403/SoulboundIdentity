@@ -10,9 +10,6 @@ ViewIdentitiesTab = function ({
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [requestingAccess, setRequestingAccess] = useState(false);
-  const [repThreshold, setRepThreshold] = useState('50');
-  const [repZkpStatus, setRepZkpStatus] = useState('idle');
-  const [repZkpMessage, setRepZkpMessage] = useState('');
   const getReadContract = () => {
     if (contracts) return contracts.soulbound;
     const provider = new ethers.providers.JsonRpcProvider(CONFIG.RPC_URL);
@@ -95,59 +92,6 @@ ViewIdentitiesTab = function ({
       }
     } finally {
       setRequestingAccess(false);
-    }
-  };
-  const handleVerifyReputation = async () => {
-    if (!contracts) {
-      showNotification('Connect your wallet to verify', 'warning');
-      return;
-    }
-    if (!window.snarkjs) {
-      showNotification('snarkjs not loaded', 'error');
-      return;
-    }
-    const threshold = parseInt(repThreshold);
-    if (isNaN(threshold) || threshold < 0) {
-      showNotification('Enter a valid threshold', 'error');
-      return;
-    }
-    setRepZkpStatus('generating');
-    setRepZkpMessage('Generating proof...');
-    try {
-      const provider = new ethers.providers.JsonRpcProvider(CONFIG.RPC_URL);
-      const socialContract = new ethers.Contract(CONFIG.CONTRACTS.SOCIAL_HUB, SOCIAL_HUB_ABI, provider);
-      const rep = await socialContract.getReputationSummary(parseInt(result.tokenId));
-      const score = rep.averageScore.toNumber();
-      if (score <= threshold) {
-        setRepZkpStatus('error');
-        setRepZkpMessage(`Score is NOT above ${threshold}.`);
-        return;
-      }
-      const {
-        proof,
-        publicSignals
-      } = await window.snarkjs.groth16.fullProve({
-        score: score.toString(),
-        threshold: threshold.toString()
-      }, 'circuits/reputation_threshold.wasm', 'circuits/reputation_threshold_final.zkey');
-      setRepZkpStatus('verifying');
-      setRepZkpMessage('Verifying on-chain...');
-      const pA = [proof.pi_a[0], proof.pi_a[1]];
-      const pB = [[proof.pi_b[0][1], proof.pi_b[0][0]], [proof.pi_b[1][1], proof.pi_b[1][0]]];
-      const pC = [proof.pi_c[0], proof.pi_c[1]];
-      const verifier = new ethers.Contract(CONFIG.CONTRACTS.REPUTATION_VERIFIER, GROTH16_VERIFIER_ABI, provider);
-      const isValid = await verifier.verifyProof(pA, pB, pC, publicSignals);
-      if (isValid) {
-        setRepZkpStatus('success');
-        setRepZkpMessage(`Verified: score is above ${threshold}.`);
-      } else {
-        setRepZkpStatus('error');
-        setRepZkpMessage('On-chain verification failed.');
-      }
-    } catch (error) {
-      console.error('ZKP error:', error);
-      setRepZkpStatus('error');
-      setRepZkpMessage(error.message || 'Verification failed');
     }
   };
   const ACCESS_LABELS = {
@@ -292,70 +236,7 @@ ViewIdentitiesTab = function ({
       color: 'var(--text-secondary)',
       fontSize: '0.85rem'
     }
-  }, "Connect your wallet to check or request access."))), result && result.type === 'token' && result.accessStatus === 2 && !result.isOwner && /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: '24px'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: '0.8rem',
-      color: 'var(--text-muted)',
-      textTransform: 'uppercase',
-      letterSpacing: '1px',
-      marginBottom: '12px'
-    }
-  }, "Reputation Verification"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: 'var(--bg-tertiary)',
-      padding: '20px',
-      borderRadius: '12px',
-      borderLeft: '4px solid var(--teal)'
-    }
-  }, /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: 'var(--text-secondary)',
-      fontSize: '0.9rem',
-      marginBottom: '16px'
-    }
-  }, "Verify this token's reputation score is above a threshold using a zero-knowledge proof. The actual score is not revealed."), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      gap: '12px',
-      alignItems: 'flex-end'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1
-    }
-  }, /*#__PURE__*/React.createElement(Input, {
-    label: "Prove score is above",
-    value: repThreshold,
-    onChange: val => {
-      setRepThreshold(val);
-      setRepZkpStatus('idle');
-      setRepZkpMessage('');
-    },
-    type: "number",
-    placeholder: "e.g. 50"
-  })), /*#__PURE__*/React.createElement(Button, {
-    onClick: handleVerifyReputation,
-    disabled: repZkpStatus === 'generating' || repZkpStatus === 'verifying',
-    style: {
-      minWidth: '140px',
-      height: '48px'
-    }
-  }, repZkpStatus === 'generating' ? 'Generating...' : repZkpStatus === 'verifying' ? 'Verifying...' : 'Verify')), repZkpMessage && /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: '16px',
-      padding: '12px',
-      borderRadius: '8px',
-      background: repZkpStatus === 'success' ? 'rgba(16, 185, 129, 0.1)' : repZkpStatus === 'error' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(6, 182, 212, 0.05)',
-      border: `1px solid ${repZkpStatus === 'success' ? 'rgba(16, 185, 129, 0.3)' : repZkpStatus === 'error' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(6, 182, 212, 0.2)'}`,
-      color: repZkpStatus === 'success' ? 'var(--success)' : repZkpStatus === 'error' ? 'var(--error)' : 'var(--text-secondary)',
-      fontSize: '0.9rem',
-      fontWeight: '600'
-    }
-  }, repZkpStatus === 'generating' || repZkpStatus === 'verifying' ? '⏳ ' : repZkpStatus === 'success' ? '✓ ' : '✗ ', repZkpMessage))), result && result.type === 'address' && /*#__PURE__*/React.createElement("div", {
+  }, "Connect your wallet to check or request access."))), result && result.type === 'address' && /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: '24px',
       background: 'var(--bg-tertiary)',
