@@ -373,12 +373,6 @@ ReputationSection = function ({
                 </div>
             </Modal>
 
-            <ZKPSection
-                contracts={contracts}
-                selectedToken={selectedToken}
-                showNotification={showNotification}
-            />
-
             <style>{`
                 .reputation-summary {
                     display: grid;

@@ -103,9 +103,6 @@ SOCIAL_HUB_ABI = [
     "function hasReviewed(uint256 reviewerTokenId, uint256 subjectTokenId) external view returns (bool)",
     "function getProjectCountByStatus(uint256 tokenId, uint8 status) external view returns (uint256)",
     "function grantedSections(uint256 tokenId, address viewer) external view returns (uint8)",
-    "function setReputationCommitment(uint256 tokenId, bytes32 commitment) external",
-    "function reputationCommitment(uint256 tokenId) external view returns (bytes32)",
-    "function getAverageScore(uint256 tokenId) external view returns (uint256)",
     "error CannotReviewSelf()",
     "error AlreadyReviewed()",
     "error AlreadyEndorsedSkill()",
@@ -119,13 +116,7 @@ SOCIAL_HUB_ABI = [
     "event CollaboratorAdded(uint256 indexed projectId, uint256 indexed collaboratorTokenId)",
     "event SkillEndorsed(uint256 indexed tokenId, uint256 indexed endorserId, bytes32 indexed skillHash)",
     "event StandardSkillEndorsed(uint256 indexed subjectTokenId, uint256 indexed endorserTokenId, uint8 indexed skill)",
-    "event SocialAccessGranted(uint256 indexed tokenId, address indexed viewer, uint8 sections)",
-    "event ReputationCommitmentSet(uint256 indexed tokenId, bytes32 commitment)"
-];
-
-REPUTATION_VERIFIER_ABI = [
-    "function proveReputation(uint256 tokenId, uint256 threshold, uint256[2] calldata _pA, uint256[2][2] calldata _pB, uint256[2] calldata _pC, uint256[2] calldata pubSignals) external",
-    "event ReputationProved(address indexed prover, uint256 threshold, uint256 commitment)"
+    "event SocialAccessGranted(uint256 indexed tokenId, address indexed viewer, uint8 sections)"
 ];
 
 // Configuration
@@ -146,8 +137,7 @@ CONFIG = {
     CONTRACTS: {
         SOULBOUND_IDENTITY: '0xaE1A893109B165ecCF7A8D3a0eea3D9B2bB93b95',
         CREDENTIALS_HUB: '0xafbB34457DdF3b85b04442491062a82b55e34F04',
-        SOCIAL_HUB: '0xA424e9474B62E7863632dff4c6c96F16CD429cA0',
-        REPUTATION_VERIFIER: '0x548E11A0A6E0A2FC618Df456c4415b403fC1De38'
+        SOCIAL_HUB: '0xA424e9474B62E7863632dff4c6c96F16CD429cA0'
     },
     IPFS_GATEWAY: 'https://gateway.pinata.cloud/ipfs/',
     BLOCK_EXPLORER: 'https://explorer.dimikog.org',
