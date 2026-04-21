@@ -119,6 +119,10 @@ SOCIAL_HUB_ABI = [
     "event SocialAccessGranted(uint256 indexed tokenId, address indexed viewer, uint8 sections)"
 ];
 
+GROTH16_VERIFIER_ABI = [
+    "function verifyProof(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[1] calldata _pubSignals) public view returns (bool)"
+];
+
 // Configuration
 CONFIG = {
     RPC_URL: 'https://rpc.dimikog.org/rpc/',
@@ -137,7 +141,8 @@ CONFIG = {
     CONTRACTS: {
         SOULBOUND_IDENTITY: '0xaE1A893109B165ecCF7A8D3a0eea3D9B2bB93b95',
         CREDENTIALS_HUB: '0xafbB34457DdF3b85b04442491062a82b55e34F04',
-        SOCIAL_HUB: '0xA424e9474B62E7863632dff4c6c96F16CD429cA0'
+        SOCIAL_HUB: '0xA424e9474B62E7863632dff4c6c96F16CD429cA0',
+        REPUTATION_VERIFIER: '0x178119699589a924020F174ABa06015Ec0889b7a'
     },
     IPFS_GATEWAY: 'https://gateway.pinata.cloud/ipfs/',
     BLOCK_EXPLORER: 'https://explorer.dimikog.org',
