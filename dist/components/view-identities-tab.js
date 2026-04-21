@@ -1,10 +1,11 @@
 ViewIdentitiesTab = function ({
   contracts,
   account,
-  showNotification
+  showNotification,
+  initialTokenId
 }) {
   const [mode, setMode] = useState('token');
-  const [viewTokenId, setViewTokenId] = useState('');
+  const [viewTokenId, setViewTokenId] = useState(initialTokenId || '');
   const [viewAddress, setViewAddress] = useState('');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -14,6 +15,9 @@ ViewIdentitiesTab = function ({
     const provider = new ethers.providers.JsonRpcProvider(CONFIG.RPC_URL);
     return new ethers.Contract(CONFIG.CONTRACTS.SOULBOUND_IDENTITY, SOULBOUND_IDENTITY_ABI, provider);
   };
+  useEffect(() => {
+    if (initialTokenId) handleLookup();
+  }, []);
   const handleLookup = async () => {
     setLoading(true);
     setResult(null);
