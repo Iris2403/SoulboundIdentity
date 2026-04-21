@@ -51,66 +51,31 @@ CredentialsTab = function ({
     icon: '🎭',
     color: '#a78bfa'
   },
-  // Arts & Culture
+  // Arts & Humanities
   {
     icon: '💼',
     color: '#60a5fa'
   },
-  // Business
-  {
-    icon: '👶',
-    color: '#34d399'
-  },
-  // Child Development & Education
-  {
-    icon: '📡',
-    color: '#f472b6'
-  },
-  // Communication & Media
-  {
-    icon: '📈',
-    color: '#fbbf24'
-  },
-  // Economics
-  {
-    icon: '🏥',
-    color: '#4ade80'
-  },
-  // Health
-  {
-    icon: '💻',
-    color: '#667eea'
-  },
-  // Informatics
-  {
-    icon: '📚',
-    color: '#fb923c'
-  },
-  // Literature & Area Studies
+  // Business & Economics
   {
     icon: '⚖️',
     color: '#e879f9'
   },
-  // Law
+  // Law & Social Sciences
   {
-    icon: '🌿',
-    color: '#86efac'
+    icon: '📚',
+    color: '#34d399'
   },
-  // Life & Earth Sciences
+  // Education & Development
   {
-    icon: '👥',
-    color: '#94a3b8'
+    icon: '🏥',
+    color: '#4ade80'
   },
-  // People & Society
-  {
-    icon: '🧠',
-    color: '#c084fc'
-  },
-  // Psychology
+  // Health & Life Sciences
   {
     icon: '🔬',
     color: '#38bdf8'
-  } // Science
+  } // Science & Technology
   ];
 
   // Visual metadata for certification domains (matches CertificationDomain enum order)
