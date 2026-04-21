@@ -1,10 +1,12 @@
 App = function () {
+    const scannedTokenId = useMemo(() => new URLSearchParams(window.location.search).get('token'), []);
+
     const [account, setAccount] = useState(null);
     const [provider, setProvider] = useState(null);
     const [signer, setSigner] = useState(null);
     const [contracts, setContracts] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState('identity');
+    const [activeTab, setActiveTab] = useState(scannedTokenId ? 'events' : 'identity');
     const [userTokens, setUserTokens] = useState([]);
     const [selectedToken, setSelectedToken] = useState(null);
     const [pendingTxs, setPendingTxs] = useState([]);
@@ -304,8 +306,29 @@ App = function () {
                 loading={loading}
             />
 
-            {!account ? (
+            {!account && !scannedTokenId ? (
                 <WelcomeScreen onConnect={connectWallet} loading={loading} />
+            ) : !account && scannedTokenId ? (
+                <div className="main-content">
+                    <div style={{
+                        textAlign: 'center',
+                        padding: '12px 24px',
+                        background: 'rgba(124, 58, 237, 0.1)',
+                        border: '1px solid rgba(139, 92, 246, 0.3)',
+                        borderRadius: '12px',
+                        marginBottom: '24px',
+                        color: '#c4b5fd',
+                        fontSize: '14px'
+                    }}>
+                        Connect your wallet above to request access to this identity
+                    </div>
+                    <ViewIdentitiesTab
+                        contracts={null}
+                        account={null}
+                        showNotification={showNotification}
+                        initialTokenId={scannedTokenId}
+                    />
+                </div>
             ) : (
                 <>
                     <TabNavigation
@@ -368,6 +391,7 @@ App = function () {
                                 contracts={contracts}
                                 account={account}
                                 showNotification={showNotification}
+                                initialTokenId={scannedTokenId}
                             />
                         )}
                     </main>

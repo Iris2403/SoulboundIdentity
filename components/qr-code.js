@@ -4,8 +4,8 @@ QRCodeDisplay = function ({ tokenId, contractAddress, size = 160 }) {
     const { addToast } = useToast();
 
     const qrValue = useMemo(
-        () => `${CONFIG.BLOCK_EXPLORER}/token/${contractAddress}/${tokenId}`,
-        [tokenId, contractAddress]
+        () => `${window.location.origin}${window.location.pathname}?token=${tokenId}`,
+        [tokenId]
     );
 
     useEffect(() => {

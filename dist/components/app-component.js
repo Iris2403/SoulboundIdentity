@@ -1,10 +1,11 @@
 App = function () {
+  const scannedTokenId = useMemo(() => new URLSearchParams(window.location.search).get('token'), []);
   const [account, setAccount] = useState(null);
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
   const [contracts, setContracts] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('identity');
+  const [activeTab, setActiveTab] = useState(scannedTokenId ? 'events' : 'identity');
   const [userTokens, setUserTokens] = useState([]);
   const [selectedToken, setSelectedToken] = useState(null);
   const [pendingTxs, setPendingTxs] = useState([]);
@@ -314,10 +315,28 @@ App = function () {
     account: account,
     onConnect: connectWallet,
     loading: loading
-  }), !account ? /*#__PURE__*/React.createElement(WelcomeScreen, {
+  }), !account && !scannedTokenId ? /*#__PURE__*/React.createElement(WelcomeScreen, {
     onConnect: connectWallet,
     loading: loading
-  }) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(TabNavigation, {
+  }) : !account && scannedTokenId ? /*#__PURE__*/React.createElement("div", {
+    className: "main-content"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: 'center',
+      padding: '12px 24px',
+      background: 'rgba(124, 58, 237, 0.1)',
+      border: '1px solid rgba(139, 92, 246, 0.3)',
+      borderRadius: '12px',
+      marginBottom: '24px',
+      color: '#c4b5fd',
+      fontSize: '14px'
+    }
+  }, "Connect your wallet above to request access to this identity"), /*#__PURE__*/React.createElement(ViewIdentitiesTab, {
+    contracts: null,
+    account: null,
+    showNotification: showNotification,
+    initialTokenId: scannedTokenId
+  })) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(TabNavigation, {
     activeTab: activeTab,
     setActiveTab: setActiveTab,
     userTokens: userTokens
@@ -354,6 +373,7 @@ App = function () {
   }), activeTab === 'events' && /*#__PURE__*/React.createElement(ViewIdentitiesTab, {
     contracts: contracts,
     account: account,
-    showNotification: showNotification
+    showNotification: showNotification,
+    initialTokenId: scannedTokenId
   }))));
 };
