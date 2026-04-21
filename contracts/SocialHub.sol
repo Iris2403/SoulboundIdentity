@@ -157,9 +157,6 @@ contract SocialHub is Ownable, ReentrancyGuard {
     mapping(uint256 => uint256) private _reviewCount;
     mapping(uint256 => uint256) private _verifiedCount;
 
-    // ZKP commitment: poseidon(averageScore, privateSalt) — set by token owner off-chain
-    mapping(uint256 => bytes32) public reputationCommitment;
-
     // Projects
     uint256 private _projectIdCounter;
     mapping(uint256 => mapping(uint256 => Project)) private projects;
@@ -222,8 +219,6 @@ contract SocialHub is Ownable, ReentrancyGuard {
         address indexed viewer,
         uint8 sections
     );
-
-    event ReputationCommitmentSet(uint256 indexed tokenId, bytes32 commitment);
 
     /*//////////////////////////////////////////////////////////////
                             MODIFIERS
@@ -344,26 +339,6 @@ contract SocialHub is Ownable, ReentrancyGuard {
                 totalReviews: count,
                 verifiedReviews: _verifiedCount[tokenId]
             });
-    }
-
-    /// @notice Get just the average score — used by ZKP verifier contracts
-    function getAverageScore(uint256 tokenId) external view returns (uint256) {
-        uint256 count = _reviewCount[tokenId];
-        if (count == 0) return 0;
-        return _runningScoreTotal[tokenId] / count;
-    }
-
-    /// @notice Set ZKP commitment for reputation score
-    /// @param tokenId Your token
-    /// @param commitment poseidon(averageScore, privateSalt) — computed off-chain
-    /// @dev The contract does not verify the commitment encodes the real score.
-    ///      If you commit to the wrong value your proofs will fail at verification time.
-    function setReputationCommitment(
-        uint256 tokenId,
-        bytes32 commitment
-    ) external onlyTokenOwner(tokenId) {
-        reputationCommitment[tokenId] = commitment;
-        emit ReputationCommitmentSet(tokenId, commitment);
     }
 
     /// @notice Check if one token has reviewed another

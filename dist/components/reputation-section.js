@@ -344,11 +344,7 @@ ReputationSection = function ({
   }, "Cancel"), /*#__PURE__*/React.createElement(Button, {
     onClick: handleSubmitReview,
     disabled: !reviewData.reviewerTokenId || alreadyReviewed || checkingReviewed
-  }, checkingReviewed ? 'Checking...' : alreadyReviewed ? 'Already Reviewed' : 'Submit Review')))), /*#__PURE__*/React.createElement(ZKPSection, {
-    contracts: contracts,
-    selectedToken: selectedToken,
-    showNotification: showNotification
-  }), /*#__PURE__*/React.createElement("style", null, `
+  }, checkingReviewed ? 'Checking...' : alreadyReviewed ? 'Already Reviewed' : 'Submit Review')))), /*#__PURE__*/React.createElement("style", null, `
                 .reputation-summary {
                     display: grid;
                     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
