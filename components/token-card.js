@@ -63,56 +63,42 @@ TokenCard = function ({ token, isSelected, onSelect, contracts, onBurned }) {
     return (
         <>
             <Card className={`token-card ${isSelected ? 'selected' : ''}`} onClick={onSelect}>
-                <div className="token-body">
-                    {/* ── Left: token info ── */}
-                    <div className="token-info-col">
-                        <div className="token-header">
-                            <div className="token-avatar">
-                                {metadata?.profileImage ? (
-                                    <img src={metadata.profileImage} alt="Profile" />
-                                ) : (
-                                    <div className="avatar-placeholder">👤</div>
-                                )}
-                            </div>
-                            <div className="token-meta">
-                                <h3>{metadata?.name || `Token #${token.id}`}</h3>
-                                <span className="token-id">ID: {token.id}</span>
-                            </div>
-                        </div>
-
-                        {metadata?.bio && (
-                            <p className="token-bio">{metadata.bio}</p>
+                <div className="token-header">
+                    <div className="token-avatar">
+                        {metadata?.profileImage ? (
+                            <img src={metadata.profileImage} alt="Profile" />
+                        ) : (
+                            <div className="avatar-placeholder">👤</div>
                         )}
-
-                        <div className="token-cid">
-                            <span className="cid-label">IPFS CID:</span>
-                            <code className="cid-value">{token.cid.substring(0, 20)}...</code>
-                        </div>
-
-                        <div className="token-actions">
-                            <button
-                                className="view-details-btn"
-                                onClick={(e) => { e.stopPropagation(); setShowDetails(true); }}
-                            >
-                                👁️ View Details
-                            </button>
-                            <button
-                                className="invalidate-btn"
-                                onClick={(e) => { e.stopPropagation(); setShowBurnConfirm(true); }}
-                            >
-                                Invalidate
-                            </button>
-                        </div>
                     </div>
-
-                    {/* ── Right: QR code ── */}
-                    <div className="token-qr-col" onClick={(e) => e.stopPropagation()}>
-                        <QRCodeDisplay
-                            tokenId={token.id}
-                            contractAddress={CONFIG.CONTRACTS.SOULBOUND_IDENTITY}
-                            size={160}
-                        />
+                    <div className="token-meta">
+                        <h3>{metadata?.name || `Token #${token.id}`}</h3>
+                        <span className="token-id">ID: {token.id}</span>
                     </div>
+                </div>
+
+                {metadata?.bio && (
+                    <p className="token-bio">{metadata.bio}</p>
+                )}
+
+                <div className="token-cid">
+                    <span className="cid-label">IPFS CID:</span>
+                    <code className="cid-value">{token.cid.substring(0, 20)}...</code>
+                </div>
+
+                <div className="token-actions">
+                    <button
+                        className="view-details-btn"
+                        onClick={(e) => { e.stopPropagation(); setShowDetails(true); }}
+                    >
+                        👁️ View Details
+                    </button>
+                    <button
+                        className="invalidate-btn"
+                        onClick={(e) => { e.stopPropagation(); setShowBurnConfirm(true); }}
+                    >
+                        Invalidate
+                    </button>
                 </div>
 
                 {isSelected && (
@@ -387,30 +373,6 @@ TokenCard = function ({ token, isSelected, onSelect, contracts, onBurned }) {
                     box-shadow: 0 0 0 2px rgba(14, 116, 144, 0.3);
                 }
 
-                /* ── Side-by-side layout ── */
-                .token-body {
-                    display: flex;
-                    gap: 0;
-                    align-items: stretch;
-                }
-
-                .token-info-col {
-                    flex: 1;
-                    min-width: 0;
-                    padding-right: 20px;
-                    border-right: 1px solid rgba(14, 116, 144, 0.2);
-                    display: flex;
-                    flex-direction: column;
-                }
-
-                .token-qr-col {
-                    flex-shrink: 0;
-                    padding-left: 20px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                }
-
                 .token-header {
                     display: flex;
                     gap: 16px;
@@ -552,23 +514,6 @@ TokenCard = function ({ token, isSelected, onSelect, contracts, onBurned }) {
                     font-weight: 600;
                 }
 
-                @media (max-width: 600px) {
-                    .token-body {
-                        flex-direction: column;
-                    }
-
-                    .token-info-col {
-                        padding-right: 0;
-                        border-right: none;
-                        border-bottom: 1px solid rgba(14, 116, 144, 0.2);
-                        padding-bottom: 20px;
-                    }
-
-                    .token-qr-col {
-                        padding-left: 0;
-                        padding-top: 20px;
-                    }
-                }
             `}</style>
         </>
     );
