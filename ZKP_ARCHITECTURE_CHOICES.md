@@ -1,5 +1,39 @@
 # ZKP Architecture Choices for SoulboundIdentity
 
+---
+
+## Decided Implementation Scope (Locked)
+
+**Circuit count:** 1 circuit only.
+
+**Use case:** Prove that a user's reputation score is above a given threshold, without revealing the actual score.
+
+**Form:** Simplified proof-of-concept — not a full production system.
+
+### What will be built:
+- A single Circom circuit: `reputation_threshold.circom`
+- A Groth16 verifier contract generated from the circuit (`ReputationVerifier.sol`)
+- In-browser proof generation via snarkjs (Path 1 — no VM required)
+- A small fixed dataset of reputation scores for testing
+- End-to-end flow: user taps → proof generated → submitted on-chain → verified
+
+### What will NOT be built (but stays in the thesis as design/architecture):
+- Circuits for credential ownership, selective disclosure, or multi-attribute proofs
+- Full SocialHub logic inside a circuit
+- Server-side proof generation (VM backend / Path 2)
+- Batch proofs or recursive proofs
+- Production-grade trusted setup
+
+### Goal:
+Demonstrate that the system works end-to-end:
+1. A proof is generated
+2. The proof is verified (on-chain or locally)
+3. The flow is wired to the frontend
+
+All other ZKP use-cases described below remain as **future extensions** in the thesis.
+
+---
+
 ## The Requirement
 
 Zero knowledge proofs must be completely invisible to the user.
