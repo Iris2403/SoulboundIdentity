@@ -93,19 +93,12 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
 
     /// @notice Academic degree category
     enum DegreeCategory {
-        ArtsAndCulture,
-        Business,
-        ChildDevelopmentAndEducation,
-        CommunicationAndMedia,
-        Economics,
-        Health,
-        Informatics,
-        LiteratureAndAreaStudies,
-        Law,
-        LifeAndEarthSciences,
-        PeopleAndSociety,
-        Psychology,
-        Science
+        ArtsAndHumanities,
+        BusinessAndEconomics,
+        LawAndSocialSciences,
+        EducationAndDevelopment,
+        HealthAndLifeSciences,
+        ScienceAndTechnology
     }
 
     /// @notice Certification domain / sector
