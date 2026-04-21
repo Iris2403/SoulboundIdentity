@@ -64,10 +64,6 @@ TokenCard = function ({
     className: `token-card ${isSelected ? 'selected' : ''}`,
     onClick: onSelect
   }, /*#__PURE__*/React.createElement("div", {
-    className: "token-body"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "token-info-col"
-  }, /*#__PURE__*/React.createElement("div", {
     className: "token-header"
   }, /*#__PURE__*/React.createElement("div", {
     className: "token-avatar"
@@ -102,14 +98,7 @@ TokenCard = function ({
       e.stopPropagation();
       setShowBurnConfirm(true);
     }
-  }, "Invalidate"))), /*#__PURE__*/React.createElement("div", {
-    className: "token-qr-col",
-    onClick: e => e.stopPropagation()
-  }, /*#__PURE__*/React.createElement(QRCodeDisplay, {
-    tokenId: token.id,
-    contractAddress: CONFIG.CONTRACTS.SOULBOUND_IDENTITY,
-    size: 160
-  }))), isSelected && /*#__PURE__*/React.createElement("div", {
+  }, "Invalidate")), isSelected && /*#__PURE__*/React.createElement("div", {
     className: "selected-badge"
   }, "\u2713 Selected")), /*#__PURE__*/React.createElement(Modal, {
     isOpen: showDetails,
@@ -393,30 +382,6 @@ TokenCard = function ({
                     box-shadow: 0 0 0 2px rgba(14, 116, 144, 0.3);
                 }
 
-                /* ── Side-by-side layout ── */
-                .token-body {
-                    display: flex;
-                    gap: 0;
-                    align-items: stretch;
-                }
-
-                .token-info-col {
-                    flex: 1;
-                    min-width: 0;
-                    padding-right: 20px;
-                    border-right: 1px solid rgba(14, 116, 144, 0.2);
-                    display: flex;
-                    flex-direction: column;
-                }
-
-                .token-qr-col {
-                    flex-shrink: 0;
-                    padding-left: 20px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                }
-
                 .token-header {
                     display: flex;
                     gap: 16px;
@@ -558,22 +523,5 @@ TokenCard = function ({
                     font-weight: 600;
                 }
 
-                @media (max-width: 600px) {
-                    .token-body {
-                        flex-direction: column;
-                    }
-
-                    .token-info-col {
-                        padding-right: 0;
-                        border-right: none;
-                        border-bottom: 1px solid rgba(14, 116, 144, 0.2);
-                        padding-bottom: 20px;
-                    }
-
-                    .token-qr-col {
-                        padding-left: 0;
-                        padding-top: 20px;
-                    }
-                }
             `));
 };
