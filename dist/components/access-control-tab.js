@@ -29,6 +29,55 @@ AccessControlTab = function ({
   });
   const [selectedRequests, setSelectedRequests] = useState(new Set());
   const [showBatchApproveModal, setShowBatchApproveModal] = useState(false);
+  const [repThreshold, setRepThreshold] = useState('50');
+  const [repZkpStatus, setRepZkpStatus] = useState('idle');
+  const [repZkpMessage, setRepZkpMessage] = useState('');
+  const handleVerifyReputation = async (tokenId, score) => {
+    if (!window.snarkjs) {
+      showNotification('snarkjs not loaded', 'error');
+      return;
+    }
+    const threshold = parseInt(repThreshold);
+    if (isNaN(threshold) || threshold < 0) {
+      showNotification('Enter a valid threshold', 'error');
+      return;
+    }
+    if (score <= threshold) {
+      setRepZkpStatus('error');
+      setRepZkpMessage(`Score is NOT above ${threshold}.`);
+      return;
+    }
+    setRepZkpStatus('generating');
+    setRepZkpMessage('Generating proof...');
+    try {
+      const {
+        proof,
+        publicSignals
+      } = await window.snarkjs.groth16.fullProve({
+        score: score.toString(),
+        threshold: threshold.toString()
+      }, 'circuits/reputation_threshold.wasm', 'circuits/reputation_threshold_final.zkey');
+      setRepZkpStatus('verifying');
+      setRepZkpMessage('Verifying on-chain...');
+      const pA = [proof.pi_a[0], proof.pi_a[1]];
+      const pB = [[proof.pi_b[0][1], proof.pi_b[0][0]], [proof.pi_b[1][1], proof.pi_b[1][0]]];
+      const pC = [proof.pi_c[0], proof.pi_c[1]];
+      const provider = new ethers.providers.JsonRpcProvider(CONFIG.RPC_URL);
+      const verifier = new ethers.Contract(CONFIG.CONTRACTS.REPUTATION_VERIFIER, GROTH16_VERIFIER_ABI, provider);
+      const isValid = await verifier.verifyProof(pA, pB, pC, publicSignals);
+      if (isValid) {
+        setRepZkpStatus('success');
+        setRepZkpMessage(`Reputation ≥ ${threshold} — verified on-chain.`);
+      } else {
+        setRepZkpStatus('error');
+        setRepZkpMessage('On-chain verification failed.');
+      }
+    } catch (err) {
+      console.error('ZKP error:', err);
+      setRepZkpStatus('error');
+      setRepZkpMessage(err.message || 'Proof generation failed');
+    }
+  };
 
   // Helper function to get countdown string
   const getExpiryCountdown = expiresAt => {
@@ -1133,62 +1182,79 @@ AccessControlTab = function ({
       paddingBottom: 0,
       borderBottom: 'none'
     }
-  }, /*#__PURE__*/React.createElement("h4", null, "Reputation"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: 'rgba(26,35,50,0.6)',
-      borderRadius: '10px',
-      padding: '16px',
-      display: 'flex',
-      gap: '0',
-      alignItems: 'center'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: 'center',
-      minWidth: '90px'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: '1.8rem',
-      fontWeight: '800',
-      color: 'var(--teal-light)',
-      lineHeight: 1
-    }
-  }, viewingToken.reputation.totalReviews > 0 ? `${viewingToken.reputation.averageScore}` : '—'), viewingToken.reputation.totalReviews > 0 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: '0.72rem',
-      color: 'var(--gray)',
-      marginTop: '2px'
-    }
-  }, "out of 100"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: '0.75rem',
-      color: 'var(--gray)',
-      marginTop: '4px'
-    }
-  }, "Score")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      borderLeft: '1px solid rgba(14,116,144,0.2)',
-      paddingLeft: '20px',
-      marginLeft: '8px'
-    }
-  }, viewingToken.reputation.totalReviews === 0 ? /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("h4", null, "Reputation"), viewingToken.reputation.totalReviews === 0 ? /*#__PURE__*/React.createElement("div", {
     style: {
       color: 'var(--gray)',
       fontSize: '0.88rem'
     }
-  }, "No reviews yet") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  }, "No reviews yet") : /*#__PURE__*/React.createElement("div", {
     style: {
-      color: 'var(--beige)',
-      fontSize: '0.9rem',
+      background: 'rgba(26,35,50,0.6)',
+      borderRadius: '10px',
+      padding: '16px'
+    }
+  }, /*#__PURE__*/React.createElement("p", {
+    style: {
+      color: 'var(--text-secondary)',
+      fontSize: '0.85rem',
+      marginBottom: '14px'
+    }
+  }, "Verify this token's reputation score is above a threshold. The actual score is not revealed."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: '10px',
+      alignItems: 'flex-end',
+      marginBottom: '12px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("label", {
+    style: {
+      fontSize: '0.78rem',
+      color: 'var(--text-muted)',
+      display: 'block',
       marginBottom: '4px'
     }
-  }, viewingToken.reputation.totalReviews, " review", viewingToken.reputation.totalReviews !== 1 ? 's' : ''), /*#__PURE__*/React.createElement("div", {
+  }, "Prove score is above"), /*#__PURE__*/React.createElement("input", {
+    className: "input-field",
+    type: "number",
+    value: repThreshold,
+    onChange: e => {
+      setRepThreshold(e.target.value);
+      setRepZkpStatus('idle');
+      setRepZkpMessage('');
+    },
+    placeholder: "e.g. 50",
     style: {
-      color: '#10b981',
-      fontSize: '0.85rem'
+      width: '100%'
     }
-  }, "\u2713 ", viewingToken.reputation.verifiedReviews, " verified"))))))), /*#__PURE__*/React.createElement("style", null, `
+  })), /*#__PURE__*/React.createElement(Button, {
+    onClick: () => handleVerifyReputation(viewingToken.tokenId, viewingToken.reputation.averageScore),
+    disabled: repZkpStatus === 'generating' || repZkpStatus === 'verifying',
+    style: {
+      minWidth: '100px',
+      height: '44px',
+      flexShrink: 0
+    }
+  }, repZkpStatus === 'generating' ? 'Generating...' : repZkpStatus === 'verifying' ? 'Verifying...' : 'Verify')), repZkpMessage && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '10px 14px',
+      borderRadius: '8px',
+      fontSize: '0.9rem',
+      fontWeight: '600',
+      background: repZkpStatus === 'success' ? 'rgba(16,185,129,0.1)' : repZkpStatus === 'error' ? 'rgba(239,68,68,0.1)' : 'rgba(6,182,212,0.05)',
+      border: `1px solid ${repZkpStatus === 'success' ? 'rgba(16,185,129,0.3)' : repZkpStatus === 'error' ? 'rgba(239,68,68,0.3)' : 'rgba(6,182,212,0.2)'}`,
+      color: repZkpStatus === 'success' ? 'var(--success)' : repZkpStatus === 'error' ? 'var(--error)' : 'var(--text-secondary)'
+    }
+  }, repZkpStatus === 'generating' || repZkpStatus === 'verifying' ? '⏳ ' : repZkpStatus === 'success' ? '✓ ' : '✗ ', repZkpMessage), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: '10px',
+      fontSize: '0.75rem',
+      color: 'var(--gray)'
+    }
+  }, viewingToken.reputation.totalReviews, " review", viewingToken.reputation.totalReviews !== 1 ? 's' : '', " \xB7 ", viewingToken.reputation.verifiedReviews, " verified"))))), /*#__PURE__*/React.createElement("style", null, `
                 .access-tab {
                     animation: fadeIn 0.5s ease-out;
                 }

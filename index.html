@@ -15,9 +15,6 @@
     <!-- QR Code generation (QRious - reliable UMD/cdnjs build) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
 
-    <!-- snarkjs for in-browser ZK proof generation -->
-    <script src="https://unpkg.com/snarkjs@0.7.6/build/snarkjs.min.js"></script>
-
     <!-- Styles -->
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -62,5 +59,8 @@
     <script src="dist/components/analytics-tab.js?v=2"></script>
     <script src="dist/components/view-identities-tab.js?v=2"></script>
     <script src="dist/app.js?v=2"></script>
+
+    <!-- snarkjs loads last — only needed when user generates a ZK proof, not on startup -->
+    <script src="https://unpkg.com/snarkjs@0.7.6/build/snarkjs.min.js"></script>
 </body>
 </html>
