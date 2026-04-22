@@ -666,6 +666,8 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
                                                         console.log('Could not fetch reputation:', e);
                                                     }
 
+                                                    setRepZkpStatus('idle');
+                                                    setRepZkpMessage('');
                                                     setViewingToken({ ...item, ipfsMetadata, credentials, reputation });
                                                     setShowViewModal(true);
                                                 } catch (error) {
@@ -864,7 +866,7 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
                 </div>
             </Modal>
 
-            <Modal isOpen={showViewModal} onClose={() => setShowViewModal(false)} title={viewingToken ? `Token #${viewingToken.tokenId} — Identity` : 'Identity Details'}>
+            <Modal isOpen={showViewModal} onClose={() => { setShowViewModal(false); setRepZkpStatus('idle'); setRepZkpMessage(''); }} title={viewingToken ? `Token #${viewingToken.tokenId} — Identity` : 'Identity Details'}>
                 {viewingToken && (
                     <div className="token-view-details">
 
