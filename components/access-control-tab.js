@@ -1112,8 +1112,14 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
                                                     ))}
                                                 </div>
                                             )}
-                                            {type === 0 && viewingToken.maxGpa > 0 && (
+                                            {type === 0 && (viewingToken.credentials[0] || []).some(c => c.status === 0) && (
                                                 <div style={{ marginTop: '12px', background: 'rgba(26,35,50,0.6)', borderRadius: '10px', padding: '16px' }}>
+                                                    {viewingToken.maxGpa === 0 ? (
+                                                        <p style={{ color: 'var(--gray)', fontSize: '0.85rem' }}>
+                                                            No GPA data available for ZK verification. Degrees must be issued via <code>addDegreeCredential</code>.
+                                                        </p>
+                                                    ) : (
+                                                    <React.Fragment>
                                                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '14px' }}>
                                                         Verify this token's GPA is above a threshold. The actual GPA is not revealed.
                                                     </p>
@@ -1163,6 +1169,8 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
                                                             {gpaZkpStatus === 'generating' || gpaZkpStatus === 'verifying' ? '⏳ ' : gpaZkpStatus === 'success' ? '✓ ' : '✗ '}
                                                             {gpaZkpMessage}
                                                         </div>
+                                                    )}
+                                                    </React.Fragment>
                                                     )}
                                                 </div>
                                             )}

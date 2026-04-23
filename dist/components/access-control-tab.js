@@ -1305,14 +1305,19 @@ AccessControlTab = function ({
         gap: '16px',
         flexWrap: 'wrap'
       }
-    }, /*#__PURE__*/React.createElement("span", null, "Issued: ", cred.issueDate > 0 ? formatDate(cred.issueDate) : '—'), /*#__PURE__*/React.createElement("span", null, "Expires: ", cred.expiryDate > 0 ? formatDate(cred.expiryDate) : 'No expiry'))))), type === 0 && viewingToken.maxGpa > 0 && /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement("span", null, "Issued: ", cred.issueDate > 0 ? formatDate(cred.issueDate) : '—'), /*#__PURE__*/React.createElement("span", null, "Expires: ", cred.expiryDate > 0 ? formatDate(cred.expiryDate) : 'No expiry'))))), type === 0 && (viewingToken.credentials[0] || []).some(c => c.status === 0) && /*#__PURE__*/React.createElement("div", {
       style: {
         marginTop: '12px',
         background: 'rgba(26,35,50,0.6)',
         borderRadius: '10px',
         padding: '16px'
       }
-    }, /*#__PURE__*/React.createElement("p", {
+    }, viewingToken.maxGpa === 0 ? /*#__PURE__*/React.createElement("p", {
+      style: {
+        color: 'var(--gray)',
+        fontSize: '0.85rem'
+      }
+    }, "No GPA data available for ZK verification. Degrees must be issued via ", /*#__PURE__*/React.createElement("code", null, "addDegreeCredential"), ".") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("p", {
       style: {
         color: 'var(--text-secondary)',
         fontSize: '0.85rem',
@@ -1378,7 +1383,7 @@ AccessControlTab = function ({
         border: `1px solid ${gpaZkpStatus === 'success' ? 'rgba(16,185,129,0.3)' : gpaZkpStatus === 'error' ? 'rgba(239,68,68,0.3)' : 'rgba(6,182,212,0.2)'}`,
         color: gpaZkpStatus === 'success' ? 'var(--success)' : gpaZkpStatus === 'error' ? 'var(--error)' : 'var(--text-secondary)'
       }
-    }, gpaZkpStatus === 'generating' || gpaZkpStatus === 'verifying' ? '⏳ ' : gpaZkpStatus === 'success' ? '✓ ' : '✗ ', gpaZkpMessage)), type === 0 && (viewingToken.credentials[0] || []).some(c => c.status === 0) && /*#__PURE__*/React.createElement("div", {
+    }, gpaZkpStatus === 'generating' || gpaZkpStatus === 'verifying' ? '⏳ ' : gpaZkpStatus === 'success' ? '✓ ' : '✗ ', gpaZkpMessage))), type === 0 && (viewingToken.credentials[0] || []).some(c => c.status === 0) && /*#__PURE__*/React.createElement("div", {
       style: {
         marginTop: '12px',
         background: 'rgba(26,35,50,0.6)',
