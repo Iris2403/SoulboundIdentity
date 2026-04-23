@@ -20,6 +20,9 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
     const [gpaThreshold, setGpaThreshold] = useState('300');
     const [gpaZkpStatus, setGpaZkpStatus] = useState('idle');
     const [gpaZkpMessage, setGpaZkpMessage] = useState('');
+    const [degreeCatThreshold, setDegreeCatThreshold] = useState('5');
+    const [degreeCatZkpStatus, setDegreeCatZkpStatus] = useState('idle');
+    const [degreeCatZkpMessage, setDegreeCatZkpMessage] = useState('');
 
     const handleVerifyReputation = async (tokenId, score) => {
         if (!window.snarkjs) { showNotification('snarkjs not loaded', 'error'); return; }
@@ -112,6 +115,56 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
             console.error('GPA ZKP error:', err);
             setGpaZkpStatus('error');
             setGpaZkpMessage(err.message || 'Proof generation failed');
+        }
+    };
+
+    const DEGREE_CAT_NAMES = [
+        'Arts & Humanities',
+        'Business & Economics',
+        'Law & Social Sciences',
+        'Education & Development',
+        'Health & Life Sciences',
+        'Science & Technology'
+    ];
+
+    const handleVerifyDegreeCategory = async () => {
+        if (!window.snarkjs) { showNotification('snarkjs not loaded', 'error'); return; }
+        const claimed = parseInt(degreeCatThreshold);
+        const matchingCred = (viewingToken.credentials[0] || []).find(
+            c => c.status === 0 && c.category === claimed
+        );
+        if (!matchingCred) {
+            setDegreeCatZkpStatus('error');
+            setDegreeCatZkpMessage(`No active degree in ${DEGREE_CAT_NAMES[claimed]}.`);
+            return;
+        }
+        setDegreeCatZkpStatus('generating');
+        setDegreeCatZkpMessage('Generating proof...');
+        try {
+            const { proof, publicSignals } = await window.snarkjs.groth16.fullProve(
+                { category: matchingCred.category.toString(), claimedCategory: claimed.toString() },
+                'circuits/degree_category.wasm',
+                'circuits/degree_category_final.zkey'
+            );
+            setDegreeCatZkpStatus('verifying');
+            setDegreeCatZkpMessage('Verifying on-chain...');
+            const pA = [proof.pi_a[0], proof.pi_a[1]];
+            const pB = [[proof.pi_b[0][1], proof.pi_b[0][0]], [proof.pi_b[1][1], proof.pi_b[1][0]]];
+            const pC = [proof.pi_c[0], proof.pi_c[1]];
+            const provider = new ethers.providers.JsonRpcProvider(CONFIG.RPC_URL);
+            const verifier = new ethers.Contract(CONFIG.CONTRACTS.DEGREE_CATEGORY_VERIFIER, DEGREE_CATEGORY_VERIFIER_ABI, provider);
+            const isValid = await verifier.verifyProof(pA, pB, pC, publicSignals);
+            if (isValid) {
+                setDegreeCatZkpStatus('success');
+                setDegreeCatZkpMessage(`Degree in ${DEGREE_CAT_NAMES[claimed]} — verified on-chain.`);
+            } else {
+                setDegreeCatZkpStatus('error');
+                setDegreeCatZkpMessage('On-chain verification failed.');
+            }
+        } catch (err) {
+            console.error('Degree category ZKP error:', err);
+            setDegreeCatZkpStatus('error');
+            setDegreeCatZkpMessage(err.message || 'Proof generation failed');
         }
     };
 
@@ -723,6 +776,9 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
                                                         console.log('Could not fetch reputation:', e);
                                                     }
 
+                                                    setRepZkpStatus('idle'); setRepZkpMessage('');
+                                                    setGpaZkpStatus('idle'); setGpaZkpMessage('');
+                                                    setDegreeCatZkpStatus('idle'); setDegreeCatZkpMessage('');
                                                     setViewingToken({ ...item, ipfsMetadata, credentials, reputation, maxGpa });
                                                     setRepZkpStatus('idle');
                                                     setRepZkpMessage('');
@@ -1106,6 +1162,60 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
                                                         }}>
                                                             {gpaZkpStatus === 'generating' || gpaZkpStatus === 'verifying' ? '⏳ ' : gpaZkpStatus === 'success' ? '✓ ' : '✗ '}
                                                             {gpaZkpMessage}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                            {type === 0 && (viewingToken.credentials[0] || []).some(c => c.status === 0) && (
+                                                <div style={{ marginTop: '12px', background: 'rgba(26,35,50,0.6)', borderRadius: '10px', padding: '16px' }}>
+                                                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '14px' }}>
+                                                        Verify this token has an active degree in a specific field. The actual credential is not revealed.
+                                                    </p>
+                                                    <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', marginBottom: '12px' }}>
+                                                        <div style={{ flex: 1 }}>
+                                                            <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>
+                                                                Prove degree in field
+                                                            </label>
+                                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                                                {['Arts & Humanities', 'Business & Economics', 'Law & Social Sciences', 'Education & Development', 'Health & Life Sciences', 'Science & Technology'].map((name, val) => (
+                                                                    <button
+                                                                        key={val}
+                                                                        onClick={() => { setDegreeCatThreshold(val.toString()); setDegreeCatZkpStatus('idle'); setDegreeCatZkpMessage(''); }}
+                                                                        style={{
+                                                                            padding: '6px 14px',
+                                                                            borderRadius: '20px',
+                                                                            border: `1px solid ${degreeCatThreshold === val.toString() ? 'var(--teal)' : 'rgba(14,116,144,0.3)'}`,
+                                                                            background: degreeCatThreshold === val.toString() ? 'rgba(14,116,144,0.25)' : 'transparent',
+                                                                            color: degreeCatThreshold === val.toString() ? 'var(--teal-light)' : 'var(--gray-light)',
+                                                                            fontSize: '0.82rem',
+                                                                            fontWeight: degreeCatThreshold === val.toString() ? '700' : '400',
+                                                                            cursor: 'pointer',
+                                                                            transition: 'all 0.15s'
+                                                                        }}
+                                                                    >
+                                                                        {name}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                        <Button
+                                                            onClick={handleVerifyDegreeCategory}
+                                                            disabled={degreeCatZkpStatus === 'generating' || degreeCatZkpStatus === 'verifying'}
+                                                            style={{ minWidth: '110px', height: '44px', flexShrink: 0 }}
+                                                        >
+                                                            {degreeCatZkpStatus === 'generating' ? 'Generating...' :
+                                                             degreeCatZkpStatus === 'verifying' ? 'Verifying...' : 'Verify Field'}
+                                                        </Button>
+                                                    </div>
+                                                    {degreeCatZkpMessage && (
+                                                        <div style={{
+                                                            padding: '10px 14px', borderRadius: '8px', fontSize: '0.9rem', fontWeight: '600',
+                                                            background: degreeCatZkpStatus === 'success' ? 'rgba(16,185,129,0.1)' : degreeCatZkpStatus === 'error' ? 'rgba(239,68,68,0.1)' : 'rgba(6,182,212,0.05)',
+                                                            border: `1px solid ${degreeCatZkpStatus === 'success' ? 'rgba(16,185,129,0.3)' : degreeCatZkpStatus === 'error' ? 'rgba(239,68,68,0.3)' : 'rgba(6,182,212,0.2)'}`,
+                                                            color: degreeCatZkpStatus === 'success' ? 'var(--success)' : degreeCatZkpStatus === 'error' ? 'var(--error)' : 'var(--text-secondary)'
+                                                        }}>
+                                                            {degreeCatZkpStatus === 'generating' || degreeCatZkpStatus === 'verifying' ? '⏳ ' : degreeCatZkpStatus === 'success' ? '✓ ' : '✗ '}
+                                                            {degreeCatZkpMessage}
                                                         </div>
                                                     )}
                                                 </div>
