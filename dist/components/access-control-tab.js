@@ -743,6 +743,8 @@ AccessControlTab = function ({
         } catch (e) {
           console.log('Could not fetch reputation:', e);
         }
+        setRepZkpStatus('idle');
+        setRepZkpMessage('');
         setViewingToken({
           ...item,
           ipfsMetadata,
@@ -1040,7 +1042,11 @@ AccessControlTab = function ({
     disabled: !requestTokenId
   }, "Send Request")))), /*#__PURE__*/React.createElement(Modal, {
     isOpen: showViewModal,
-    onClose: () => setShowViewModal(false),
+    onClose: () => {
+      setShowViewModal(false);
+      setRepZkpStatus('idle');
+      setRepZkpMessage('');
+    },
     title: viewingToken ? `Token #${viewingToken.tokenId} — Identity` : 'Identity Details'
   }, viewingToken && /*#__PURE__*/React.createElement("div", {
     className: "token-view-details"
