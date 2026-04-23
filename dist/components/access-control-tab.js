@@ -32,6 +32,9 @@ AccessControlTab = function ({
   const [repThreshold, setRepThreshold] = useState('50');
   const [repZkpStatus, setRepZkpStatus] = useState('idle');
   const [repZkpMessage, setRepZkpMessage] = useState('');
+  const [gpaThreshold, setGpaThreshold] = useState('300');
+  const [gpaZkpStatus, setGpaZkpStatus] = useState('idle');
+  const [gpaZkpMessage, setGpaZkpMessage] = useState('');
   const handleVerifyReputation = async (tokenId, score) => {
     if (!window.snarkjs) {
       showNotification('snarkjs not loaded', 'error');
@@ -90,6 +93,52 @@ AccessControlTab = function ({
     if (days > 0) return `🟢 Expires in ${days} day${days > 1 ? 's' : ''} ${hours}h`;
     if (hours > 0) return `🟡 Expires in ${hours} hour${hours > 1 ? 's' : ''} ${minutes}m`;
     return `🔴 Expires in ${minutes} minute${minutes > 1 ? 's' : ''}`;
+  };
+  const handleVerifyGPA = async maxGpa => {
+    if (!window.snarkjs) {
+      showNotification('snarkjs not loaded', 'error');
+      return;
+    }
+    const threshold = parseInt(gpaThreshold);
+    if (isNaN(threshold) || threshold < 0) {
+      showNotification('Select a valid threshold', 'error');
+      return;
+    }
+    if (maxGpa <= threshold) {
+      setGpaZkpStatus('error');
+      setGpaZkpMessage(`GPA is NOT above ${(threshold / 100).toFixed(2)}.`);
+      return;
+    }
+    setGpaZkpStatus('generating');
+    setGpaZkpMessage('Generating proof...');
+    try {
+      const {
+        proof,
+        publicSignals
+      } = await window.snarkjs.groth16.fullProve({
+        gpa: maxGpa.toString(),
+        threshold: threshold.toString()
+      }, 'circuits/gpa_threshold.wasm', 'circuits/gpa_threshold_final.zkey');
+      setGpaZkpStatus('verifying');
+      setGpaZkpMessage('Verifying on-chain...');
+      const pA = [proof.pi_a[0], proof.pi_a[1]];
+      const pB = [[proof.pi_b[0][1], proof.pi_b[0][0]], [proof.pi_b[1][1], proof.pi_b[1][0]]];
+      const pC = [proof.pi_c[0], proof.pi_c[1]];
+      const provider = new ethers.providers.JsonRpcProvider(CONFIG.RPC_URL);
+      const verifier = new ethers.Contract(CONFIG.CONTRACTS.GPA_VERIFIER, GPA_VERIFIER_ABI, provider);
+      const isValid = await verifier.verifyProof(pA, pB, pC, publicSignals);
+      if (isValid) {
+        setGpaZkpStatus('success');
+        setGpaZkpMessage(`GPA ≥ ${(threshold / 100).toFixed(2)} — verified on-chain.`);
+      } else {
+        setGpaZkpStatus('error');
+        setGpaZkpMessage('On-chain verification failed.');
+      }
+    } catch (err) {
+      console.error('GPA ZKP error:', err);
+      setGpaZkpStatus('error');
+      setGpaZkpMessage(err.message || 'Proof generation failed');
+    }
   };
 
   // Helper function to get access status label
@@ -667,6 +716,21 @@ AccessControlTab = function ({
           }
         }
 
+        // Fetch GPA for active degree credentials
+        let maxGpa = 0;
+        for (const deg of credentials[0] || []) {
+          if (deg.status === 0) {
+            try {
+              const gpaRaw = await contracts.credentials.degreeGPA(deg.id);
+              const gpaVal = gpaRaw.toNumber ? gpaRaw.toNumber() : parseInt(gpaRaw.toString());
+              deg.gpa = gpaVal;
+              if (gpaVal > maxGpa) maxGpa = gpaVal;
+            } catch (e) {
+              console.log('degreeGPA fetch failed for', deg.id, e);
+            }
+          }
+        }
+
         // Fetch reputation summary
         let reputation = null;
         try {
@@ -685,7 +749,8 @@ AccessControlTab = function ({
           ...item,
           ipfsMetadata,
           credentials,
-          reputation
+          reputation,
+          maxGpa
         });
         setShowViewModal(true);
       } catch (error) {
@@ -1181,7 +1246,80 @@ AccessControlTab = function ({
         gap: '16px',
         flexWrap: 'wrap'
       }
-    }, /*#__PURE__*/React.createElement("span", null, "Issued: ", cred.issueDate > 0 ? formatDate(cred.issueDate) : '—'), /*#__PURE__*/React.createElement("span", null, "Expires: ", cred.expiryDate > 0 ? formatDate(cred.expiryDate) : 'No expiry'))))));
+    }, /*#__PURE__*/React.createElement("span", null, "Issued: ", cred.issueDate > 0 ? formatDate(cred.issueDate) : '—'), /*#__PURE__*/React.createElement("span", null, "Expires: ", cred.expiryDate > 0 ? formatDate(cred.expiryDate) : 'No expiry'))))), type === 0 && viewingToken.maxGpa > 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: '12px',
+        background: 'rgba(26,35,50,0.6)',
+        borderRadius: '10px',
+        padding: '16px'
+      }
+    }, /*#__PURE__*/React.createElement("p", {
+      style: {
+        color: 'var(--text-secondary)',
+        fontSize: '0.85rem',
+        marginBottom: '14px'
+      }
+    }, "Verify this token's GPA is above a threshold. The actual GPA is not revealed."), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: '10px',
+        alignItems: 'flex-end',
+        marginBottom: '12px'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("label", {
+      style: {
+        fontSize: '0.78rem',
+        color: 'var(--text-muted)',
+        display: 'block',
+        marginBottom: '6px'
+      }
+    }, "Prove GPA is above"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '6px'
+      }
+    }, [200, 250, 300, 325, 350, 375].map(val => /*#__PURE__*/React.createElement("button", {
+      key: val,
+      onClick: () => {
+        setGpaThreshold(val.toString());
+        setGpaZkpStatus('idle');
+        setGpaZkpMessage('');
+      },
+      style: {
+        padding: '6px 14px',
+        borderRadius: '20px',
+        border: `1px solid ${gpaThreshold === val.toString() ? 'var(--teal)' : 'rgba(14,116,144,0.3)'}`,
+        background: gpaThreshold === val.toString() ? 'rgba(14,116,144,0.25)' : 'transparent',
+        color: gpaThreshold === val.toString() ? 'var(--teal-light)' : 'var(--gray-light)',
+        fontSize: '0.85rem',
+        fontWeight: gpaThreshold === val.toString() ? '700' : '400',
+        cursor: 'pointer',
+        transition: 'all 0.15s'
+      }
+    }, (val / 100).toFixed(2))))), /*#__PURE__*/React.createElement(Button, {
+      onClick: () => handleVerifyGPA(viewingToken.maxGpa),
+      disabled: gpaZkpStatus === 'generating' || gpaZkpStatus === 'verifying',
+      style: {
+        minWidth: '110px',
+        height: '44px',
+        flexShrink: 0
+      }
+    }, gpaZkpStatus === 'generating' ? 'Generating...' : gpaZkpStatus === 'verifying' ? 'Verifying...' : 'Verify GPA')), gpaZkpMessage && /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '10px 14px',
+        borderRadius: '8px',
+        fontSize: '0.9rem',
+        fontWeight: '600',
+        background: gpaZkpStatus === 'success' ? 'rgba(16,185,129,0.1)' : gpaZkpStatus === 'error' ? 'rgba(239,68,68,0.1)' : 'rgba(6,182,212,0.05)',
+        border: `1px solid ${gpaZkpStatus === 'success' ? 'rgba(16,185,129,0.3)' : gpaZkpStatus === 'error' ? 'rgba(239,68,68,0.3)' : 'rgba(6,182,212,0.2)'}`,
+        color: gpaZkpStatus === 'success' ? 'var(--success)' : gpaZkpStatus === 'error' ? 'var(--error)' : 'var(--text-secondary)'
+      }
+    }, gpaZkpStatus === 'generating' || gpaZkpStatus === 'verifying' ? '⏳ ' : gpaZkpStatus === 'success' ? '✓ ' : '✗ ', gpaZkpMessage)));
   })), viewingToken.reputation !== null && viewingToken.reputation !== undefined && /*#__PURE__*/React.createElement("div", {
     className: "detail-section",
     style: {
