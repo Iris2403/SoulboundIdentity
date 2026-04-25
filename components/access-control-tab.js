@@ -861,8 +861,11 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
                                                     // Fetch total work experience years
                                                     let totalWorkYears = 0;
                                                     try {
-                                                        const work = await contracts.credentials.getTotalWorkExperience(item.tokenId);
-                                                        totalWorkYears = work.totalYears.toNumber ? work.totalYears.toNumber() : parseInt(work.totalYears.toString());
+                                                        const provider = new ethers.providers.JsonRpcProvider(CONFIG.RPC_URL);
+                                                        const credContract = new ethers.Contract(CONFIG.CONTRACTS.CREDENTIALS_HUB, CREDENTIALS_HUB_ABI, provider);
+                                                        const work = await credContract.getTotalWorkExperience(item.tokenId);
+                                                        const raw = work[0]; // positional access - more reliable with ethers v5 tuples
+                                                        totalWorkYears = raw && raw.toNumber ? raw.toNumber() : parseInt((raw || 0).toString());
                                                     } catch (e) {
                                                         console.log('Could not fetch work experience:', e);
                                                     }
@@ -1337,7 +1340,11 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
                                             {type === 2 && (viewingToken.credentials[2] || []).length > 0 && (
                                                 <div style={{ marginTop: '12px', background: 'rgba(26,35,50,0.6)', borderRadius: '10px', padding: '16px' }}>
                                                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '14px' }}>
-                                                        Verify total work experience meets a minimum. The actual duration is not revealed.
+                                                        Verify total work experience meets a minimum. The actual duration is not revealed.{' '}
+                                                        {viewingToken.totalWorkYears > 0
+                                                            ? <span style={{ color: 'var(--teal-light)', fontWeight: '600' }}>({viewingToken.totalWorkYears} yr{viewingToken.totalWorkYears !== 1 ? 's' : ''} computed)</span>
+                                                            : <span style={{ color: 'var(--gray)' }}>(less than 1 year or no data)</span>
+                                                        }
                                                     </p>
                                                     <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', marginBottom: '12px' }}>
                                                         <div style={{ flex: 1 }}>

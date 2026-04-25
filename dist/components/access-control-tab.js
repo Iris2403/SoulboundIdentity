@@ -878,8 +878,11 @@ AccessControlTab = function ({
         // Fetch total work experience years
         let totalWorkYears = 0;
         try {
-          const work = await contracts.credentials.getTotalWorkExperience(item.tokenId);
-          totalWorkYears = work.totalYears.toNumber ? work.totalYears.toNumber() : parseInt(work.totalYears.toString());
+          const provider = new ethers.providers.JsonRpcProvider(CONFIG.RPC_URL);
+          const credContract = new ethers.Contract(CONFIG.CONTRACTS.CREDENTIALS_HUB, CREDENTIALS_HUB_ABI, provider);
+          const work = await credContract.getTotalWorkExperience(item.tokenId);
+          const raw = work[0]; // positional access - more reliable with ethers v5 tuples
+          totalWorkYears = raw && raw.toNumber ? raw.toNumber() : parseInt((raw || 0).toString());
         } catch (e) {
           console.log('Could not fetch work experience:', e);
         }
@@ -1580,7 +1583,16 @@ AccessControlTab = function ({
         fontSize: '0.85rem',
         marginBottom: '14px'
       }
-    }, "Verify total work experience meets a minimum. The actual duration is not revealed."), /*#__PURE__*/React.createElement("div", {
+    }, "Verify total work experience meets a minimum. The actual duration is not revealed.", ' ', viewingToken.totalWorkYears > 0 ? /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: 'var(--teal-light)',
+        fontWeight: '600'
+      }
+    }, "(", viewingToken.totalWorkYears, " yr", viewingToken.totalWorkYears !== 1 ? 's' : '', " computed)") : /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: 'var(--gray)'
+      }
+    }, "(less than 1 year or no data)")), /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         gap: '10px',
