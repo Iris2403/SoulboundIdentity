@@ -876,18 +876,21 @@ AccessControlTab = function ({
         }
 
         // Fetch total work experience years
+        // Compute work experience from already-fetched credentials
+        // Mirrors getTotalWorkExperience: skip revoked, use expiryDate=0 as "now"
         let totalWorkYears = 0;
         let totalWorkMonths = 0;
-        try {
-          const provider = new ethers.providers.JsonRpcProvider(CONFIG.RPC_URL);
-          const credContract = new ethers.Contract(CONFIG.CONTRACTS.CREDENTIALS_HUB, CREDENTIALS_HUB_ABI, provider);
-          const work = await credContract.getTotalWorkExperience(item.tokenId);
-          const rawYears = work[0];
-          const rawMonths = work[1];
-          totalWorkYears = rawYears && rawYears.toNumber ? rawYears.toNumber() : parseInt((rawYears || 0).toString());
-          totalWorkMonths = rawMonths && rawMonths.toNumber ? rawMonths.toNumber() : parseInt((rawMonths || 0).toString());
-        } catch (e) {
-          console.log('Could not fetch work experience:', e);
+        {
+          const now = Math.floor(Date.now() / 1000);
+          let totalSeconds = 0;
+          for (const c of credentials[2] || []) {
+            if (c.status === 1) continue; // skip Revoked only
+            const start = c.issueDate;
+            const end = c.expiryDate === 0 ? now : c.expiryDate;
+            if (end > start) totalSeconds += end - start;
+          }
+          totalWorkYears = Math.floor(totalSeconds / (365 * 24 * 3600));
+          totalWorkMonths = Math.floor(totalSeconds % (365 * 24 * 3600) / (30 * 24 * 3600));
         }
 
         // Fetch reputation summary
