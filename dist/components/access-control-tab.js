@@ -877,12 +877,15 @@ AccessControlTab = function ({
 
         // Fetch total work experience years
         let totalWorkYears = 0;
+        let totalWorkMonths = 0;
         try {
           const provider = new ethers.providers.JsonRpcProvider(CONFIG.RPC_URL);
           const credContract = new ethers.Contract(CONFIG.CONTRACTS.CREDENTIALS_HUB, CREDENTIALS_HUB_ABI, provider);
           const work = await credContract.getTotalWorkExperience(item.tokenId);
-          const raw = work[0]; // positional access - more reliable with ethers v5 tuples
-          totalWorkYears = raw && raw.toNumber ? raw.toNumber() : parseInt((raw || 0).toString());
+          const rawYears = work[0];
+          const rawMonths = work[1];
+          totalWorkYears = rawYears && rawYears.toNumber ? rawYears.toNumber() : parseInt((rawYears || 0).toString());
+          totalWorkMonths = rawMonths && rawMonths.toNumber ? rawMonths.toNumber() : parseInt((rawMonths || 0).toString());
         } catch (e) {
           console.log('Could not fetch work experience:', e);
         }
@@ -915,7 +918,8 @@ AccessControlTab = function ({
           credentials,
           reputation,
           maxGpa,
-          totalWorkYears
+          totalWorkYears,
+          totalWorkMonths
         });
         setRepZkpStatus('idle');
         setRepZkpMessage('');
@@ -1410,7 +1414,7 @@ AccessControlTab = function ({
         color: 'var(--teal-light)',
         fontSize: '0.8rem'
       }
-    }, shortenAddress(cred.issuer))), /*#__PURE__*/React.createElement("div", {
+    }, shortenAddress(cred.issuer))), type !== 2 && /*#__PURE__*/React.createElement("div", {
       style: {
         fontSize: '0.8rem',
         color: 'var(--gray)',
@@ -1419,7 +1423,14 @@ AccessControlTab = function ({
         gap: '16px',
         flexWrap: 'wrap'
       }
-    }, /*#__PURE__*/React.createElement("span", null, "Issued: ", cred.issueDate > 0 ? formatDate(cred.issueDate) : '—'), /*#__PURE__*/React.createElement("span", null, "Expires: ", cred.expiryDate > 0 ? formatDate(cred.expiryDate) : 'No expiry'))))), type === 0 && (viewingToken.credentials[0] || []).some(c => c.status === 0) && /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement("span", null, "Issued: ", cred.issueDate > 0 ? formatDate(cred.issueDate) : '—'), /*#__PURE__*/React.createElement("span", null, "Expires: ", cred.expiryDate > 0 ? formatDate(cred.expiryDate) : 'No expiry')), type === 2 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: '0.78rem',
+        color: 'var(--gray)',
+        marginTop: '4px',
+        fontStyle: 'italic'
+      }
+    }, "Employment dates private \u2014 duration proven via ZKP below")))), type === 0 && (viewingToken.credentials[0] || []).some(c => c.status === 0) && /*#__PURE__*/React.createElement("div", {
       style: {
         marginTop: '12px',
         background: 'rgba(26,35,50,0.6)',
@@ -1583,16 +1594,16 @@ AccessControlTab = function ({
         fontSize: '0.85rem',
         marginBottom: '14px'
       }
-    }, "Verify total work experience meets a minimum. The actual duration is not revealed.", ' ', viewingToken.totalWorkYears > 0 ? /*#__PURE__*/React.createElement("span", {
+    }, "Verify total work experience meets a minimum. The actual duration is not revealed.", ' ', viewingToken.totalWorkYears > 0 || viewingToken.totalWorkMonths > 0 ? /*#__PURE__*/React.createElement("span", {
       style: {
         color: 'var(--teal-light)',
         fontWeight: '600'
       }
-    }, "(", viewingToken.totalWorkYears, " yr", viewingToken.totalWorkYears !== 1 ? 's' : '', " computed)") : /*#__PURE__*/React.createElement("span", {
+    }, "(", viewingToken.totalWorkYears > 0 && `${viewingToken.totalWorkYears} yr${viewingToken.totalWorkYears !== 1 ? 's' : ''} `, viewingToken.totalWorkMonths > 0 && `${viewingToken.totalWorkMonths} mo`, " computed)") : /*#__PURE__*/React.createElement("span", {
       style: {
         color: 'var(--gray)'
       }
-    }, "(less than 1 year or no data)")), /*#__PURE__*/React.createElement("div", {
+    }, "(no work experience data found)")), /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         gap: '10px',
