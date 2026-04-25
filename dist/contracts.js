@@ -5,6 +5,7 @@ SOCIAL_HUB_ABI = ["function submitReview(uint256 subjectTokenId, uint256 reviewe
 GROTH16_VERIFIER_ABI = ["function verifyProof(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[1] calldata _pubSignals) public view returns (bool)"];
 GPA_VERIFIER_ABI = ["function verifyProof(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[1] calldata _pubSignals) public view returns (bool)"];
 DEGREE_CATEGORY_VERIFIER_ABI = ["function verifyProof(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[1] calldata _pubSignals) public view returns (bool)"];
+CERT_DOMAIN_VERIFIER_ABI = ["function verifyProof(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[1] calldata _pubSignals) public view returns (bool)"];
 
 // Configuration
 CONFIG = {
@@ -27,7 +28,8 @@ CONFIG = {
     SOCIAL_HUB: '0xA424e9474B62E7863632dff4c6c96F16CD429cA0',
     REPUTATION_VERIFIER: '0x178119699589a924020F174ABa06015Ec0889b7a',
     GPA_VERIFIER: '0xD9c29f5D5D0f01a23ce5E9209CADc2FDe6F09A51',
-    DEGREE_CATEGORY_VERIFIER: '0x37F292953C08392A3765eb6a4920df93aD722BBf'
+    DEGREE_CATEGORY_VERIFIER: '0x37F292953C08392A3765eb6a4920df93aD722BBf',
+    CERT_DOMAIN_VERIFIER: '0x4aDb9FC4bEC496C315bad86fE859944bAa88FAFa'
   },
   IPFS_GATEWAY: 'https://gateway.pinata.cloud/ipfs/',
   BLOCK_EXPLORER: 'https://explorer.dimikog.org',
