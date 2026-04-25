@@ -924,14 +924,6 @@ AccessControlTab = function ({
           totalWorkYears,
           totalWorkMonths
         });
-        setRepZkpStatus('idle');
-        setRepZkpMessage('');
-        setViewingToken({
-          ...item,
-          ipfsMetadata,
-          credentials,
-          reputation
-        });
         setShowViewModal(true);
       } catch (error) {
         showNotification('Failed to load token details', 'error');
