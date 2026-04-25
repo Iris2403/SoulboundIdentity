@@ -14,9 +14,6 @@ ReputationSection = function ({
 }) {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [checkingReviewed, setCheckingReviewed] = useState(false);
-  const [zkpThreshold, setZkpThreshold] = useState('50');
-  const [zkpStatus, setZkpStatus] = useState('idle');
-  const [zkpMessage, setZkpMessage] = useState('');
   const [reviewData, setReviewData] = useState({
     targetTokenId: '',
     reviewerTokenId: '',
@@ -118,59 +115,6 @@ ReputationSection = function ({
       }
     }
   };
-  const handleGenerateProof = async () => {
-    if (!reputation) {
-      showNotification('No reputation data found', 'error');
-      return;
-    }
-    if (!window.snarkjs) {
-      showNotification('snarkjs not loaded', 'error');
-      return;
-    }
-    const score = parseInt(reputation.averageScore.toString());
-    const threshold = parseInt(zkpThreshold);
-    if (isNaN(threshold) || threshold < 0) {
-      showNotification('Enter a valid threshold', 'error');
-      return;
-    }
-    if (score <= threshold) {
-      showNotification(`Your score (${score}) is not above the threshold (${threshold})`, 'error');
-      return;
-    }
-    setZkpStatus('generating');
-    setZkpMessage('Generating proof in browser...');
-    try {
-      const {
-        proof,
-        publicSignals
-      } = await window.snarkjs.groth16.fullProve({
-        score: score.toString(),
-        threshold: threshold.toString()
-      }, 'circuits/reputation_threshold.wasm', 'circuits/reputation_threshold_final.zkey');
-      setZkpStatus('verifying');
-      setZkpMessage('Verifying proof on-chain...');
-      const pA = [proof.pi_a[0], proof.pi_a[1]];
-      const pB = [[proof.pi_b[0][1], proof.pi_b[0][0]], [proof.pi_b[1][1], proof.pi_b[1][0]]];
-      const pC = [proof.pi_c[0], proof.pi_c[1]];
-      const provider = contracts.soulbound.provider;
-      const verifier = new ethers.Contract(CONFIG.CONTRACTS.REPUTATION_VERIFIER, GROTH16_VERIFIER_ABI, provider);
-      const isValid = await verifier.verifyProof(pA, pB, pC, publicSignals);
-      if (isValid) {
-        setZkpStatus('success');
-        setZkpMessage(`Proof verified on-chain. Score is above ${threshold} — actual value not revealed.`);
-        showNotification('ZK Proof verified on-chain!', 'success');
-      } else {
-        setZkpStatus('error');
-        setZkpMessage('On-chain verification returned false.');
-        showNotification('Proof verification failed', 'error');
-      }
-    } catch (error) {
-      console.error('ZKP error:', error);
-      setZkpStatus('error');
-      setZkpMessage(error.message || 'Proof generation failed');
-      showNotification('Failed to generate proof', 'error');
-    }
-  };
   const cacheKey = `${reviewData.reviewerTokenId}-${reviewData.targetTokenId}`;
   const alreadyReviewed = hasReviewedCache[cacheKey];
   const commentLength = reviewData.comment.length;
@@ -204,56 +148,6 @@ ReputationSection = function ({
   }, reputation.verifiedReviews), /*#__PURE__*/React.createElement("div", {
     className: "rep-label"
   }, "Verified Reviews")))), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
-    className: "section-header"
-  }, /*#__PURE__*/React.createElement("h3", null, "ZK Reputation Proof")), /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: 'var(--text-secondary)',
-      marginBottom: '20px',
-      fontSize: '0.95rem'
-    }
-  }, "Prove your score is above a threshold without revealing the actual value."), reputation && /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: '20px',
-      padding: '12px',
-      background: 'rgba(6, 182, 212, 0.05)',
-      borderRadius: '8px',
-      borderLeft: '3px solid var(--teal)'
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: 'var(--text-muted)',
-      fontSize: '0.85rem'
-    }
-  }, "Your current score: "), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: 'var(--teal-light)',
-      fontWeight: '700',
-      fontSize: '1.1rem'
-    }
-  }, reputation.averageScore.toString())), /*#__PURE__*/React.createElement(Input, {
-    label: "Prove score is above",
-    value: zkpThreshold,
-    onChange: setZkpThreshold,
-    type: "number",
-    placeholder: "e.g. 50"
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: '16px'
-    }
-  }, /*#__PURE__*/React.createElement(Button, {
-    onClick: handleGenerateProof,
-    disabled: zkpStatus === 'generating' || zkpStatus === 'verifying' || !reputation
-  }, zkpStatus === 'generating' ? 'Generating Proof...' : zkpStatus === 'verifying' ? 'Verifying On-Chain...' : 'Generate ZK Proof')), zkpMessage && /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: '16px',
-      padding: '12px',
-      borderRadius: '8px',
-      background: zkpStatus === 'success' ? 'rgba(16, 185, 129, 0.1)' : zkpStatus === 'error' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(6, 182, 212, 0.05)',
-      border: `1px solid ${zkpStatus === 'success' ? 'rgba(16, 185, 129, 0.3)' : zkpStatus === 'error' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(6, 182, 212, 0.2)'}`,
-      color: zkpStatus === 'success' ? 'var(--success)' : zkpStatus === 'error' ? 'var(--error)' : 'var(--text-secondary)',
-      fontSize: '0.9rem'
-    }
-  }, zkpStatus === 'generating' || zkpStatus === 'verifying' ? '⏳ ' : zkpStatus === 'success' ? '✓ ' : '✗ ', zkpMessage)), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
     className: "section-header"
   }, /*#__PURE__*/React.createElement("h3", null, "Reviews Received"), /*#__PURE__*/React.createElement(Button, {
     onClick: () => setShowReviewModal(true)
