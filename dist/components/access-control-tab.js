@@ -38,6 +38,9 @@ AccessControlTab = function ({
   const [degreeCatThreshold, setDegreeCatThreshold] = useState('5');
   const [degreeCatZkpStatus, setDegreeCatZkpStatus] = useState('idle');
   const [degreeCatZkpMessage, setDegreeCatZkpMessage] = useState('');
+  const [certDomainThreshold, setCertDomainThreshold] = useState('0');
+  const [certDomainZkpStatus, setCertDomainZkpStatus] = useState('idle');
+  const [certDomainZkpMessage, setCertDomainZkpMessage] = useState('');
   const handleVerifyReputation = async (tokenId, score) => {
     if (!window.snarkjs) {
       showNotification('snarkjs not loaded', 'error');
@@ -185,6 +188,50 @@ AccessControlTab = function ({
       console.error('Degree category ZKP error:', err);
       setDegreeCatZkpStatus('error');
       setDegreeCatZkpMessage(err.message || 'Proof generation failed');
+    }
+  };
+  const CERT_DOMAIN_NAMES = ['IT & Software Development', 'Business Management', 'Health & Medicine', 'Data & AI Analytics', 'Communication & Marketing'];
+  const handleVerifyCertDomain = async () => {
+    if (!window.snarkjs) {
+      showNotification('snarkjs not loaded', 'error');
+      return;
+    }
+    const claimed = parseInt(certDomainThreshold);
+    const matchingCred = (viewingToken.credentials[1] || []).find(c => c.status === 0 && c.category === claimed);
+    if (!matchingCred) {
+      setCertDomainZkpStatus('error');
+      setCertDomainZkpMessage(`No active certification in ${CERT_DOMAIN_NAMES[claimed]}.`);
+      return;
+    }
+    setCertDomainZkpStatus('generating');
+    setCertDomainZkpMessage('Generating proof...');
+    try {
+      const {
+        proof,
+        publicSignals
+      } = await window.snarkjs.groth16.fullProve({
+        domain: matchingCred.category.toString(),
+        claimedDomain: claimed.toString()
+      }, 'circuits/cert_domain.wasm', 'circuits/cert_domain_final.zkey');
+      setCertDomainZkpStatus('verifying');
+      setCertDomainZkpMessage('Verifying on-chain...');
+      const pA = [proof.pi_a[0], proof.pi_a[1]];
+      const pB = [[proof.pi_b[0][1], proof.pi_b[0][0]], [proof.pi_b[1][1], proof.pi_b[1][0]]];
+      const pC = [proof.pi_c[0], proof.pi_c[1]];
+      const provider = new ethers.providers.JsonRpcProvider(CONFIG.RPC_URL);
+      const verifier = new ethers.Contract(CONFIG.CONTRACTS.CERT_DOMAIN_VERIFIER, CERT_DOMAIN_VERIFIER_ABI, provider);
+      const isValid = await verifier.verifyProof(pA, pB, pC, publicSignals);
+      if (isValid) {
+        setCertDomainZkpStatus('success');
+        setCertDomainZkpMessage(`Certification in ${CERT_DOMAIN_NAMES[claimed]} — verified on-chain.`);
+      } else {
+        setCertDomainZkpStatus('error');
+        setCertDomainZkpMessage('On-chain verification failed.');
+      }
+    } catch (err) {
+      console.error('Cert domain ZKP error:', err);
+      setCertDomainZkpStatus('error');
+      setCertDomainZkpMessage(err.message || 'Proof generation failed');
     }
   };
 
@@ -796,6 +843,8 @@ AccessControlTab = function ({
         setGpaZkpMessage('');
         setDegreeCatZkpStatus('idle');
         setDegreeCatZkpMessage('');
+        setCertDomainZkpStatus('idle');
+        setCertDomainZkpMessage('');
         setViewingToken({
           ...item,
           ipfsMetadata,
@@ -1383,7 +1432,80 @@ AccessControlTab = function ({
         border: `1px solid ${gpaZkpStatus === 'success' ? 'rgba(16,185,129,0.3)' : gpaZkpStatus === 'error' ? 'rgba(239,68,68,0.3)' : 'rgba(6,182,212,0.2)'}`,
         color: gpaZkpStatus === 'success' ? 'var(--success)' : gpaZkpStatus === 'error' ? 'var(--error)' : 'var(--text-secondary)'
       }
-    }, gpaZkpStatus === 'generating' || gpaZkpStatus === 'verifying' ? '⏳ ' : gpaZkpStatus === 'success' ? '✓ ' : '✗ ', gpaZkpMessage))), type === 0 && (viewingToken.credentials[0] || []).some(c => c.status === 0) && /*#__PURE__*/React.createElement("div", {
+    }, gpaZkpStatus === 'generating' || gpaZkpStatus === 'verifying' ? '⏳ ' : gpaZkpStatus === 'success' ? '✓ ' : '✗ ', gpaZkpMessage))), type === 1 && (viewingToken.credentials[1] || []).some(c => c.status === 0) && /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: '12px',
+        background: 'rgba(26,35,50,0.6)',
+        borderRadius: '10px',
+        padding: '16px'
+      }
+    }, /*#__PURE__*/React.createElement("p", {
+      style: {
+        color: 'var(--text-secondary)',
+        fontSize: '0.85rem',
+        marginBottom: '14px'
+      }
+    }, "Verify this token has an active certification in a specific domain. The actual credential is not revealed."), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: '10px',
+        alignItems: 'flex-end',
+        marginBottom: '12px'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("label", {
+      style: {
+        fontSize: '0.78rem',
+        color: 'var(--text-muted)',
+        display: 'block',
+        marginBottom: '6px'
+      }
+    }, "Prove certification in domain"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '6px'
+      }
+    }, ['IT & Software Dev', 'Business Management', 'Health & Medicine', 'Data & AI Analytics', 'Communication & Marketing'].map((name, val) => /*#__PURE__*/React.createElement("button", {
+      key: val,
+      onClick: () => {
+        setCertDomainThreshold(val.toString());
+        setCertDomainZkpStatus('idle');
+        setCertDomainZkpMessage('');
+      },
+      style: {
+        padding: '6px 14px',
+        borderRadius: '20px',
+        border: `1px solid ${certDomainThreshold === val.toString() ? 'var(--teal)' : 'rgba(14,116,144,0.3)'}`,
+        background: certDomainThreshold === val.toString() ? 'rgba(14,116,144,0.25)' : 'transparent',
+        color: certDomainThreshold === val.toString() ? 'var(--teal-light)' : 'var(--gray-light)',
+        fontSize: '0.82rem',
+        fontWeight: certDomainThreshold === val.toString() ? '700' : '400',
+        cursor: 'pointer',
+        transition: 'all 0.15s'
+      }
+    }, name)))), /*#__PURE__*/React.createElement(Button, {
+      onClick: handleVerifyCertDomain,
+      disabled: certDomainZkpStatus === 'generating' || certDomainZkpStatus === 'verifying',
+      style: {
+        minWidth: '110px',
+        height: '44px',
+        flexShrink: 0
+      }
+    }, certDomainZkpStatus === 'generating' ? 'Generating...' : certDomainZkpStatus === 'verifying' ? 'Verifying...' : 'Verify Domain')), certDomainZkpMessage && /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '10px 14px',
+        borderRadius: '8px',
+        fontSize: '0.9rem',
+        fontWeight: '600',
+        background: certDomainZkpStatus === 'success' ? 'rgba(16,185,129,0.1)' : certDomainZkpStatus === 'error' ? 'rgba(239,68,68,0.1)' : 'rgba(6,182,212,0.05)',
+        border: `1px solid ${certDomainZkpStatus === 'success' ? 'rgba(16,185,129,0.3)' : certDomainZkpStatus === 'error' ? 'rgba(239,68,68,0.3)' : 'rgba(6,182,212,0.2)'}`,
+        color: certDomainZkpStatus === 'success' ? 'var(--success)' : certDomainZkpStatus === 'error' ? 'var(--error)' : 'var(--text-secondary)'
+      }
+    }, certDomainZkpStatus === 'generating' || certDomainZkpStatus === 'verifying' ? '⏳ ' : certDomainZkpStatus === 'success' ? '✓ ' : '✗ ', certDomainZkpMessage)), type === 0 && (viewingToken.credentials[0] || []).some(c => c.status === 0) && /*#__PURE__*/React.createElement("div", {
       style: {
         marginTop: '12px',
         background: 'rgba(26,35,50,0.6)',
