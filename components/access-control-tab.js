@@ -1349,16 +1349,6 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
                                             )}
                                             {type === 2 && (viewingToken.credentials[2] || []).length > 0 && (
                                                 <div style={{ marginTop: '12px', background: 'rgba(26,35,50,0.6)', borderRadius: '10px', padding: '16px' }}>
-                                                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '14px' }}>
-                                                        Verify total work experience meets a minimum. The actual duration is not revealed.{' '}
-                                                        {(viewingToken.totalWorkYears > 0 || viewingToken.totalWorkMonths > 0)
-                                                            ? <span style={{ color: 'var(--teal-light)', fontWeight: '600' }}>
-                                                                ({viewingToken.totalWorkYears > 0 && `${viewingToken.totalWorkYears} yr${viewingToken.totalWorkYears !== 1 ? 's' : ''} `}
-                                                                {viewingToken.totalWorkMonths > 0 && `${viewingToken.totalWorkMonths} mo`} computed)
-                                                              </span>
-                                                            : <span style={{ color: 'var(--gray)' }}>(no work experience data found)</span>
-                                                        }
-                                                    </p>
                                                     <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', marginBottom: '12px' }}>
                                                         <div style={{ flex: 1 }}>
                                                             <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>

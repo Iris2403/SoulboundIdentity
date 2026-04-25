@@ -1583,22 +1583,7 @@ AccessControlTab = function ({
         borderRadius: '10px',
         padding: '16px'
       }
-    }, /*#__PURE__*/React.createElement("p", {
-      style: {
-        color: 'var(--text-secondary)',
-        fontSize: '0.85rem',
-        marginBottom: '14px'
-      }
-    }, "Verify total work experience meets a minimum. The actual duration is not revealed.", ' ', viewingToken.totalWorkYears > 0 || viewingToken.totalWorkMonths > 0 ? /*#__PURE__*/React.createElement("span", {
-      style: {
-        color: 'var(--teal-light)',
-        fontWeight: '600'
-      }
-    }, "(", viewingToken.totalWorkYears > 0 && `${viewingToken.totalWorkYears} yr${viewingToken.totalWorkYears !== 1 ? 's' : ''} `, viewingToken.totalWorkMonths > 0 && `${viewingToken.totalWorkMonths} mo`, " computed)") : /*#__PURE__*/React.createElement("span", {
-      style: {
-        color: 'var(--gray)'
-      }
-    }, "(no work experience data found)")), /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         gap: '10px',
