@@ -310,6 +310,7 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
         uint8 category
     ) external onlyAuthorizedIssuer(credType) nonReentrant returns (uint256) {
         if (metadataHash == bytes32(0)) revert InvalidParameter();
+        if (issueDate == 0) revert InvalidParameter();
         if (expiryDate != 0 && expiryDate <= issueDate) revert InvalidDates();
         if (credentialCount[tokenId][credType] >= MAX_CREDENTIALS_PER_TYPE) {
             revert TooManyCredentials();
@@ -351,6 +352,7 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
         uint8 category
     ) external onlyTokenOwner(tokenId) nonReentrant returns (uint256) {
         if (metadataHash == bytes32(0)) revert InvalidParameter();
+        if (issueDate == 0) revert InvalidParameter();
         if (expiryDate != 0 && expiryDate <= issueDate) revert InvalidDates();
         if (credentialCount[tokenId][credType] >= MAX_CREDENTIALS_PER_TYPE) {
             revert TooManyCredentials();
@@ -401,6 +403,7 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
         DegreeCategory degreeCategory
     ) external onlyTokenOwner(tokenId) nonReentrant returns (uint256) {
         if (metadataHash == bytes32(0)) revert InvalidParameter();
+        if (issueDate == 0) revert InvalidParameter();
         if (expiryDate != 0 && expiryDate <= issueDate) revert InvalidDates();
         if (credentialCount[tokenId][CredentialType.Degree] >= MAX_CREDENTIALS_PER_TYPE)
             revert TooManyCredentials();
@@ -448,6 +451,7 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
         DegreeCategory degreeCategory
     ) external onlyAuthorizedIssuer(CredentialType.Degree) nonReentrant returns (uint256) {
         if (metadataHash == bytes32(0)) revert InvalidParameter();
+        if (issueDate == 0) revert InvalidParameter();
         if (expiryDate != 0 && expiryDate <= issueDate) revert InvalidDates();
         if (credentialCount[tokenId][CredentialType.Degree] >= MAX_CREDENTIALS_PER_TYPE)
             revert TooManyCredentials();
@@ -497,6 +501,7 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
         CertificationDomain domain
     ) external onlyTokenOwner(tokenId) nonReentrant returns (uint256) {
         if (metadataHash == bytes32(0)) revert InvalidParameter();
+        if (issueDate == 0) revert InvalidParameter();
         if (expiryDate != 0 && expiryDate <= issueDate) revert InvalidDates();
         if (credentialCount[tokenId][CredentialType.Certification] >= MAX_CREDENTIALS_PER_TYPE)
             revert TooManyCredentials();
@@ -541,6 +546,7 @@ contract CredentialsHub is Ownable, ReentrancyGuard {
         CertificationDomain domain
     ) external onlyAuthorizedIssuer(CredentialType.Certification) nonReentrant returns (uint256) {
         if (metadataHash == bytes32(0)) revert InvalidParameter();
+        if (issueDate == 0) revert InvalidParameter();
         if (expiryDate != 0 && expiryDate <= issueDate) revert InvalidDates();
         if (credentialCount[tokenId][CredentialType.Certification] >= MAX_CREDENTIALS_PER_TYPE)
             revert TooManyCredentials();
