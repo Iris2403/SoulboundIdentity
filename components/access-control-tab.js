@@ -895,9 +895,6 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
                                                     setCertDomainZkpStatus('idle'); setCertDomainZkpMessage('');
                                                     setWorkExpZkpStatus('idle'); setWorkExpZkpMessage('');
                                                     setViewingToken({ ...item, ipfsMetadata, credentials, reputation, maxGpa, totalWorkYears, totalWorkMonths });
-                                                    setRepZkpStatus('idle');
-                                                    setRepZkpMessage('');
-                                                    setViewingToken({ ...item, ipfsMetadata, credentials, reputation });
                                                     setShowViewModal(true);
                                                 } catch (error) {
                                                     showNotification('Failed to load token details', 'error');
