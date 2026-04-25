@@ -860,12 +860,15 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
 
                                                     // Fetch total work experience years
                                                     let totalWorkYears = 0;
+                                                    let totalWorkMonths = 0;
                                                     try {
                                                         const provider = new ethers.providers.JsonRpcProvider(CONFIG.RPC_URL);
                                                         const credContract = new ethers.Contract(CONFIG.CONTRACTS.CREDENTIALS_HUB, CREDENTIALS_HUB_ABI, provider);
                                                         const work = await credContract.getTotalWorkExperience(item.tokenId);
-                                                        const raw = work[0]; // positional access - more reliable with ethers v5 tuples
-                                                        totalWorkYears = raw && raw.toNumber ? raw.toNumber() : parseInt((raw || 0).toString());
+                                                        const rawYears = work[0];
+                                                        const rawMonths = work[1];
+                                                        totalWorkYears = rawYears && rawYears.toNumber ? rawYears.toNumber() : parseInt((rawYears || 0).toString());
+                                                        totalWorkMonths = rawMonths && rawMonths.toNumber ? rawMonths.toNumber() : parseInt((rawMonths || 0).toString());
                                                     } catch (e) {
                                                         console.log('Could not fetch work experience:', e);
                                                     }
@@ -888,7 +891,7 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
                                                     setDegreeCatZkpStatus('idle'); setDegreeCatZkpMessage('');
                                                     setCertDomainZkpStatus('idle'); setCertDomainZkpMessage('');
                                                     setWorkExpZkpStatus('idle'); setWorkExpZkpMessage('');
-                                                    setViewingToken({ ...item, ipfsMetadata, credentials, reputation, maxGpa, totalWorkYears });
+                                                    setViewingToken({ ...item, ipfsMetadata, credentials, reputation, maxGpa, totalWorkYears, totalWorkMonths });
                                                     setRepZkpStatus('idle');
                                                     setRepZkpMessage('');
                                                     setViewingToken({ ...item, ipfsMetadata, credentials, reputation });
@@ -1213,10 +1216,17 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
                                                             <div style={{ fontSize: '0.82rem', color: 'var(--gray-light)' }}>
                                                                 Issuer: <code style={{ color: 'var(--teal-light)', fontSize: '0.8rem' }}>{shortenAddress(cred.issuer)}</code>
                                                             </div>
+                                                            {type !== 2 && (
                                                             <div style={{ fontSize: '0.8rem', color: 'var(--gray)', marginTop: '4px', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
                                                                 <span>Issued: {cred.issueDate > 0 ? formatDate(cred.issueDate) : '—'}</span>
                                                                 <span>Expires: {cred.expiryDate > 0 ? formatDate(cred.expiryDate) : 'No expiry'}</span>
                                                             </div>
+                                                            )}
+                                                            {type === 2 && (
+                                                            <div style={{ fontSize: '0.78rem', color: 'var(--gray)', marginTop: '4px', fontStyle: 'italic' }}>
+                                                                Employment dates private — duration proven via ZKP below
+                                                            </div>
+                                                            )}
                                                         </div>
                                                     ))}
                                                 </div>
@@ -1341,9 +1351,12 @@ AccessControlTab = function ({ contracts, selectedToken, userTokens, showNotific
                                                 <div style={{ marginTop: '12px', background: 'rgba(26,35,50,0.6)', borderRadius: '10px', padding: '16px' }}>
                                                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '14px' }}>
                                                         Verify total work experience meets a minimum. The actual duration is not revealed.{' '}
-                                                        {viewingToken.totalWorkYears > 0
-                                                            ? <span style={{ color: 'var(--teal-light)', fontWeight: '600' }}>({viewingToken.totalWorkYears} yr{viewingToken.totalWorkYears !== 1 ? 's' : ''} computed)</span>
-                                                            : <span style={{ color: 'var(--gray)' }}>(less than 1 year or no data)</span>
+                                                        {(viewingToken.totalWorkYears > 0 || viewingToken.totalWorkMonths > 0)
+                                                            ? <span style={{ color: 'var(--teal-light)', fontWeight: '600' }}>
+                                                                ({viewingToken.totalWorkYears > 0 && `${viewingToken.totalWorkYears} yr${viewingToken.totalWorkYears !== 1 ? 's' : ''} `}
+                                                                {viewingToken.totalWorkMonths > 0 && `${viewingToken.totalWorkMonths} mo`} computed)
+                                                              </span>
+                                                            : <span style={{ color: 'var(--gray)' }}>(no work experience data found)</span>
                                                         }
                                                     </p>
                                                     <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', marginBottom: '12px' }}>
