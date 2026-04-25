@@ -41,6 +41,9 @@ AccessControlTab = function ({
   const [certDomainThreshold, setCertDomainThreshold] = useState('0');
   const [certDomainZkpStatus, setCertDomainZkpStatus] = useState('idle');
   const [certDomainZkpMessage, setCertDomainZkpMessage] = useState('');
+  const [workExpThreshold, setWorkExpThreshold] = useState('3');
+  const [workExpZkpStatus, setWorkExpZkpStatus] = useState('idle');
+  const [workExpZkpMessage, setWorkExpZkpMessage] = useState('');
   const handleVerifyReputation = async (tokenId, score) => {
     if (!window.snarkjs) {
       showNotification('snarkjs not loaded', 'error');
@@ -232,6 +235,53 @@ AccessControlTab = function ({
       console.error('Cert domain ZKP error:', err);
       setCertDomainZkpStatus('error');
       setCertDomainZkpMessage(err.message || 'Proof generation failed');
+    }
+  };
+  const handleVerifyWorkExperience = async () => {
+    if (!window.snarkjs) {
+      showNotification('snarkjs not loaded', 'error');
+      return;
+    }
+    const threshold = parseInt(workExpThreshold);
+    if (isNaN(threshold) || threshold < 1) {
+      showNotification('Select a valid threshold', 'error');
+      return;
+    }
+    const totalYears = viewingToken.totalWorkYears || 0;
+    if (totalYears < threshold) {
+      setWorkExpZkpStatus('error');
+      setWorkExpZkpMessage(`Work experience does NOT meet ${threshold} year${threshold !== 1 ? 's' : ''}.`);
+      return;
+    }
+    setWorkExpZkpStatus('generating');
+    setWorkExpZkpMessage('Generating proof...');
+    try {
+      const {
+        proof,
+        publicSignals
+      } = await window.snarkjs.groth16.fullProve({
+        totalYears: totalYears.toString(),
+        threshold: threshold.toString()
+      }, 'circuits/work_experience_threshold.wasm', 'circuits/work_experience_threshold_final.zkey');
+      setWorkExpZkpStatus('verifying');
+      setWorkExpZkpMessage('Verifying on-chain...');
+      const pA = [proof.pi_a[0], proof.pi_a[1]];
+      const pB = [[proof.pi_b[0][1], proof.pi_b[0][0]], [proof.pi_b[1][1], proof.pi_b[1][0]]];
+      const pC = [proof.pi_c[0], proof.pi_c[1]];
+      const provider = new ethers.providers.JsonRpcProvider(CONFIG.RPC_URL);
+      const verifier = new ethers.Contract(CONFIG.CONTRACTS.WORK_EXPERIENCE_VERIFIER, WORK_EXPERIENCE_VERIFIER_ABI, provider);
+      const isValid = await verifier.verifyProof(pA, pB, pC, publicSignals);
+      if (isValid) {
+        setWorkExpZkpStatus('success');
+        setWorkExpZkpMessage(`Work experience ≥ ${threshold} year${threshold !== 1 ? 's' : ''} — verified on-chain.`);
+      } else {
+        setWorkExpZkpStatus('error');
+        setWorkExpZkpMessage('On-chain verification failed.');
+      }
+    } catch (err) {
+      console.error('Work experience ZKP error:', err);
+      setWorkExpZkpStatus('error');
+      setWorkExpZkpMessage(err.message || 'Proof generation failed');
     }
   };
 
@@ -825,6 +875,15 @@ AccessControlTab = function ({
           }
         }
 
+        // Fetch total work experience years
+        let totalWorkYears = 0;
+        try {
+          const work = await contracts.credentials.getTotalWorkExperience(item.tokenId);
+          totalWorkYears = work.totalYears.toNumber ? work.totalYears.toNumber() : parseInt(work.totalYears.toString());
+        } catch (e) {
+          console.log('Could not fetch work experience:', e);
+        }
+
         // Fetch reputation summary
         let reputation = null;
         try {
@@ -845,12 +904,15 @@ AccessControlTab = function ({
         setDegreeCatZkpMessage('');
         setCertDomainZkpStatus('idle');
         setCertDomainZkpMessage('');
+        setWorkExpZkpStatus('idle');
+        setWorkExpZkpMessage('');
         setViewingToken({
           ...item,
           ipfsMetadata,
           credentials,
           reputation,
-          maxGpa
+          maxGpa,
+          totalWorkYears
         });
         setRepZkpStatus('idle');
         setRepZkpMessage('');
@@ -1505,7 +1567,80 @@ AccessControlTab = function ({
         border: `1px solid ${certDomainZkpStatus === 'success' ? 'rgba(16,185,129,0.3)' : certDomainZkpStatus === 'error' ? 'rgba(239,68,68,0.3)' : 'rgba(6,182,212,0.2)'}`,
         color: certDomainZkpStatus === 'success' ? 'var(--success)' : certDomainZkpStatus === 'error' ? 'var(--error)' : 'var(--text-secondary)'
       }
-    }, certDomainZkpStatus === 'generating' || certDomainZkpStatus === 'verifying' ? '⏳ ' : certDomainZkpStatus === 'success' ? '✓ ' : '✗ ', certDomainZkpMessage)), type === 0 && (viewingToken.credentials[0] || []).some(c => c.status === 0) && /*#__PURE__*/React.createElement("div", {
+    }, certDomainZkpStatus === 'generating' || certDomainZkpStatus === 'verifying' ? '⏳ ' : certDomainZkpStatus === 'success' ? '✓ ' : '✗ ', certDomainZkpMessage)), type === 2 && (viewingToken.credentials[2] || []).length > 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: '12px',
+        background: 'rgba(26,35,50,0.6)',
+        borderRadius: '10px',
+        padding: '16px'
+      }
+    }, /*#__PURE__*/React.createElement("p", {
+      style: {
+        color: 'var(--text-secondary)',
+        fontSize: '0.85rem',
+        marginBottom: '14px'
+      }
+    }, "Verify total work experience meets a minimum. The actual duration is not revealed."), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: '10px',
+        alignItems: 'flex-end',
+        marginBottom: '12px'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("label", {
+      style: {
+        fontSize: '0.78rem',
+        color: 'var(--text-muted)',
+        display: 'block',
+        marginBottom: '6px'
+      }
+    }, "Prove experience of at least"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '6px'
+      }
+    }, [1, 2, 3, 4, 5, 7, 10].map(val => /*#__PURE__*/React.createElement("button", {
+      key: val,
+      onClick: () => {
+        setWorkExpThreshold(val.toString());
+        setWorkExpZkpStatus('idle');
+        setWorkExpZkpMessage('');
+      },
+      style: {
+        padding: '6px 14px',
+        borderRadius: '20px',
+        border: `1px solid ${workExpThreshold === val.toString() ? 'var(--teal)' : 'rgba(14,116,144,0.3)'}`,
+        background: workExpThreshold === val.toString() ? 'rgba(14,116,144,0.25)' : 'transparent',
+        color: workExpThreshold === val.toString() ? 'var(--teal-light)' : 'var(--gray-light)',
+        fontSize: '0.85rem',
+        fontWeight: workExpThreshold === val.toString() ? '700' : '400',
+        cursor: 'pointer',
+        transition: 'all 0.15s'
+      }
+    }, val, " yr", val !== 1 ? 's' : '')))), /*#__PURE__*/React.createElement(Button, {
+      onClick: handleVerifyWorkExperience,
+      disabled: workExpZkpStatus === 'generating' || workExpZkpStatus === 'verifying',
+      style: {
+        minWidth: '110px',
+        height: '44px',
+        flexShrink: 0
+      }
+    }, workExpZkpStatus === 'generating' ? 'Generating...' : workExpZkpStatus === 'verifying' ? 'Verifying...' : 'Verify Years')), workExpZkpMessage && /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '10px 14px',
+        borderRadius: '8px',
+        fontSize: '0.9rem',
+        fontWeight: '600',
+        background: workExpZkpStatus === 'success' ? 'rgba(16,185,129,0.1)' : workExpZkpStatus === 'error' ? 'rgba(239,68,68,0.1)' : 'rgba(6,182,212,0.05)',
+        border: `1px solid ${workExpZkpStatus === 'success' ? 'rgba(16,185,129,0.3)' : workExpZkpStatus === 'error' ? 'rgba(239,68,68,0.3)' : 'rgba(6,182,212,0.2)'}`,
+        color: workExpZkpStatus === 'success' ? 'var(--success)' : workExpZkpStatus === 'error' ? 'var(--error)' : 'var(--text-secondary)'
+      }
+    }, workExpZkpStatus === 'generating' || workExpZkpStatus === 'verifying' ? '⏳ ' : workExpZkpStatus === 'success' ? '✓ ' : '✗ ', workExpZkpMessage)), type === 0 && (viewingToken.credentials[0] || []).some(c => c.status === 0) && /*#__PURE__*/React.createElement("div", {
       style: {
         marginTop: '12px',
         background: 'rgba(26,35,50,0.6)',

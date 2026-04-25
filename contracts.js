@@ -135,6 +135,10 @@ CERT_DOMAIN_VERIFIER_ABI = [
     "function verifyProof(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[1] calldata _pubSignals) public view returns (bool)"
 ];
 
+WORK_EXPERIENCE_VERIFIER_ABI = [
+    "function verifyProof(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[1] calldata _pubSignals) public view returns (bool)"
+];
+
 // Configuration
 CONFIG = {
     RPC_URL: 'https://rpc.dimikog.org/rpc/',
@@ -157,7 +161,8 @@ CONFIG = {
         REPUTATION_VERIFIER: '0x178119699589a924020F174ABa06015Ec0889b7a',
         GPA_VERIFIER: '0xD9c29f5D5D0f01a23ce5E9209CADc2FDe6F09A51',
         DEGREE_CATEGORY_VERIFIER: '0x37F292953C08392A3765eb6a4920df93aD722BBf',
-        CERT_DOMAIN_VERIFIER: '0x4aDb9FC4bEC496C315bad86fE859944bAa88FAFa'
+        CERT_DOMAIN_VERIFIER: '0x4aDb9FC4bEC496C315bad86fE859944bAa88FAFa',
+        WORK_EXPERIENCE_VERIFIER: '0x83E24A25a48E09d2c4c2e5085D4aEde611AFC280'
     },
     IPFS_GATEWAY: 'https://gateway.pinata.cloud/ipfs/',
     BLOCK_EXPLORER: 'https://explorer.dimikog.org',
